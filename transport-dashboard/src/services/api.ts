@@ -1,0 +1,41 @@
+import axios, { AxiosHeaders } from 'axios'
+
+const baseURL = import.meta.env.VITE_API_BASE_URL ?? '/api'
+
+export const AUTH_UNAUTHORIZED_EVENT = 'auth:unauthorized'
+
+export const api = axios.create({
+  baseURL,
+  headers: {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  },
+})
+
+api.interceptors.request.use((config) => {
+  const headers = AxiosHeaders.from(config.headers)
+  const token = localStorage.getItem('auth_token')
+
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`)
+  }
+
+  if (config.data instanceof FormData) {
+    headers.delete('Content-Type')
+  }
+
+  config.headers = headers
+  return config
+})
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('auth_token')
+      localStorage.removeItem('auth_role')
+      window.dispatchEvent(new CustomEvent(AUTH_UNAUTHORIZED_EVENT))
+    }
+    return Promise.reject(error)
+  },
+)
