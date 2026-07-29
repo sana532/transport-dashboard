@@ -42,8 +42,12 @@ export function useDriversManagement() {
   )
 
   const updateDriver = useCallback(
-    async (id: number, input: DriverUpdateInput): Promise<Driver> => {
-      const updated = await driversService.updateDriver(id, input)
+    async (
+      id: number,
+      input: DriverUpdateInput,
+      options?: { profileId?: number },
+    ): Promise<Driver> => {
+      const updated = await driversService.updateDriver(id, input, options)
       await load()
       return mapCompanyDriverToDriver(updated)
     },
@@ -58,5 +62,32 @@ export function useDriversManagement() {
     [load],
   )
 
-  return { data, isLoading, error, reload: load, createDriver, updateDriver, deleteDriver }
+  const resolveDriver = useCallback(async (driver: Driver): Promise<Driver> => {
+    const id = Number(driver.id)
+    const profileId = driver.profileId ? Number(driver.profileId) : undefined
+
+    for (const fetchId of [id, profileId].filter(
+      (value): value is number => value != null && Number.isFinite(value) && value > 0,
+    )) {
+      try {
+        const row = await driversService.getDriver(fetchId)
+        if (row) return mapCompanyDriverToDriver(row)
+      } catch {
+        // try next id
+      }
+    }
+
+    return driver
+  }, [])
+
+  return {
+    data,
+    isLoading,
+    error,
+    reload: load,
+    resolveDriver,
+    createDriver,
+    updateDriver,
+    deleteDriver,
+  }
 }

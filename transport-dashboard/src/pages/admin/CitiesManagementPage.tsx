@@ -3,6 +3,7 @@ import { Landmark, Pencil, Plus, Trash2 } from 'lucide-react'
 import type { City, CityFormInput } from '@/modules/geography/types'
 import { usePlatformCities } from '@/modules/geography/hooks/usePlatformCities'
 import { formatCityCoords } from '@/modules/geography/utils/cityApi'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/Card'
 import { Input } from '@/shared/ui/Input'
@@ -34,6 +35,7 @@ function cityToForm(city: City): CityFormInput {
 }
 
 export function CitiesManagementPage() {
+  const { t } = useTranslation()
   const { cities, isLoading, error, reload, createCity, updateCity, deleteCity } =
     usePlatformCities()
 
@@ -105,11 +107,13 @@ export function CitiesManagementPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-text-primary">Cities</h1>
-          <p className="mt-1 max-w-2xl text-sm text-text-muted">
-            Platform cities for stations and rest areas. API: /api/platform/cities (Admin-Platform
-            Postman).
+          <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+            {t('admin.nav.catalog')}
           </p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-text-primary">
+            {t('admin.sidebar.cities')}
+          </h1>
+          <p className="mt-1 max-w-2xl text-sm text-text-muted">{t('admin.cities.subtitle')}</p>
         </div>
         <button type="button" className={createBtnClass} onClick={openCreate}>
           <Plus className="h-4 w-4" aria-hidden />
@@ -130,7 +134,7 @@ export function CitiesManagementPage() {
               {isEditing ? 'Edit city' : 'Add city'}
             </h2>
             <p className="mt-1 text-sm text-text-muted">
-              POST/PATCH body: name, governorate_name, latitude, longitude.
+              Enter the city name, governorate, and map coordinates.
             </p>
           </div>
           <div className="grid gap-4 p-6">

@@ -5,6 +5,7 @@ import { Button } from '@/shared/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/Card'
 import { Input } from '@/shared/ui/Input'
 import { DriverFormDialog } from '@/modules/drivers/components/DriverFormDialog'
+import { DriverProfileDialog } from '@/modules/drivers/components/DriverProfileDialog'
 import { DriverCard } from '@/modules/drivers/components/DriverCard'
 import type { Driver } from '@/modules/drivers/types'
 import { useDriversManagement } from '@/modules/drivers/hooks/useDriversManagement'
@@ -72,6 +73,7 @@ export function DriversManagementPage() {
     isLoading,
     error,
     reload,
+    resolveDriver,
     createDriver,
     updateDriver,
     deleteDriver,
@@ -79,6 +81,8 @@ export function DriversManagementPage() {
   const [driverFormOpen, setDriverFormOpen] = useState(false)
   const [driverFormMode, setDriverFormMode] = useState<'add' | 'edit'>('add')
   const [editingDriver, setEditingDriver] = useState<Driver | null>(null)
+  const [profileDriver, setProfileDriver] = useState<Driver | null>(null)
+  const [profileOpen, setProfileOpen] = useState(false)
   const [formPending, setFormPending] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
 
@@ -144,6 +148,24 @@ export function DriversManagementPage() {
 
   return (
     <div className="space-y-5">
+      <DriverProfileDialog
+        open={profileOpen}
+        onClose={() => {
+          setProfileOpen(false)
+          setProfileDriver(null)
+        }}
+        driver={profileDriver}
+        onEdit={(d) => {
+          void (async () => {
+            const fresh = await resolveDriver(d)
+            setDriverFormMode('edit')
+            setEditingDriver(fresh)
+            setFormError(null)
+            setDriverFormOpen(true)
+          })()
+        }}
+      />
+
       <DriverFormDialog
         open={driverFormOpen}
         onClose={() => {
@@ -167,11 +189,13 @@ export function DriversManagementPage() {
             setFormPending(false)
           }
         }}
-        onUpdate={async (id, input) => {
+        onUpdate={async (id, input, profileId) => {
           setFormPending(true)
           setFormError(null)
           try {
-            await updateDriver(id, input)
+            await updateDriver(id, input, {
+              profileId: Number.isFinite(profileId) ? profileId : undefined,
+            })
           } catch (err) {
             setFormError(err instanceof Error ? err.message : t('drivers.form.saveFailed'))
             throw err
@@ -408,11 +432,21 @@ export function DriversManagementPage() {
                 <DriverCard
                   key={driver.id}
                   driver={driver}
+                  onView={(d) => {
+                    void (async () => {
+                      const fresh = await resolveDriver(d)
+                      setProfileDriver(fresh)
+                      setProfileOpen(true)
+                    })()
+                  }}
                   onEdit={(d) => {
-                    setDriverFormMode('edit')
-                    setEditingDriver(d)
-                    setFormError(null)
-                    setDriverFormOpen(true)
+                    void (async () => {
+                      const fresh = await resolveDriver(d)
+                      setDriverFormMode('edit')
+                      setEditingDriver(fresh)
+                      setFormError(null)
+                      setDriverFormOpen(true)
+                    })()
                   }}
                   onDelete={handleDeleteDriver}
                 />

@@ -1,5 +1,7 @@
 import {
+  Archive,
   CheckCircle2,
+  PlayCircle,
   Truck,
   Users,
   XCircle,
@@ -64,6 +66,8 @@ export type TripsManagementData = {
 export const TripsIcons = {
   Total: Users,
   Active: Truck,
+  Running: PlayCircle,
   Completed: CheckCircle2,
   Cancelled: XCircle,
+  Archive,
 } as const

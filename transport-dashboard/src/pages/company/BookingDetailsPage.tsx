@@ -5,6 +5,8 @@ import { useBookingDetail } from '@/modules/bookings/hooks/useBookingDetail'
 import {
   formatBookingAmount,
   formatBookingDate,
+  formatBookingDepartureTime,
+  formatBookingTripId,
   formatPaymentMethodLabel,
 } from '@/modules/bookings/utils/mapCompanyBooking'
 import { paths } from '@/routes/paths'
@@ -108,15 +110,24 @@ export function BookingDetailsPage() {
           </CardHeader>
           <CardContent className="grid gap-4 p-5">
             <Field label={t('bookings.col.route')} value={booking.routeLabel} />
-            <Field
-              label={t('bookings.field.tripId')}
-              value={booking.tripId != null ? String(booking.tripId) : '—'}
-            />
+            <div>
+              <p className="text-sm font-semibold text-text-secondary">{t('bookings.field.tripId')}</p>
+              {booking.tripId != null ? (
+                <Link
+                  to={paths.company.tripDetails(String(booking.tripId))}
+                  className="mt-1 inline-block font-mono text-sm font-semibold text-brand-primary hover:underline"
+                >
+                  {formatBookingTripId(booking.tripId)}
+                </Link>
+              ) : (
+                <p className="mt-1 text-sm text-text-primary">—</p>
+              )}
+            </div>
             <Field
               label={t('bookings.field.departure')}
               value={
                 booking.departureTime
-                  ? formatBookingDate(booking.departureTime, dateLocale)
+                  ? formatBookingDepartureTime(booking.departureTime, dateLocale)
                   : '—'
               }
             />

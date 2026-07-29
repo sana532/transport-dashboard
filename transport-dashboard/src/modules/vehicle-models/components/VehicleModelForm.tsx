@@ -3,6 +3,7 @@ import { Bus, LayoutGrid } from 'lucide-react'
 import { SeatLayoutPreview } from '@/modules/vehicle-models/components/SeatLayoutPreview'
 import { DEFAULT_LAYOUT_CONFIG_JSON } from '@/modules/vehicle-models/types'
 import type { VehicleModelFormInput } from '@/modules/vehicle-models/types'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/Card'
 import { Input } from '@/shared/ui/Input'
@@ -51,6 +52,7 @@ export function VehicleModelForm({
   onSubmit,
   onCancel,
 }: VehicleModelFormProps) {
+  const { t } = useTranslation()
   const [nameEn, setNameEn] = useState('')
   const [nameAr, setNameAr] = useState('')
   const [descriptionEn, setDescriptionEn] = useState('')
@@ -91,11 +93,6 @@ export function VehicleModelForm({
     })
   }
 
-  const imagesHint =
-    mode === 'edit'
-      ? 'Upload new images only to replace or add; leave empty to keep current images.'
-      : undefined
-
   return (
     <form className="space-y-5" onSubmit={handleSubmit} noValidate>
       {error ? (
@@ -117,30 +114,32 @@ export function VehicleModelForm({
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
             <Bus className="h-5 w-5" aria-hidden />
           </span>
-          <CardTitle className="text-base font-semibold text-text-primary">Model details</CardTitle>
+          <CardTitle className="text-base font-semibold text-text-primary">
+            {t('admin.vehicleModels.form.details')}
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 p-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <Input
-              label="Model name (English)"
+              label={t('admin.vehicleModels.form.nameEn')}
               name="name_en"
               value={nameEn}
               onChange={(e) => setNameEn(e.target.value)}
-              placeholder="e.g. Sham Express"
+              placeholder={t('admin.vehicleModels.form.nameEnPlaceholder')}
               required
             />
             <Input
-              label="Model name (Arabic)"
+              label={t('admin.vehicleModels.form.nameAr')}
               name="name_ar"
               value={nameAr}
               onChange={(e) => setNameAr(e.target.value)}
-              placeholder="مثال: شام إكسبريس"
+              placeholder={t('admin.vehicleModels.form.nameArPlaceholder')}
               required
               dir="rtl"
             />
             <div className="flex w-full flex-col gap-1.5">
               <label htmlFor="is_active" className="text-sm font-medium text-text-secondary">
-                Status
+                {t('admin.vehicleModels.form.status')}
               </label>
               <select
                 id="is_active"
@@ -149,28 +148,28 @@ export function VehicleModelForm({
                 value={isActive ? 'true' : 'false'}
                 onChange={(e) => setIsActive(e.target.value === 'true')}
               >
-                <option value="true">Active</option>
-                <option value="false">Inactive</option>
+                <option value="true">{t('common.active')}</option>
+                <option value="false">{t('common.inactive')}</option>
               </select>
             </div>
             <Input
-              label="Description (English)"
+              label={t('admin.vehicleModels.form.descriptionEn')}
               name="description_en"
               value={descriptionEn}
               onChange={(e) => setDescriptionEn(e.target.value)}
-              placeholder="Short description for company admins"
+              placeholder={t('admin.vehicleModels.form.descriptionEnPlaceholder')}
             />
             <Input
-              label="Description (Arabic)"
+              label={t('admin.vehicleModels.form.descriptionAr')}
               name="description_ar"
               value={descriptionAr}
               onChange={(e) => setDescriptionAr(e.target.value)}
-              placeholder="وصف قصير لمديري الشركات"
+              placeholder={t('admin.vehicleModels.form.descriptionArPlaceholder')}
               dir="rtl"
             />
             <div className="flex w-full flex-col gap-1.5 sm:col-span-2">
               <label htmlFor="images" className="text-sm font-medium text-text-secondary">
-                Images
+                {t('admin.vehicleModels.form.images')}
               </label>
               <input
                 id="images"
@@ -181,9 +180,15 @@ export function VehicleModelForm({
                 className={selectClass}
                 onChange={onImagesChange}
               />
-              {imagesHint ? <p className="text-xs text-text-muted">{imagesHint}</p> : null}
+              {mode === 'edit' ? (
+                <p className="text-xs text-text-muted">
+                  {t('admin.vehicleModels.form.imagesEditHint')}
+                </p>
+              ) : null}
               {images.length > 0 ? (
-                <p className="text-xs text-text-muted">{images.length} new file(s) selected</p>
+                <p className="text-xs text-text-muted">
+                  {t('admin.vehicleModels.form.imagesSelected', { count: images.length })}
+                </p>
               ) : null}
               {existingImageUrls.length > 0 ? (
                 <div className="mt-2 flex flex-wrap gap-2">
@@ -211,17 +216,16 @@ export function VehicleModelForm({
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
             <LayoutGrid className="h-5 w-5" aria-hidden />
           </span>
-          <CardTitle className="text-base font-semibold text-text-primary">Seat layout</CardTitle>
+          <CardTitle className="text-base font-semibold text-text-primary">
+            {t('admin.vehicleModels.form.seatLayout')}
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 p-4">
-          <p className="text-xs text-text-muted">
-            Visual map of seats for this model. Companies inherit this layout when they pick the
-            model.
-          </p>
+          <p className="text-xs text-text-muted">{t('admin.vehicleModels.form.seatLayoutHint')}</p>
           <SeatLayoutPreview layoutConfigJson={layoutConfigJson} />
           <details className="rounded-lg border border-border bg-surface">
             <summary className="cursor-pointer px-4 py-2.5 text-sm font-medium text-text-secondary">
-              Advanced: edit layout JSON
+              {t('admin.vehicleModels.form.advancedJson')}
             </summary>
             <div className="border-t border-border p-4">
               <textarea
@@ -241,7 +245,7 @@ export function VehicleModelForm({
 
       <div className="flex flex-wrap justify-end gap-3">
         <Button type="button" variant="outline" onClick={onCancel}>
-          Cancel
+          {t('admin.vehicleModels.form.cancel')}
         </Button>
         <Button
           type="submit"

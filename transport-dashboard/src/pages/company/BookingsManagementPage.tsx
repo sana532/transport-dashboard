@@ -12,6 +12,7 @@ import {
 import {
   formatBookingAmount,
   formatBookingDate,
+  formatBookingTripId,
   formatPaymentMethodLabel,
 } from '@/modules/bookings/utils/mapCompanyBooking'
 import { exportRowsToCsv } from '@/modules/dashboard/utils/exportToCsv'
@@ -34,17 +35,16 @@ function statCardClass(variant: BookingsStatVariant): string {
   return 'border-l-4 border-l-blue-500'
 }
 
-function BookingsLoadingState() {
+function BookingsLoadingBody() {
   return (
-    <div className="space-y-5">
-      <div className="h-16 w-72 animate-pulse rounded-lg bg-surface-muted" />
+    <>
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, idx) => (
           <div key={idx} className="h-28 animate-pulse rounded-xl bg-surface-muted" />
         ))}
       </div>
       <div className="h-[420px] animate-pulse rounded-xl bg-surface-muted" />
-    </div>
+    </>
   )
 }
 
@@ -96,6 +96,7 @@ export function BookingsManagementPage() {
       t('bookings.col.passenger'),
       t('bookings.col.phone'),
       t('bookings.col.route'),
+      t('bookings.col.tripId'),
       t('bookings.col.seats'),
       t('bookings.col.amount'),
       t('bookings.col.payment'),
@@ -107,6 +108,7 @@ export function BookingsManagementPage() {
       row.passengerName,
       row.passengerPhone ?? '',
       row.routeLabel,
+      row.tripId != null ? String(row.tripId) : '',
       String(row.seatCount),
       formatBookingAmount(row.totalAmount, dateLocale, row.currency ?? 'SYP'),
       t(`bookings.payment.${row.paymentStatus}`),
@@ -116,11 +118,35 @@ export function BookingsManagementPage() {
     exportRowsToCsv('company-bookings.csv', headers, rows)
   }
 
-  if (isLoading) return <BookingsLoadingState />
-  if (error || !data) {
+  if (error && !data) {
     return (
       <BookingsErrorState
         message={error ?? t('bookings.errorUnavailable')}
+        onRetry={reload}
+      />
+    )
+  }
+
+  if (isLoading && !data) {
+    return (
+      <div className="space-y-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-[34px] font-semibold tracking-tight text-text-primary">
+              {t('bookings.title')}
+            </h1>
+            <p className="mt-1 text-sm text-text-muted">{t('bookings.subtitle')}</p>
+          </div>
+        </div>
+        <BookingsLoadingBody />
+      </div>
+    )
+  }
+
+  if (!data) {
+    return (
+      <BookingsErrorState
+        message={t('bookings.errorUnavailable')}
         onRetry={reload}
       />
     )
@@ -259,6 +285,7 @@ export function BookingsManagementPage() {
                         t('bookings.col.passenger'),
                         t('bookings.col.phone'),
                         t('bookings.col.route'),
+                        t('bookings.col.tripId'),
                         t('bookings.col.seats'),
                         t('bookings.col.amount'),
                         t('bookings.col.payment'),
@@ -288,6 +315,21 @@ export function BookingsManagementPage() {
                           {row.passengerPhone ?? '—'}
                         </td>
                         <td className="px-4 py-3">{row.routeLabel}</td>
+                        <td className="px-4 py-3">
+                          {row.tripId != null ? (
+                            <button
+                              type="button"
+                              className="font-mono text-xs font-semibold text-brand-primary hover:underline"
+                              onClick={() =>
+                                navigate(paths.company.tripDetails(String(row.tripId)))
+                              }
+                            >
+                              {formatBookingTripId(row.tripId)}
+                            </button>
+                          ) : (
+                            '—'
+                          )}
+                        </td>
                         <td className="px-4 py-3">{row.seatCount}</td>
                         <td className="px-4 py-3">
                           {formatBookingAmount(

@@ -2,7 +2,15 @@ import type { ID } from '@/shared/types'
 
 export type ComplaintId = ID
 
-export type ComplaintStatus = 'open' | 'in_progress' | 'resolved'
+export type ComplaintStatus = 'pending' | 'open' | 'in_progress' | 'resolved' | 'closed'
+
+export const COMPLAINT_STATUSES: ComplaintStatus[] = [
+  'pending',
+  'open',
+  'in_progress',
+  'resolved',
+  'closed',
+]
 
 export type ComplaintType =
   | 'service_quality'
@@ -22,9 +30,16 @@ export const complaintTypeLabels: Record<ComplaintType, string> = {
 }
 
 export const complaintStatusLabels: Record<ComplaintStatus, string> = {
+  pending: 'Pending',
   open: 'Open',
   in_progress: 'In Progress',
   resolved: 'Resolved',
+  closed: 'Closed',
+}
+
+export type ComplaintStatusUpdateInput = {
+  status: ComplaintStatus
+  admin_notes?: string
 }
 
 /** Table row + detail view fields */
@@ -49,6 +64,18 @@ export type ComplaintManagementRow = {
   assignedDriverName: string
   description: string
   adminNotes: string
+  attachments: ComplaintAttachment[]
+  /** Present on platform complaints (cross-company) */
+  companyId?: number
+  companyName?: string
+}
+
+export type ComplaintAttachment = {
+  id: number
+  url: string
+  fileName: string
+  mimeType: string
+  size?: number
 }
 
 export type ComplaintCategory = {
@@ -56,6 +83,9 @@ export type ComplaintCategory = {
   label: string
   nameEn: string
   nameAr: string
+  iconUrl?: string | null
+  visibilityScope?: string | null
+  isActive?: boolean
 }
 
 export type ComplaintsManagementData = {

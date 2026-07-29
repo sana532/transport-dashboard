@@ -106,3 +106,41 @@ export function parseTripLocationPayload(
 
   return { trip_id, lat, lng, timestamp }
 }
+
+export type PusherConnectionErrorInfo = {
+  code: number | null
+  message: string
+}
+
+/** Extract human-readable message from Pusher/Reverb WebSocket errors. */
+export function parsePusherConnectionError(raw: unknown): PusherConnectionErrorInfo {
+  if (!raw || typeof raw !== 'object') {
+    return { code: null, message: 'WebSocket connection failed' }
+  }
+
+  const root = raw as Record<string, unknown>
+  const inner = root.error
+  if (!inner || typeof inner !== 'object') {
+    return { code: null, message: 'WebSocket connection failed' }
+  }
+
+  const err = inner as Record<string, unknown>
+  const data = err.data
+  if (data && typeof data === 'object') {
+    const d = data as Record<string, unknown>
+    const code =
+      typeof d.code === 'number'
+        ? d.code
+        : typeof d.code === 'string'
+          ? Number(d.code)
+          : null
+    const message = typeof d.message === 'string' ? d.message : ''
+    if (message) return { code: Number.isFinite(code) ? code : null, message }
+  }
+
+  if (typeof err.message === 'string' && err.message.trim()) {
+    return { code: null, message: err.message }
+  }
+
+  return { code: null, message: 'WebSocket connection failed' }
+}

@@ -29,11 +29,23 @@ export const tripsManagementService = {
   async getTripsManagementData(
     locale: string,
   ): Promise<Omit<TripsManagementData, 'stats'> & { trips: CompanyTrip[] }> {
-    const [rows, drivers, vehicles] = await Promise.all([
-      companyTripsService.listTrips(),
-      driversService.listDrivers(),
-      vehiclesService.listVehicles(),
+    const rows = await companyTripsService.listTrips()
+
+    const needsDriverEnrichment = rows.some(
+      (trip) => trip.driver_id != null && !trip.driver?.name,
+    )
+    const needsVehicleEnrichment = rows.some(
+      (trip) =>
+        trip.vehicle_id != null &&
+        !trip.vehicle?.plate_number &&
+        !trip.vehicle?.name,
+    )
+
+    const [drivers, vehicles] = await Promise.all([
+      needsDriverEnrichment ? driversService.listDrivers() : Promise.resolve([]),
+      needsVehicleEnrichment ? vehiclesService.listVehicles() : Promise.resolve([]),
     ])
+
     const trips = enrichCompanyTrips(rows, drivers, vehicles)
     const recentTrips = trips
       .filter((trip) => !isArchivedTrip(trip.status))

@@ -70,9 +70,19 @@ export function SubscriptionPlanCard({
               <p className="text-lg font-semibold leading-tight">{plan.name}</p>
               <div className="mt-1 flex flex-wrap items-center gap-2">
                 <span className="rounded-md bg-white/70 px-2 py-0.5 text-xs font-medium text-text-secondary shadow-sm ring-1 ring-black/5">
-                  {plan.billing === 'monthly'
-                    ? t('addPackage.monthly')
-                    : t('addPackage.yearly')}
+                  {t('packages.validityBadge', { days: plan.validityDays })}
+                </span>
+                <span
+                  className={cn(
+                    'rounded-md px-2 py-0.5 text-xs font-medium',
+                    plan.planType === 'multi_trip'
+                      ? 'bg-white/60 text-sky-900 ring-1 ring-sky-200/80'
+                      : 'bg-white/60 text-violet-900 ring-1 ring-violet-200/80',
+                  )}
+                >
+                  {plan.planType === 'multi_trip'
+                    ? t('addPackage.type.multiTrip')
+                    : t('addPackage.type.discountPass')}
                 </span>
                 <span
                   className={cn(
@@ -102,6 +112,28 @@ export function SubscriptionPlanCard({
               </li>
             ))}
           </ul>
+
+          {(plan.createdAtLabel || plan.validityNote) && (
+            <div className="space-y-1 rounded-lg border border-surface-muted bg-background px-3 py-2.5 text-xs text-text-muted">
+              {plan.createdAtLabel ? (
+                <p>
+                  <span className="font-medium text-text-secondary">{t('packages.createdAt')}:</span>{' '}
+                  {plan.createdAtLabel}
+                </p>
+              ) : null}
+              {plan.validityNote ? (
+                <p>
+                  <span className="font-medium text-text-secondary">{t('packages.passExpiry')}:</span>{' '}
+                  {plan.validityNote}
+                </p>
+              ) : null}
+              {plan.updatedAtLabel ? (
+                <p className="text-[11px] opacity-80">
+                  {t('packages.lastUpdated')}: {plan.updatedAtLabel}
+                </p>
+              ) : null}
+            </div>
+          )}
 
           <div className="flex items-center justify-between border-t border-surface-muted pt-3 text-sm">
             <span className="text-text-muted">{t('packages.activeSubscribers')}</span>

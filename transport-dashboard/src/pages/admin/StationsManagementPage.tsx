@@ -3,6 +3,7 @@ import { MapPin, Pencil, Plus, Trash2 } from 'lucide-react'
 import type { Station, StationFormInput } from '@/modules/geography/types'
 import { usePlatformStations } from '@/modules/geography/hooks/usePlatformStations'
 import { formatStationCityLabel } from '@/modules/geography/utils/stationApi'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/Card'
 import { Input } from '@/shared/ui/Input'
@@ -41,6 +42,7 @@ function formatCoords(station: Station): string {
 }
 
 export function StationsManagementPage() {
+  const { t } = useTranslation()
   const {
     stations,
     isLoading,
@@ -119,11 +121,13 @@ export function StationsManagementPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-text-primary">Stations</h1>
-          <p className="mt-1 max-w-2xl text-sm text-text-muted">
-            Platform bus stations used by all companies when building routes. Companies read
-            these via GET /api/stations.
+          <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+            {t('admin.nav.catalog')}
           </p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-text-primary">
+            {t('admin.sidebar.stations')}
+          </h1>
+          <p className="mt-1 max-w-2xl text-sm text-text-muted">{t('admin.stations.subtitle')}</p>
         </div>
         <button type="button" className={createBtnClass} onClick={openCreate}>
           <Plus className="h-4 w-4" aria-hidden />
@@ -144,7 +148,7 @@ export function StationsManagementPage() {
               {isEditing ? 'Edit station' : 'Add station'}
             </h2>
             <p className="mt-1 text-sm text-text-muted">
-              Matches POST/PATCH /api/platform/stations in Admin-Platform Postman.
+              Add a shared bus terminal companies can use when building routes.
             </p>
           </div>
           <div className="grid gap-4 p-6">

@@ -111,10 +111,24 @@ function buildVehicleFormData(input: VehicleCreateInput | VehicleUpdateInput): F
   if (input.is_active != null) {
     form.append('is_active', input.is_active ? '1' : '0')
   }
-  input.photos?.forEach((file, index) => {
-    form.append(`photos[${index}]`, file)
+  input.photos?.forEach((file) => {
+    form.append('photos[]', file)
   })
   return form
+}
+
+async function submitVehicleUpdate(id: number, input: VehicleUpdateInput): Promise<unknown> {
+  const form = buildVehicleFormData(input)
+  const hasPhotos = (input.photos?.length ?? 0) > 0
+
+  if (hasPhotos) {
+    form.append('_method', 'PATCH')
+    const { data } = await api.post<unknown>(`/company/vehicles/${id}`, form)
+    return data
+  }
+
+  const { data } = await api.patch<unknown>(`/company/vehicles/${id}`, form)
+  return data
 }
 
 export const vehiclesService = {
@@ -140,10 +154,7 @@ export const vehiclesService = {
 
   async updateVehicle(id: number, input: VehicleUpdateInput): Promise<CompanyVehicle> {
     try {
-      const { data } = await api.patch<unknown>(
-        `/company/vehicles/${id}`,
-        buildVehicleFormData(input),
-      )
+      const data = await submitVehicleUpdate(id, input)
       const updated = unwrapOne(data)
       if (!updated) throw new Error('Invalid response when updating vehicle')
       return updated

@@ -23,6 +23,7 @@ import {
   User,
 } from 'lucide-react'
 import type { Driver, DriverCreateInput, DriverUpdateInput } from '@/modules/drivers/types'
+import { mapDriverStatusToApi } from '@/modules/drivers/utils/mapCompanyDriver'
 import { useTranslation } from '@/shared/i18n/useTranslation'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/Card'
@@ -33,6 +34,7 @@ const selectClass =
   'w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary shadow-sm transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30'
 
 const AVAILABILITY_OPTIONS = ['Available', 'On Trip', 'Off Duty'] as const
+const EDITABLE_AVAILABILITY_OPTIONS = ['Available', 'Off Duty'] as const
 
 const VEHICLE_ASSIGN_OPTIONS = [
   'No Vehicle Assigned',
@@ -53,7 +55,7 @@ export type DriverFormDialogProps = {
   pending?: boolean
   saveError?: string | null
   onCreate?: (input: DriverCreateInput) => Promise<void>
-  onUpdate?: (id: number, input: DriverUpdateInput) => Promise<void>
+  onUpdate?: (id: number, input: DriverUpdateInput, profileId?: number) => Promise<void>
 }
 
 function FormSection({
@@ -110,8 +112,11 @@ export function DriverFormDialog({
   const [licenseExpiry, setLicenseExpiry] = useState('')
   const [experienceYears, setExperienceYears] = useState('')
   const [availability, setAvailability] = useState<string>(AVAILABILITY_OPTIONS[0])
+  const [initialAvailability, setInitialAvailability] = useState<Driver['status']>('Available')
+  const [initialPhone, setInitialPhone] = useState('')
   const [assignedVehicle, setAssignedVehicle] = useState<string>(VEHICLE_ASSIGN_OPTIONS[0])
   const [username, setUsername] = useState('')
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
 
   const isEdit = mode === 'edit'
@@ -136,11 +141,14 @@ export function DriverFormDialog({
     setLicenseExpiry('')
     setExperienceYears('')
     setAvailability(AVAILABILITY_OPTIONS[0])
+    setInitialAvailability('Available')
+    setInitialPhone('')
     setAssignedVehicle(VEHICLE_ASSIGN_OPTIONS[0])
     setUsername('')
     setPassword('')
     setPasswordConfirmation('')
     setLocalError(null)
+    setPhotoFile(null)
     setPhotoPreview(null)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
@@ -152,13 +160,16 @@ export function DriverFormDialog({
     })
     setFullName(d.name)
     setPhone(d.phone)
+    setInitialPhone(d.phone)
     setEmail(d.email ?? '')
-    setLicenseNumber(d.licenseNumber)
+    setLicenseNumber(d.licenseNumber === '—' ? '' : d.licenseNumber)
     setLicenseExpiry(d.licenseExpiry ?? '')
-    setExperienceYears(String(d.experienceYears))
+    setExperienceYears(d.experienceYears ? String(d.experienceYears) : '')
     setAvailability(d.status)
+    setInitialAvailability(d.status)
     setAssignedVehicle(vehicleSelectValue(d.assignedVehicle))
     setUsername(d.username ?? '')
+    setPhotoFile(null)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
@@ -179,6 +190,7 @@ export function DriverFormDialog({
   const handlePhotoChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+    setPhotoFile(file)
     setPhotoPreview((prev) => {
       if (prev?.startsWith('blob:')) URL.revokeObjectURL(prev)
       return URL.createObjectURL(file)
@@ -191,6 +203,14 @@ export function DriverFormDialog({
 
     const name = fullName.trim()
     const phone_number = phone.trim()
+    const license_number = licenseNumber.trim() || undefined
+    const license_expiration_date = licenseExpiry.trim() || undefined
+    const status =
+      availability === 'On Trip'
+        ? undefined
+        : isEdit && availability === initialAvailability
+          ? undefined
+          : mapDriverStatusToApi(availability as Driver['status'])
     if (!name || !phone_number) {
       setLocalError(t('drivers.form.validation'))
       return
@@ -203,7 +223,18 @@ export function DriverFormDialog({
           setLocalError(t('drivers.form.saveFailed'))
           return
         }
-        await onUpdate?.(id, { name, phone_number })
+        await onUpdate?.(
+          id,
+          {
+            name,
+            phone_number: phone_number !== initialPhone ? phone_number : undefined,
+            license_number,
+            license_expiration_date,
+            status,
+            avatar: photoFile ?? undefined,
+          },
+          driver.profileId ? Number(driver.profileId) : undefined,
+        )
       } else {
         if (!password.trim()) {
           setLocalError(t('drivers.form.passwordRequired'))
@@ -218,6 +249,13 @@ export function DriverFormDialog({
           phone_number,
           password,
           password_confirmation: passwordConfirmation,
+          license_number,
+          license_expiration_date,
+          years_of_experience: experienceYears.trim()
+            ? Number(experienceYears)
+            : undefined,
+          status,
+          avatar: photoFile ?? undefined,
         })
       }
       handleClose()
@@ -238,6 +276,11 @@ export function DriverFormDialog({
     ? 'You can resend login details or trigger a password reset email to the driver’s registered email at any time.'
     : 'After creating the driver account, the system will automatically send login credentials to the driver’s registered email address.'
   const submitLabel = isEdit ? 'Save Changes' : 'Create Driver'
+
+  const availabilityOptions =
+    isEdit && driver?.status === 'On Trip'
+      ? (['On Trip', 'Off Duty'] as const)
+      : EDITABLE_AVAILABILITY_OPTIONS
 
   return (
     <Modal
@@ -347,6 +390,9 @@ export function DriverFormDialog({
                     inputMode="numeric"
                     value={experienceYears}
                     onChange={(e) => setExperienceYears(e.target.value)}
+                    readOnly={isEdit}
+                    disabled={isEdit}
+                    title={isEdit ? 'Calculated by the system from driving history' : undefined}
                   />
                 </div>
               </div>
@@ -358,6 +404,9 @@ export function DriverFormDialog({
                   <label htmlFor="availability" className="text-sm font-medium text-text-secondary">
                     Availability Status
                   </label>
+                  {isEdit && driver?.status === 'On Trip' ? (
+                    <p className="text-xs text-text-muted">{t('drivers.form.onTripHint')}</p>
+                  ) : null}
                   <select
                     id="availability"
                     name="availability"
@@ -365,7 +414,7 @@ export function DriverFormDialog({
                     value={availability}
                     onChange={(e) => setAvailability(e.target.value)}
                   >
-                    {AVAILABILITY_OPTIONS.map((o) => (
+                    {availabilityOptions.map((o) => (
                       <option key={o} value={o}>
                         {o}
                       </option>

@@ -40,6 +40,8 @@ export const packagesManagementMockData: PackagesManagementData = {
         'Mobile app access',
       ],
       activeSubscribers: 312,
+      validityDays: 30,
+      planType: 'multi_trip',
     },
     {
       id: 'plan-premium',
@@ -57,6 +59,8 @@ export const packagesManagementMockData: PackagesManagementData = {
       ],
       activeSubscribers: 521,
       isPopular: true,
+      validityDays: 30,
+      planType: 'multi_trip',
     },
     {
       id: 'plan-student',
@@ -73,6 +77,8 @@ export const packagesManagementMockData: PackagesManagementData = {
         'Campus route discounts',
       ],
       activeSubscribers: 198,
+      validityDays: 30,
+      planType: 'multi_trip',
     },
     {
       id: 'plan-annual-basic',
@@ -89,6 +95,8 @@ export const packagesManagementMockData: PackagesManagementData = {
       ],
       activeSubscribers: 156,
       savingsNote: 'Save 14% vs monthly',
+      validityDays: 365,
+      planType: 'multi_trip',
     },
     {
       id: 'plan-annual-premium',
@@ -105,6 +113,8 @@ export const packagesManagementMockData: PackagesManagementData = {
       ],
       activeSubscribers: 89,
       savingsNote: 'Save 15% vs monthly',
+      validityDays: 365,
+      planType: 'multi_trip',
     },
     {
       id: 'plan-corporate',
@@ -120,6 +130,8 @@ export const packagesManagementMockData: PackagesManagementData = {
         'Custom invoicing & SLA',
       ],
       activeSubscribers: 0,
+      validityDays: 30,
+      planType: 'discount_pass',
     },
   ],
 }

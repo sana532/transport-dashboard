@@ -135,32 +135,48 @@ export function TripDetailsPage() {
       </div>
 
       <div
-        className="inline-flex rounded-lg border border-surface-muted bg-surface p-1"
+        className="flex flex-wrap gap-2"
         role="tablist"
         aria-label={t('tripDetails.tabsLabel')}
       >
-        {(['overview', 'bookings'] as const).map((key) => (
-          <button
-            key={key}
-            type="button"
-            role="tab"
-            aria-selected={tab === key}
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'overview'}
+          className={cn(
+            'inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors',
+            tab === 'overview'
+              ? 'border-[#2F3E1F] bg-[#2F3E1F] text-white'
+              : 'border-[#d1d5db] bg-white text-[#111827] hover:bg-[#f3f4f6]',
+          )}
+          onClick={() => setTab('overview')}
+        >
+          {t('tripDetails.tab.overview')}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'bookings'}
+          className={cn(
+            'inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors',
+            tab === 'bookings'
+              ? 'border-[#2F3E1F] bg-[#2F3E1F] text-white'
+              : 'border-[#d1d5db] bg-white text-[#111827] hover:bg-[#f3f4f6]',
+          )}
+          onClick={() => setTab('bookings')}
+        >
+          {t('tripDetails.tab.bookings')}
+          <span
             className={cn(
-              'rounded-md px-4 py-2 text-sm font-medium transition-colors',
-              tab === key
-                ? 'bg-brand-primary text-white shadow-sm'
-                : 'text-text-secondary hover:bg-surface-muted',
+              'rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums',
+              tab === 'bookings'
+                ? 'bg-white/20 text-white'
+                : 'bg-[#e5e7eb] text-[#111827]',
             )}
-            onClick={() => setTab(key)}
           >
-            {key === 'overview' ? t('tripDetails.tab.overview') : t('tripDetails.tab.bookings')}
-            {key === 'bookings' ? (
-              <span className="ms-1.5 rounded-full bg-white/20 px-1.5 py-0.5 text-xs">
-                {bookings.length}
-              </span>
-            ) : null}
-          </button>
-        ))}
+            {bookings.length}
+          </span>
+        </button>
       </div>
 
       {tab === 'overview' ? (

@@ -60,25 +60,36 @@ function readPaginatorMeta(payload: unknown): { currentPage: number; lastPage: n
   return { currentPage, lastPage }
 }
 
+async function fetchTripsPage(page: number, perPage: number): Promise<CompanyTrip[]> {
+  const { data } = await api.get<unknown>('/company/trips', {
+    params: { page, per_page: perPage },
+  })
+  return unwrapList(data)
+}
+
 export const companyTripsService = {
   async listTrips(): Promise<CompanyTrip[]> {
     try {
-      const all: CompanyTrip[] = []
-      let page = 1
-      let lastPage = 1
+      const perPage = 200
+      const { data: firstPayload } = await api.get<unknown>('/company/trips', {
+        params: { page: 1, per_page: perPage },
+      })
+      const firstPage = unwrapList(firstPayload)
+      const pagination = readPaginatorMeta(firstPayload)
 
-      do {
-        const { data } = await api.get<unknown>('/company/trips', {
-          params: { page, per_page: 100 },
-        })
-        all.push(...unwrapList(data))
-        const pagination = readPaginatorMeta(data)
-        if (!pagination) break
-        lastPage = pagination.lastPage
-        page = pagination.currentPage + 1
-      } while (page <= lastPage)
+      if (!pagination || pagination.lastPage <= 1) {
+        return firstPage
+      }
 
-      return all
+      const remainingPages = Array.from(
+        { length: pagination.lastPage - 1 },
+        (_, index) => index + 2,
+      )
+      const rest = await Promise.all(
+        remainingPages.map((page) => fetchTripsPage(page, perPage)),
+      )
+
+      return firstPage.concat(...rest)
     } catch (error) {
       throw new Error(getApiErrorMessage(error, 'Failed to load trips'))
     }

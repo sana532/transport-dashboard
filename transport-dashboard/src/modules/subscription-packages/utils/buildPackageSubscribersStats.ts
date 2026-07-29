@@ -3,6 +3,7 @@ import {
   type PackageSubscriberRow,
   type PackageSubscribersStatCard,
 } from '@/modules/subscription-packages/types'
+import { countActivePackageSubscribers } from '@/modules/subscription-packages/utils/countActivePackageSubscribers'
 
 function countNewThisMonth(rows: PackageSubscriberRow[]): number {
   const now = new Date()
@@ -25,7 +26,7 @@ export function buildPackageSubscribersStats(
   rows: PackageSubscriberRow[],
   t: (key: string, vars?: Record<string, string | number>) => string,
 ): PackageSubscribersStatCard[] {
-  const active = rows.filter((row) => row.status === 'active').length
+  const active = countActivePackageSubscribers(rows)
   const expired = rows.filter((row) => row.status === 'expired').length
   const thisMonth = countNewThisMonth(rows)
 

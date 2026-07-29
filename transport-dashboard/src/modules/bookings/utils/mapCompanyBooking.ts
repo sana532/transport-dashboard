@@ -1,4 +1,5 @@
 import type { BookingStatus, CompanyBooking, PaymentStatus } from '@/modules/bookings/types'
+import { formatInstantDateTime, formatScheduleDateTime } from '@/shared/utils/formatDateTime'
 import { formatRouteLabel } from '@/modules/trips/utils/formatRouteLabel'
 
 function pickString(record: Record<string, unknown>, ...keys: string[]): string | undefined {
@@ -16,6 +17,17 @@ function pickNestedString(root: Record<string, unknown>, path: string[]): string
     node = (node as Record<string, unknown>)[key]
   }
   return typeof node === 'string' && node.trim() ? node.trim() : undefined
+}
+
+function pickNestedId(root: Record<string, unknown>, path: string[]): number | null {
+  let node: unknown = root
+  for (const key of path) {
+    if (!node || typeof node !== 'object') return null
+    node = (node as Record<string, unknown>)[key]
+  }
+  if (typeof node === 'number' && Number.isFinite(node)) return node
+  const parsed = Number(node)
+  return Number.isFinite(parsed) ? parsed : null
 }
 
 function normalizeBookingStatus(raw: unknown): BookingStatus {
@@ -216,13 +228,12 @@ export function normalizeCompanyBooking(raw: unknown): CompanyBooking | null {
   if (!Number.isFinite(id)) return null
 
   const passenger = resolvePassenger(record)
-  const tripRaw = record.trip_id ?? pickNestedString(record, ['trip', 'id'])
   const tripId =
-    typeof tripRaw === 'number'
-      ? tripRaw
-      : Number.isFinite(Number(tripRaw))
-        ? Number(tripRaw)
-        : null
+    (typeof record.trip_id === 'number' && Number.isFinite(record.trip_id)
+      ? record.trip_id
+      : Number.isFinite(Number(record.trip_id))
+        ? Number(record.trip_id)
+        : null) ?? pickNestedId(record, ['trip', 'id'])
 
   const bookingStatus = normalizeBookingStatus(
     record.status ?? record.booking_status ?? record.state,
@@ -256,17 +267,23 @@ export function normalizeCompanyBooking(raw: unknown): CompanyBooking | null {
   }
 }
 
+export function formatBookingTripId(tripId: number | null): string {
+  if (tripId == null) return '—'
+  return `#${tripId}`
+}
+
 export function formatBookingDate(
   isoOrDate: string,
   locale: string,
 ): string {
-  if (!isoOrDate) return '—'
-  const date = new Date(isoOrDate)
-  if (Number.isNaN(date.getTime())) return isoOrDate
-  return new Intl.DateTimeFormat(locale, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(date)
+  return formatInstantDateTime(isoOrDate, locale)
+}
+
+export function formatBookingDepartureTime(
+  isoOrDate: string,
+  locale: string,
+): string {
+  return formatScheduleDateTime(isoOrDate, locale)
 }
 
 export function formatBookingAmount(

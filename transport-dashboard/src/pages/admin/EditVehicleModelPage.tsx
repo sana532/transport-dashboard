@@ -8,10 +8,12 @@ import { useVehicleModels } from '@/modules/vehicle-models/hooks/useVehicleModel
 import { vehicleModelsService } from '@/modules/vehicle-models/services/vehicleModelsService'
 import { layoutConfigToJson } from '@/modules/vehicle-models/utils/layoutConfigJson'
 import { paths } from '@/routes/paths'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardContent } from '@/shared/ui/Card'
 
 export function EditVehicleModelPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { modelId } = useParams()
   const { token, role } = useAuth()
@@ -36,7 +38,7 @@ export function EditVehicleModelPage() {
   useEffect(() => {
     if (!validId) {
       setIsLoading(false)
-      setLoadError('Invalid vehicle model id')
+      setLoadError(t('admin.vehicleModels.invalidId'))
       return
     }
 
@@ -60,7 +62,7 @@ export function EditVehicleModelPage() {
       })
       .catch((err) => {
         if (cancelled) return
-        setLoadError(err instanceof Error ? err.message : 'Failed to load vehicle model')
+        setLoadError(err instanceof Error ? err.message : t('admin.vehicleModels.invalidId'))
       })
       .finally(() => {
         if (!cancelled) setIsLoading(false)
@@ -69,7 +71,7 @@ export function EditVehicleModelPage() {
     return () => {
       cancelled = true
     }
-  }, [numericId, validId])
+  }, [numericId, validId, t])
 
   const formInitial = useMemo(() => initial ?? undefined, [initial])
 
@@ -78,10 +80,10 @@ export function EditVehicleModelPage() {
       <Card>
         <CardContent className="space-y-3 p-6">
           <p className="text-sm text-red-700" role="alert">
-            Invalid vehicle model id.
+            {t('admin.vehicleModels.invalidId')}
           </p>
           <Button type="button" variant="outline" onClick={() => navigate(paths.admin.vehicleModels)}>
-            Back to list
+            {t('admin.vehicleModels.backToList')}
           </Button>
         </CardContent>
       </Card>
@@ -96,18 +98,16 @@ export function EditVehicleModelPage() {
           className="mb-3 inline-flex items-center gap-1.5 text-sm font-medium text-brand-primary hover:underline"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden />
-          Back to vehicle models
+          {t('admin.vehicleModels.backToList')}
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight text-text-primary">
-          Edit vehicle model
+          {t('admin.vehicleModels.editTitle')}
         </h1>
-        <p className="mt-1 text-sm text-text-muted">
-          Update catalog details and seat layout for this model.
-        </p>
+        <p className="mt-1 text-sm text-text-muted">{t('admin.vehicleModels.editSubtitle')}</p>
       </div>
 
       {isLoading ? (
-        <p className="text-sm text-text-muted">Loading model…</p>
+        <p className="text-sm text-text-muted">{t('admin.vehicleModels.loadingModel')}</p>
       ) : loadError ? (
         <Card>
           <CardContent className="space-y-3 p-6">
@@ -119,7 +119,7 @@ export function EditVehicleModelPage() {
               variant="outline"
               onClick={() => navigate(paths.admin.vehicleModels)}
             >
-              Back to list
+              {t('admin.vehicleModels.backToList')}
             </Button>
           </CardContent>
         </Card>
@@ -131,8 +131,8 @@ export function EditVehicleModelPage() {
           pending={pending}
           error={error}
           success={success}
-          submitLabel="Save changes"
-          pendingLabel="Saving…"
+          submitLabel={t('admin.vehicleModels.form.save')}
+          pendingLabel={t('admin.vehicleModels.form.saving')}
           onCancel={() => navigate(paths.admin.vehicleModels)}
           onSubmit={async (input) => {
             setError(null)
@@ -140,12 +140,14 @@ export function EditVehicleModelPage() {
             setPending(true)
             try {
               const updated = await updateModel(numericId, input)
-              setSuccess(`Model "${updated.name}" was updated successfully.`)
+              setSuccess(
+                t('admin.vehicleModels.form.updatedSuccess', { name: updated.name }),
+              )
               window.setTimeout(() => {
                 navigate(paths.admin.vehicleModels, { replace: true })
               }, 1200)
             } catch (err) {
-              const message = err instanceof Error ? err.message : 'Failed to update vehicle model'
+              const message = err instanceof Error ? err.message : t('admin.vehicleModels.invalidId')
               setError(message)
               if (message.toLowerCase().includes('sign in')) {
                 window.setTimeout(() => navigate(paths.login, { replace: true }), 2000)

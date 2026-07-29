@@ -1,13 +1,14 @@
-import { useEffect, useState } from 'react'
 import { CreditCard, Eye, Pencil, Phone, Trash2 } from 'lucide-react'
 import type { Driver, DriverStatus } from '@/modules/drivers/types'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardContent } from '@/shared/ui/Card'
-import { cn } from '@/shared/utils/cn'
+import { useMediaImageSrc } from '@/shared/hooks/useMediaImageSrc'
 import { useTranslation } from '@/shared/i18n/useTranslation'
+import { cn } from '@/shared/utils/cn'
 
 type DriverCardProps = {
   driver: Driver
+  onView?: (driver: Driver) => void
   onEdit?: (driver: Driver) => void
   onDelete?: (driver: Driver) => void
 }
@@ -18,19 +19,15 @@ function statusTextClass(status: DriverStatus): string {
   return 'text-text-muted'
 }
 
-export function DriverCard({ driver, onEdit, onDelete }: DriverCardProps) {
+export function DriverCard({ driver, onView, onEdit, onDelete }: DriverCardProps) {
   const { t } = useTranslation()
-  const [photoFailed, setPhotoFailed] = useState(false)
+  const { src: photoSrc, failed: photoFailed, onError: onPhotoError } =
+    useMediaImageSrc(driver.avatarUrl)
   const licenseLabel =
     driver.licenseNumber && driver.licenseNumber !== '—'
       ? driver.licenseNumber
       : t('drivers.card.noLicense')
 
-  useEffect(() => {
-    setPhotoFailed(false)
-  }, [driver.id, driver.avatarUrl])
-
-  const photoSrc = driver.avatarUrl
   const showPhoto = Boolean(photoSrc) && !photoFailed
 
   return (
@@ -44,7 +41,7 @@ export function DriverCard({ driver, onEdit, onDelete }: DriverCardProps) {
               className="h-12 w-12 shrink-0 rounded-full object-cover ring-1 ring-black/10"
               loading="lazy"
               decoding="async"
-              onError={() => setPhotoFailed(true)}
+              onError={onPhotoError}
             />
           ) : (
             <div
@@ -80,9 +77,10 @@ export function DriverCard({ driver, onEdit, onDelete }: DriverCardProps) {
           <Button
             type="button"
             className="min-w-0 flex-1 bg-[var(--brand-primary)] px-3 py-2 text-sm font-medium text-white hover:bg-[var(--brand-primary-dark)]"
+            onClick={() => onView?.(driver)}
           >
             <Eye className="h-4 w-4 shrink-0" aria-hidden />
-            View Profile
+            {t('drivers.card.viewProfile')}
           </Button>
           <button
             type="button"

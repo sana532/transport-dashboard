@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { HelpCircle } from 'lucide-react'
 import { parseLayoutConfig } from '@/modules/vehicle-models/utils/parseLayoutConfig'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import { cn } from '@/shared/utils/cn'
 
 type SeatLayoutPreviewProps = {
@@ -9,6 +10,7 @@ type SeatLayoutPreviewProps = {
 }
 
 export function SeatLayoutPreview({ layoutConfigJson, className }: SeatLayoutPreviewProps) {
+  const { t } = useTranslation()
   const parsed = useMemo(() => parseLayoutConfig(layoutConfigJson), [layoutConfigJson])
 
   if (!parsed.ok) {
@@ -19,7 +21,9 @@ export function SeatLayoutPreview({ layoutConfigJson, className }: SeatLayoutPre
           className,
         )}
       >
-        {parsed.error}
+        {parsed.error === 'Invalid layout JSON'
+          ? t('admin.vehicleModels.previewInvalid')
+          : parsed.error}
       </div>
     )
   }
@@ -37,7 +41,7 @@ export function SeatLayoutPreview({ layoutConfigJson, className }: SeatLayoutPre
       <div className="mb-4 flex justify-center">
         <span className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-text-secondary">
           <HelpCircle className="h-3.5 w-3.5 text-text-muted" aria-hidden />
-          Driver
+          {t('admin.vehicleModels.previewDriver')}
         </span>
       </div>
 
@@ -67,7 +71,7 @@ export function SeatLayoutPreview({ layoutConfigJson, className }: SeatLayoutPre
               return (
                 <div
                   key={`seat-${cell.seatNumber}`}
-                  title={`Seat ${cell.seatNumber}`}
+                  title={`${cell.seatNumber}`}
                   className="flex h-9 w-9 items-center justify-center rounded-md bg-emerald-600 text-xs font-semibold text-white shadow-sm"
                 >
                   {cell.seatNumber}
@@ -79,7 +83,7 @@ export function SeatLayoutPreview({ layoutConfigJson, className }: SeatLayoutPre
       </div>
 
       <p className="mt-4 text-center text-xs text-text-muted">
-        Preview: {layout.seatCount} seats (layout shape only — booking status is not shown here)
+        {t('admin.vehicleModels.previewSeats', { count: layout.seatCount })}
       </p>
     </div>
   )

@@ -45,6 +45,12 @@ export type SubscriptionPlanCard = {
   theme: PlanTheme
   features: string[]
   activeSubscribers: number
+  validityDays: number
+  planType: SubscriptionPlanType
+  createdAtLabel?: string
+  updatedAtLabel?: string
+  /** Shown on cards — subscriber pass length, not catalog end date */
+  validityNote?: string
   /** Thick green border + badge example in designs */
   isPopular?: boolean
   savingsNote?: string
@@ -69,6 +75,8 @@ export type CompanySubscriptionPlan = {
   maxTicketsPerTrip: number | null
   isActive: boolean
   activeSubscribers: number
+  createdAt?: string
+  updatedAt?: string
 }
 
 export type SubscriptionPlanInput = {
@@ -131,6 +139,11 @@ export type PackageSubscribersStatCard = {
 export type PackageSubscribersManagementData = {
   packageId: string
   packageTitle: string
+  planType?: SubscriptionPlanType
+  planValidityDays?: number
+  planCreatedAtLabel?: string
+  planUpdatedAtLabel?: string
+  planValidityNote?: string
   stats: PackageSubscribersStatCard[]
   rows: PackageSubscriberRow[]
   totalResults: number

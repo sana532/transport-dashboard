@@ -43,10 +43,12 @@ function resolveSubscriberPhone(record: Record<string, unknown>): string {
 
 function resolveAvatarUrl(record: Record<string, unknown>): string | undefined {
   const raw =
+    pickNestedString(record, ['user', 'profile_picture']) ||
     pickNestedString(record, ['user', 'avatar']) ||
     pickNestedString(record, ['user', 'avatar_url']) ||
+    pickNestedString(record, ['passenger', 'profile_picture']) ||
     pickNestedString(record, ['passenger', 'avatar']) ||
-    pickString(record, 'avatar', 'avatar_url', 'photo')
+    pickString(record, 'avatar', 'avatar_url', 'photo', 'profile_picture')
   return raw || undefined
 }
 

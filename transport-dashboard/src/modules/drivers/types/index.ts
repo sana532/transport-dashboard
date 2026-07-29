@@ -16,12 +16,18 @@ export type DriverProfile = {
   user_id: number
   company_id: number
   license_number: string | null
+  license_expiration_date?: string | null
+  license_status?: string | null
+  years_of_experience?: number | null
+  driving_since_date?: string | null
   rating: string
   rating_count: number
   total_rides: number
+  total_trips?: number
   salary: string
   status: DriverProfileStatus
   avatar: string | null
+  media?: unknown
   driver_license: string | null
   created_at?: string
   updated_at?: string
@@ -54,17 +60,32 @@ export type DriverCreateInput = {
   phone_number: string
   password: string
   password_confirmation: string
+  license_number?: string
+  license_expiration_date?: string
+  years_of_experience?: number
+  /** driver_profile.status in response — sent flat on create/update per Postman */
+  status?: string
+  avatar?: File
 }
 
 export type DriverUpdateInput = {
   name: string
-  phone_number: string
+  /** Omit when unchanged — avoids duplicate phone validation on PATCH */
+  phone_number?: string
+  license_number?: string
+  license_expiration_date?: string
+  years_of_experience?: number
+  /** driver_profile.status in response — sent flat on create/update per Postman */
+  status?: string
+  avatar?: File
 }
 
 export type DriverStatus = 'Available' | 'On Trip' | 'Off Duty'
 
 export type Driver = {
   id: DriverId
+  /** driver_profile.id — used as fallback when PATCH by user id returns 404 */
+  profileId?: string
   name: string
   status: DriverStatus
   phone: string

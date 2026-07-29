@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Bus, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useVehicleModels } from '@/modules/vehicle-models/hooks/useVehicleModels'
 import { paths } from '@/routes/paths'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/Card'
 import { cn } from '@/shared/utils/cn'
@@ -29,6 +30,7 @@ function ActiveBadge({ active }: { active: boolean }) {
 }
 
 export function VehicleModelsManagementPage() {
+  const { t } = useTranslation()
   const { models, isLoading, error, reload, deleteModel } = useVehicleModels()
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
@@ -50,12 +52,14 @@ export function VehicleModelsManagementPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-text-primary">
-            Vehicle models
+          <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+            {t('admin.nav.catalog')}
+          </p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-text-primary">
+            {t('admin.sidebar.vehicleModels')}
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-text-muted">
-            Platform catalog of bus layouts. Companies will pick from these models when
-            configuring their fleet.
+            {t('admin.vehicleModels.subtitle')}
           </p>
         </div>
         <Link to={paths.admin.vehicleModelNew} className={createBtnClass}>

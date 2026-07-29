@@ -44,15 +44,41 @@ export function normalizeRestArea(raw: unknown): RestArea | null {
     (nestedCity ? pickStringField(nestedCity, 'governorate_name') : null) ??
     (typeof record.city === 'string' ? record.city.trim() : null)
 
+  const description = pickStringField(record, 'description')
+  const isActiveRaw = record.is_active
+  const is_active =
+    typeof isActiveRaw === 'boolean'
+      ? isActiveRaw
+      : isActiveRaw === 1 || isActiveRaw === '1' || isActiveRaw === 'true'
+        ? true
+        : isActiveRaw === 0 || isActiveRaw === '0' || isActiveRaw === 'false'
+          ? false
+          : undefined
+
   return {
     id,
     name,
+    description,
     city_id: cityId,
     governorate_name,
     latitude: pickNumber(record, 'latitude'),
     longitude: pickNumber(record, 'longitude'),
+    is_active,
     city,
   }
+}
+
+export function formatRestAreaCoords(area: RestArea): string {
+  if (area.latitude != null && area.longitude != null) {
+    return `${area.latitude}, ${area.longitude}`
+  }
+  return '—'
+}
+
+export function formatRestAreaCityLabel(area: RestArea): string {
+  if (area.city?.name) return area.city.name
+  if (area.governorate_name) return area.governorate_name
+  return '—'
 }
 
 export function unwrapRestAreaList(payload: unknown): RestArea[] {

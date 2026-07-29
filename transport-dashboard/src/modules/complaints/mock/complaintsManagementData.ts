@@ -103,6 +103,7 @@ function buildRow(index: number): ComplaintManagementRow {
     assignedDriverName: driver,
     description: `The passenger reported that the bus arrived ${20 + (index % 15)} minutes late at the pickup stop without adequate prior notice. They also stated that the driver was ${index % 2 === 0 ? 'dismissive' : 'rushed'} when asked about the delay, and that the vehicle interior could have been cleaner after the previous trip. They are requesting clearer communication on future delays and improved punctuality and service quality.`,
     adminNotes: `Contacted driver ${driver} regarding the incident. ${index % 3 === 0 ? 'Driver acknowledged traffic on the route. Offered the passenger a complimentary ride credit.' : 'Documentation forwarded to operations for standard review.'} ${index % 2 === 0 ? 'Follow-up scheduled with the passenger next week.' : 'No further action until passenger responds.'}`,
+    attachments: [],
   }
 }
 

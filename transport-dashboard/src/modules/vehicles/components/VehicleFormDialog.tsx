@@ -1,17 +1,61 @@
-import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
-import { Upload } from 'lucide-react'
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from 'react'
+import { Upload, X } from 'lucide-react'
 import type { CompanyVehicleModel } from '@/modules/vehicles/types'
 import type { Vehicle, VehicleCreateInput, VehicleUpdateInput } from '@/modules/vehicles/types'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/Card'
 import { Input } from '@/shared/ui/Input'
 import { Modal } from '@/shared/ui/Modal'
+import { useMediaImageSrc } from '@/shared/hooks/useMediaImageSrc'
 import { useTranslation } from '@/shared/i18n/useTranslation'
 
 const MECHANICAL_STATUSES = ['operational', 'maintenance'] as const
 
 const selectClass =
   'w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary shadow-sm transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30'
+
+function ExistingPhotoPreview({ url, label }: { url: string; label: string }) {
+  const { src, failed, onError } = useMediaImageSrc(url)
+  if (failed || !src) return null
+
+  return (
+    <figure className="overflow-hidden rounded-lg border border-border bg-surface-muted">
+      <img src={src} alt="" className="h-24 w-full object-cover" onError={onError} />
+      <figcaption className="px-2 py-1 text-[10px] text-text-muted">{label}</figcaption>
+    </figure>
+  )
+}
+
+function NewPhotoPreview({
+  file,
+  label,
+  onRemove,
+}: {
+  file: File
+  label: string
+  onRemove: () => void
+}) {
+  const previewUrl = useMemo(() => URL.createObjectURL(file), [file])
+
+  useEffect(() => {
+    return () => URL.revokeObjectURL(previewUrl)
+  }, [previewUrl])
+
+  return (
+    <figure className="relative overflow-hidden rounded-lg border border-border bg-surface-muted">
+      <button
+        type="button"
+        className="absolute end-1 top-1 rounded-full bg-black/55 p-1 text-white hover:bg-black/70"
+        aria-label={label}
+        onClick={onRemove}
+      >
+        <X className="h-3 w-3" aria-hidden />
+      </button>
+      <img src={previewUrl} alt="" className="h-24 w-full object-cover" />
+      <figcaption className="truncate px-2 py-1 text-[10px] text-text-muted">{file.name}</figcaption>
+    </figure>
+  )
+}
 
 export type VehicleFormMode = 'add' | 'edit'
 
@@ -131,6 +175,15 @@ export function VehicleFormDialog({
   }
 
   const selectedModel = vehicleModels.find((m) => String(m.id) === vehicleModelId)
+  const existingPhotoUrls = useMemo(() => {
+    if (!isEdit || !vehicle) return []
+    return [...new Set([...(vehicle.photoUrls ?? []), vehicle.photoUrl].filter(Boolean))] as string[]
+  }, [isEdit, vehicle])
+
+  const removePhotoFile = (index: number) => {
+    setPhotoFiles((prev) => prev.filter((_, i) => i !== index))
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
 
   return (
     <Modal open={open} onClose={handleClose} className="max-h-[min(92vh,820px)] overflow-y-auto">
@@ -277,6 +330,37 @@ export function VehicleFormDialog({
                     ? t('vehicles.form.photosSelected', { count: String(photoFiles.length) })
                     : t('vehicles.form.photosChoose')}
                 </Button>
+
+                {existingPhotoUrls.length > 0 ? (
+                  <div className="space-y-2">
+                    <p className="text-xs text-text-muted">{t('vehicles.form.photosExisting')}</p>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      {existingPhotoUrls.map((url) => (
+                        <ExistingPhotoPreview
+                          key={url}
+                          url={url}
+                          label={t('vehicles.form.photosCurrent')}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {photoFiles.length > 0 ? (
+                  <div className="space-y-2">
+                    <p className="text-xs text-text-muted">{t('vehicles.form.photosNewPreview')}</p>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      {photoFiles.map((file, index) => (
+                        <NewPhotoPreview
+                          key={`${file.name}-${file.lastModified}-${index}`}
+                          file={file}
+                          label={t('vehicles.form.photosRemove')}
+                          onRemove={() => removePhotoFile(index)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </CardContent>
           </Card>

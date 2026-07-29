@@ -2,6 +2,7 @@ import { api } from '@/services/api'
 import type {
   ComplaintCategory,
   ComplaintManagementRow,
+  ComplaintStatusUpdateInput,
 } from '@/modules/complaints/types'
 import {
   normalizeCompanyComplaint,
@@ -97,6 +98,25 @@ export const complaintsService = {
       return unwrapCategoryList(data, locale)
     } catch (error) {
       throw new Error(getApiErrorMessage(error, 'Failed to load complaint categories'))
+    }
+  },
+
+  async updateComplaintStatus(
+    id: number,
+    input: ComplaintStatusUpdateInput,
+    locale: string,
+  ): Promise<ComplaintManagementRow> {
+    try {
+      const payload: ComplaintStatusUpdateInput = {
+        status: input.status,
+        ...(input.admin_notes?.trim() ? { admin_notes: input.admin_notes.trim() } : {}),
+      }
+      const { data } = await api.patch<unknown>(`/company/complaints/${id}/status`, payload)
+      const updated = unwrapComplaintOne(data, locale)
+      if (!updated) throw new Error('Invalid response when updating complaint status')
+      return updated
+    } catch (error) {
+      throw new Error(getApiErrorMessage(error, 'Failed to update complaint status'))
     }
   },
 }

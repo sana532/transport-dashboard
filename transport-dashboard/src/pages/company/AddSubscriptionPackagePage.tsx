@@ -3,6 +3,7 @@ import { ArrowLeft } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { SubscriptionPlanType } from '@/modules/subscription-packages/types'
 import { subscriptionPlansService } from '@/modules/subscription-packages/services/subscriptionPlansService'
+import { formatPlanDate } from '@/modules/subscription-packages/utils/mapCompanySubscriptionPlan'
 import { paths } from '@/routes/paths'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/Card'
@@ -17,7 +18,7 @@ const textareaClass =
   'min-h-[88px] w-full resize-y rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary shadow-sm transition-colors placeholder:text-text-muted focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30'
 
 export function AddSubscriptionPackagePage() {
-  const { t } = useTranslation()
+  const { t, locale } = useTranslation()
   const navigate = useNavigate()
   const { packageId } = useParams()
   const statusGroupId = useId()
@@ -35,6 +36,9 @@ export function AddSubscriptionPackagePage() {
   const [validityDays, setValidityDays] = useState('30')
   const [maxTicketsPerTrip, setMaxTicketsPerTrip] = useState('1')
   const [isActive, setIsActive] = useState(true)
+  const [planCreatedAtLabel, setPlanCreatedAtLabel] = useState<string | undefined>()
+  const [planUpdatedAtLabel, setPlanUpdatedAtLabel] = useState<string | undefined>()
+  const [planValidityDays, setPlanValidityDays] = useState<number | undefined>()
   const [isLoadingPlan, setIsLoadingPlan] = useState(isEdit)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -61,6 +65,9 @@ export function AddSubscriptionPackagePage() {
         setValidityDays(String(plan.validityDays))
         setMaxTicketsPerTrip(String(plan.maxTicketsPerTrip ?? 1))
         setIsActive(plan.isActive)
+        setPlanCreatedAtLabel(formatPlanDate(plan.createdAt, locale))
+        setPlanUpdatedAtLabel(formatPlanDate(plan.updatedAt, locale))
+        setPlanValidityDays(plan.validityDays)
       })
       .catch((err) => {
         if (!cancelled) {
@@ -73,7 +80,7 @@ export function AddSubscriptionPackagePage() {
     return () => {
       cancelled = true
     }
-  }, [isEdit, numericId, t])
+  }, [isEdit, numericId, locale, t])
 
   const buildPayload = () => {
     const parsedPrice = Number(price)
@@ -171,6 +178,35 @@ export function AddSubscriptionPackagePage() {
       {error ? (
         <Card>
           <CardContent className="p-4 text-sm text-red-700">{error}</CardContent>
+        </Card>
+      ) : null}
+
+      {isEdit && (planCreatedAtLabel || planValidityDays) ? (
+        <Card className="border border-surface-muted bg-surface-muted/30 shadow-sm">
+          <CardContent className="grid gap-3 p-4 text-sm sm:grid-cols-2">
+            {planCreatedAtLabel ? (
+              <div>
+                <p className="text-xs font-medium text-text-muted">{t('packages.createdAt')}</p>
+                <p className="mt-1 font-medium text-text-primary">{planCreatedAtLabel}</p>
+              </div>
+            ) : null}
+            {planValidityDays ? (
+              <div>
+                <p className="text-xs font-medium text-text-muted">{t('packages.passExpiry')}</p>
+                <p className="mt-1 font-medium text-text-primary">
+                  {t('packages.subscriberValidityNote', { days: planValidityDays })}
+                </p>
+              </div>
+            ) : null}
+            {planUpdatedAtLabel ? (
+              <div className="sm:col-span-2">
+                <p className="text-xs text-text-muted">
+                  {t('packages.lastUpdated')}: {planUpdatedAtLabel}
+                </p>
+              </div>
+            ) : null}
+            <p className="sm:col-span-2 text-xs text-text-muted">{t('packages.catalogNoEndDate')}</p>
+          </CardContent>
         </Card>
       ) : null}
 

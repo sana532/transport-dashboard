@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { getEcho, getPusherConnection } from '@/shared/realtime/echo'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import {
   TRIP_LOCATION_UPDATED_EVENT,
   TRIP_LOCATION_UPDATED_EVENT_DOTS,
   TRIP_LOCATION_UPDATED_EVENT_SHORT,
   tripPrivateChannelName,
   tripTrackingChannel,
+  parsePusherConnectionError,
   parseTripLocationPayload,
   type TripLocationUpdate,
   type TripTrackingConnectionStatus,
@@ -27,6 +29,7 @@ type EchoPrivateChannel = {
 }
 
 export function useTripLocationTracking(tripId: string | undefined) {
+  const { t } = useTranslation()
   const [location, setLocation] = useState<TripLocationUpdate | null>(null)
   const [connectionStatus, setConnectionStatus] =
     useState<TripTrackingConnectionStatus>('idle')
@@ -53,8 +56,8 @@ export function useTripLocationTracking(tripId: string | undefined) {
       return
     }
 
-    const echo = getEcho()
-    if (!echo) {
+    const echoClient = getEcho()
+    if (!echoClient) {
       setConnectionStatus('error')
       setError('Failed to initialize realtime connection')
       return
@@ -122,13 +125,13 @@ export function useTripLocationTracking(tripId: string | undefined) {
     }
 
     function subscribeToChannel() {
-      if (subscribed) return
+      if (subscribed || !echoClient) return
       subscribed = true
 
       console.log('[Echo] WS connected — subscribing:', privateChannelName)
       console.log('[Echo] Listening for:', TRIP_LOCATION_UPDATED_EVENT)
 
-      channel = echo.private(channelName) as EchoPrivateChannel
+      channel = echoClient.private(channelName) as EchoPrivateChannel
       channel.listen(TRIP_LOCATION_UPDATED_EVENT, onLocation)
       channel.listen(TRIP_LOCATION_UPDATED_EVENT_DOTS, onLocation)
       channel.listen(TRIP_LOCATION_UPDATED_EVENT_SHORT, onLocation)
@@ -148,12 +151,15 @@ export function useTripLocationTracking(tripId: string | undefined) {
       subscribeToChannel()
     }
     const onConnectionError = (raw: unknown) => {
-      const message =
-        raw && typeof raw === 'object' && 'error' in raw
-          ? String((raw as { error?: unknown }).error)
-          : 'WebSocket connection failed'
+      const { code, message } = parsePusherConnectionError(raw)
+      if (code === 4001) {
+        setError(t('tripTracking.error.reverbAppNotFound'))
+      } else if (message) {
+        setError(message)
+      } else {
+        setError(t('tripTracking.error.connectionFailed'))
+      }
       setConnectionStatus('error')
-      setError(message)
     }
 
     const onStateChange = (states: unknown) => {
@@ -183,7 +189,7 @@ export function useTripLocationTracking(tripId: string | undefined) {
       setConnectionStatus((current) => {
         if (current !== 'connecting') return current
         setError(
-          'Realtime connection timed out. Verify Reverb WSS and /api/broadcasting/auth access.',
+          'Live tracking timed out. Please try again in a moment.',
         )
         return 'error'
       })
@@ -199,7 +205,7 @@ export function useTripLocationTracking(tripId: string | undefined) {
         channel.subscription?.unbind('pusher:subscription_succeeded', onSubscribed)
         channel.subscription?.unbind('pusher:subscription_error', onSubscriptionError)
       }
-      echo.leave(channelName)
+      echoClient.leave(channelName)
       connection?.unbind('disconnected', onDisconnected)
       connection?.unbind('connected', onConnected)
       connection?.unbind('state_change', onStateChange)

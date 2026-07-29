@@ -9,19 +9,28 @@ export function getApiErrorMessage(error: unknown, fallback: string): string {
     response?: { status?: number; data?: { message?: string; errors?: ApiValidationErrors } }
   }).response
 
+  const data = response?.data
+
   if (response?.status === 401) {
     return 'Session expired. Sign out and sign in again.'
   }
 
-  const data = response?.data
-  if (typeof data?.message === 'string' && data.message.trim()) {
-    return data.message.trim()
+  if (response?.status === 403) {
+    return (
+      (typeof data?.message === 'string' && data.message.trim()) ||
+      'You are not allowed to update this driver. Sign in with the company account that owns this driver.'
+    )
   }
 
   if (data?.errors) {
-    for (const messages of Object.values(data.errors)) {
-      if (Array.isArray(messages) && messages[0]) return messages[0]
-    }
+    const messages = Object.entries(data.errors).flatMap(([field, msgs]) =>
+      Array.isArray(msgs) ? msgs.map((msg) => `${field}: ${msg}`) : [],
+    )
+    if (messages.length) return messages.join(' · ')
+  }
+
+  if (typeof data?.message === 'string' && data.message.trim()) {
+    return data.message.trim()
   }
 
   return fallback

@@ -1,3 +1,4 @@
+import { combineScheduleDateTimeToIso, splitScheduleIsoToFormFields } from '@/shared/utils/formatDateTime'
 import type { CompanyTripStatus, TripFormInput, TripMutationInput } from '@/modules/trips/types/companyTrip'
 
 export type TripFormState = {
@@ -14,27 +15,36 @@ export type TripFormState = {
 }
 
 export function combineDateTimeToIso(date: string, time: string): string | null {
-  if (!date || !time) return null
-  const local = new Date(`${date}T${time}:00`)
-  if (Number.isNaN(local.getTime())) return null
-  return local.toISOString()
+  return combineScheduleDateTimeToIso(date, time)
 }
 
 export function splitIsoToFormFields(iso: string): { date: string; time: string } {
-  const parsed = new Date(iso)
-  if (Number.isNaN(parsed.getTime())) return { date: '', time: '' }
-  const year = parsed.getFullYear().toString().padStart(4, '0')
-  const month = (parsed.getMonth() + 1).toString().padStart(2, '0')
-  const day = parsed.getDate().toString().padStart(2, '0')
-  const hours = parsed.getHours().toString().padStart(2, '0')
-  const minutes = parsed.getMinutes().toString().padStart(2, '0')
-  return { date: `${year}-${month}-${day}`, time: `${hours}:${minutes}` }
+  return splitScheduleIsoToFormFields(iso)
 }
 
 export function defaultArrivalFromDeparture(departureIso: string): string {
-  const departure = new Date(departureIso)
-  if (Number.isNaN(departure.getTime())) return departureIso
-  return new Date(departure.getTime() + 4 * 60 * 60 * 1000).toISOString()
+  const departure = splitScheduleIsoToFormFields(departureIso)
+  if (!departure.date || !departure.time) return departureIso
+
+  const [hours, minutes] = departure.time.split(':').map((value) => Number(value))
+  const arrivalHours = (hours + 4) % 24
+  const arrivalDate =
+    hours + 4 >= 24
+      ? shiftDateByDays(departure.date, 1)
+      : departure.date
+
+  return (
+    combineScheduleDateTimeToIso(
+      arrivalDate,
+      `${String(arrivalHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`,
+    ) ?? departureIso
+  )
+}
+
+function shiftDateByDays(date: string, days: number): string {
+  const [year, month, day] = date.split('-').map((value) => Number(value))
+  const shifted = new Date(Date.UTC(year, month - 1, day + days))
+  return shifted.toISOString().slice(0, 10)
 }
 
 export function buildTripFormPayload(state: TripFormState): TripFormInput | null {

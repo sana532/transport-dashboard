@@ -1,9 +1,11 @@
 import type {
+  ComplaintAttachment,
   ComplaintCategory,
   ComplaintManagementRow,
   ComplaintStatus,
   ComplaintType,
 } from '@/modules/complaints/types'
+import { extractMediaUrl } from '@/shared/utils/pickMediaUrls'
 
 function pickString(record: Record<string, unknown>, ...keys: string[]): string {
   for (const key of keys) {
@@ -46,19 +48,18 @@ function formatComplaintDate(raw: string, locale: string, detailed = false): str
 
 export function normalizeComplaintStatus(raw: unknown): ComplaintStatus {
   const key = typeof raw === 'string' ? raw.toLowerCase().replace(/\s+/g, '_') : ''
-  if (key === 'pending' || key === 'open' || key === 'new' || key === 'submitted') return 'open'
+  if (key === 'pending') return 'pending'
+  if (key === 'open' || key === 'new' || key === 'submitted') return 'open'
   if (key === 'in_progress' || key === 'processing' || key === 'reviewing' || key === 'assigned') {
     return 'in_progress'
   }
-  if (key === 'resolved' || key === 'closed' || key === 'completed' || key === 'done') {
-    return 'resolved'
-  }
-  return 'open'
+  if (key === 'resolved' || key === 'completed' || key === 'done') return 'resolved'
+  if (key === 'closed') return 'closed'
+  return 'pending'
 }
 
 export function uiStatusToApiQuery(status: ComplaintStatus | 'all'): string | undefined {
   if (status === 'all') return undefined
-  if (status === 'open') return 'pending'
   return status
 }
 
@@ -231,6 +232,28 @@ function resolveComplaintCode(record: Record<string, unknown>, id: number): stri
   )
 }
 
+function resolveAttachments(record: Record<string, unknown>): ComplaintAttachment[] {
+  const raw = record.attachments
+  if (!Array.isArray(raw)) return []
+
+  const attachments: ComplaintAttachment[] = []
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue
+    const att = item as Record<string, unknown>
+    const id = typeof att.id === 'number' ? att.id : Number(att.id)
+    const url = extractMediaUrl(att)
+    if (!Number.isFinite(id) || !url) continue
+    attachments.push({
+      id,
+      url,
+      fileName: pickString(att, 'file_name', 'name') || `attachment-${id}`,
+      mimeType: pickString(att, 'mime_type', 'type') || 'application/octet-stream',
+      size: typeof att.size === 'number' ? att.size : undefined,
+    })
+  }
+  return attachments
+}
+
 export function normalizeCompanyComplaint(
   raw: unknown,
   locale: string,
@@ -254,6 +277,26 @@ export function normalizeCompanyComplaint(
   const adminNotes =
     pickString(record, 'admin_notes', 'company_notes', 'internal_notes', 'notes') || ''
 
+  const nestedCompany =
+    record.company && typeof record.company === 'object'
+      ? (record.company as Record<string, unknown>)
+      : null
+  const companyIdRaw =
+    record.company_id ??
+    (nestedCompany ? nestedCompany.id : undefined)
+  const companyIdNum =
+    typeof companyIdRaw === 'number'
+      ? companyIdRaw
+      : companyIdRaw != null
+        ? Number(companyIdRaw)
+        : undefined
+  const companyName =
+    pickString(record, 'company_name') ||
+    (nestedCompany
+      ? pickString(nestedCompany, 'name', 'name_en', 'name_ar')
+      : '') ||
+    undefined
+
   return {
     id: String(id),
     complaintCode: resolveComplaintCode(record, id),
@@ -274,6 +317,9 @@ export function normalizeCompanyComplaint(
     assignedDriverName: trip.assignedDriverName,
     description,
     adminNotes,
+    attachments: resolveAttachments(record),
+    companyId: Number.isFinite(companyIdNum) ? companyIdNum : undefined,
+    companyName,
   }
 }
 
@@ -286,8 +332,25 @@ export function normalizeComplaintCategory(raw: unknown, locale: string): Compla
   const nameEn = pickString(record, 'name_en', 'name')
   const nameAr = pickString(record, 'name_ar')
   const label = locale === 'ar' && nameAr ? nameAr : nameEn || nameAr || `Category ${id}`
+  const iconUrl = pickString(record, 'icon_url', 'icon') || null
+  const visibilityScope = pickString(record, 'visibility_scope') || null
+  const isActiveRaw = record.is_active
+  const isActive =
+    typeof isActiveRaw === 'boolean'
+      ? isActiveRaw
+      : isActiveRaw === 0 || isActiveRaw === '0' || isActiveRaw === 'false'
+        ? false
+        : true
 
-  return { id, label, nameEn, nameAr }
+  return {
+    id,
+    label,
+    nameEn,
+    nameAr,
+    iconUrl,
+    visibilityScope,
+    isActive,
+  }
 }
 
 export function complaintDisplayType(

@@ -3,13 +3,13 @@ import { MapPinned, Pencil, Plus, Trash2 } from 'lucide-react'
 import { formatRestAreaLabel } from '@/modules/geography/utils/restAreaApi'
 import type { Station } from '@/modules/geography/types'
 import type { CompanyRoute } from '@/modules/routes/types'
+import { RouteRestAreasCell } from '@/modules/routes/components/RouteRestAreasCell'
 import { useRoutesManagement } from '@/modules/routes/hooks/useRoutesManagement'
 import { routesService } from '@/modules/routes/services/routesService'
 import { routeDisplayName } from '@/modules/routes/utils/routeDisplay'
 import {
   buildRestAreasPayload,
   emptyRestAreaStopRow,
-  restAreaLabelForStop,
   routeRestStopsToFormRows,
   type RestAreaStopFormRow,
 } from '@/modules/routes/utils/routeRestAreas'
@@ -600,7 +600,7 @@ export function RoutesManagementPage() {
                     <th className="px-4 py-3 font-medium">{t('routes.col.routeName')}</th>
                     <th className="px-4 py-3 font-medium">{t('routes.col.origin')}</th>
                     <th className="px-4 py-3 font-medium">{t('routes.col.destination')}</th>
-                    <th className="px-4 py-3 font-medium">{t('routes.col.restAreas')}</th>
+                    <th className="min-w-[12rem] px-4 py-3 font-medium">{t('routes.col.restAreas')}</th>
                     <th className="px-4 py-3 font-medium">{t('routes.col.duration')}</th>
                     <th className="px-4 py-3 font-medium">{t('routes.col.baseFare')}</th>
                     <th className="px-4 py-3 font-medium">{t('routes.col.actions')}</th>
@@ -617,21 +617,11 @@ export function RoutesManagementPage() {
                       </td>
                       <td className="px-4 py-3">{stationLabel(row, 'origin')}</td>
                       <td className="px-4 py-3">{stationLabel(row, 'destination')}</td>
-                      <td className="px-4 py-3 text-text-muted">
-                        {row.rest_areas?.length ? (
-                          <span
-                            className="line-clamp-2"
-                            title={row.rest_areas
-                              .map((s) => restAreaLabelForStop(s, restAreas))
-                              .join(' · ')}
-                          >
-                            {row.rest_areas
-                              .map((s) => restAreaLabelForStop(s, restAreas))
-                              .join(' · ')}
-                          </span>
-                        ) : (
-                          t('routes.restStopsNone')
-                        )}
+                      <td className="px-4 py-3 align-top">
+                        <RouteRestAreasCell
+                          stops={row.rest_areas}
+                          catalog={restAreas}
+                        />
                       </td>
                       <td className="px-4 py-3">{row.estimated_duration_hhmm ?? '—'}</td>
                       <td className="px-4 py-3">

@@ -8,6 +8,7 @@ import {
   type ComplaintsListFilters,
 } from '@/modules/complaints/hooks/useComplaintsManagement'
 import { complaintDisplayType } from '@/modules/complaints/utils/mapCompanyComplaint'
+import { COMPLAINT_STATUSES } from '@/modules/complaints/types'
 import { paths } from '@/routes/paths'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/Card'
@@ -136,9 +137,11 @@ export function ComplaintsPage() {
                 className="w-full appearance-none rounded-lg border border-border bg-surface py-2 pl-3 pr-9 text-sm text-text-primary shadow-sm focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
               >
                 <option value="all">{t('complaints.allStatus')}</option>
-                <option value="open">{t('complaints.status.open')}</option>
-                <option value="in_progress">{t('complaints.status.in_progress')}</option>
-                <option value="resolved">{t('complaints.status.resolved')}</option>
+                {COMPLAINT_STATUSES.map((status) => (
+                  <option key={status} value={status}>
+                    {t(`complaints.status.${status}`)}
+                  </option>
+                ))}
               </select>
               <ChevronDown
                 className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted"

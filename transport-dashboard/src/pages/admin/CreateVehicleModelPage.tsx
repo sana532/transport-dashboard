@@ -5,8 +5,10 @@ import { useAuth } from '@/modules/auth/hooks/useAuth'
 import { VehicleModelForm } from '@/modules/vehicle-models/components/VehicleModelForm'
 import { useVehicleModels } from '@/modules/vehicle-models/hooks/useVehicleModels'
 import { paths } from '@/routes/paths'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 
 export function CreateVehicleModelPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { token, role } = useAuth()
   const { createModel } = useVehicleModels()
@@ -29,14 +31,12 @@ export function CreateVehicleModelPage() {
           className="mb-3 inline-flex items-center gap-1.5 text-sm font-medium text-brand-primary hover:underline"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden />
-          Back to vehicle models
+          {t('admin.vehicleModels.backToList')}
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight text-text-primary">
-          Add vehicle model
+          {t('admin.vehicleModels.createTitle')}
         </h1>
-        <p className="mt-1 text-sm text-text-muted">
-          Define a reusable bus layout for all companies on the platform.
-        </p>
+        <p className="mt-1 text-sm text-text-muted">{t('admin.vehicleModels.createSubtitle')}</p>
       </div>
 
       <VehicleModelForm
@@ -44,8 +44,8 @@ export function CreateVehicleModelPage() {
         pending={pending}
         error={error}
         success={success}
-        submitLabel="Create model"
-        pendingLabel="Saving…"
+        submitLabel={t('admin.vehicleModels.form.create')}
+        pendingLabel={t('admin.vehicleModels.form.saving')}
         onCancel={() => navigate(paths.admin.vehicleModels)}
         onSubmit={async (input) => {
           setError(null)
@@ -53,12 +53,15 @@ export function CreateVehicleModelPage() {
           setPending(true)
           try {
             const created = await createModel(input)
-            setSuccess(`Model "${created.name}" was created successfully.`)
+            setSuccess(
+              t('admin.vehicleModels.form.createdSuccess', { name: created.name }),
+            )
             window.setTimeout(() => {
               navigate(paths.admin.vehicleModels, { replace: true })
             }, 1200)
           } catch (err) {
-            const message = err instanceof Error ? err.message : 'Failed to create vehicle model'
+            const message =
+              err instanceof Error ? err.message : t('admin.vehicleModels.invalidId')
             setError(message)
             if (message.toLowerCase().includes('sign in')) {
               window.setTimeout(() => navigate(paths.login, { replace: true }), 2000)

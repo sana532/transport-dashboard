@@ -4,7 +4,9 @@ export type DashboardStatCard = {
   id: string
   titleKey: string
   value: string
-  trendKey: string
+  /** Pre-formatted trend / secondary line from API (optional). */
+  trendLabel?: string
+  trendTone?: 'up' | 'down' | 'neutral'
   Icon: LucideIcon
 }
 
@@ -39,8 +41,11 @@ export type RecentTrip = {
 }
 
 export type RevenueTrendPoint = {
+  id?: string
   /** Short month id for i18n, e.g. `jan`, `feb`. */
-  monthKey: string
+  monthKey?: string
+  /** Direct label from API when month key is unavailable. */
+  label?: string
   revenue: number
 }
 

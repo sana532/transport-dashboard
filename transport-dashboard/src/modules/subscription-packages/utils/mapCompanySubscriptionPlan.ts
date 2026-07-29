@@ -44,12 +44,39 @@ function parseConditions(record: Record<string, unknown>): number | null {
 function parseSubscriberCount(record: Record<string, unknown>): number {
   const raw =
     record.active_subscribers_count ??
+    record.active_subscriptions_count ??
     record.active_subscribers ??
     record.subscribers_count ??
+    record.subscriptions_count ??
     record.subscribers_total ??
     record.subscribers
+
+  const nested = record.subscribers ?? record.subscriptions
+  if (Array.isArray(nested)) {
+    const activeFromList = nested.filter((item) => {
+      if (!item || typeof item !== 'object') return false
+      const status = String((item as Record<string, unknown>).status ?? '').toLowerCase()
+      return !status || status === 'active' || status === 'valid' || status === 'current'
+    }).length
+    if (activeFromList > 0) return activeFromList
+    if (nested.length > 0) return nested.length
+  }
+
   const n = typeof raw === 'number' ? raw : Number(raw)
   return Number.isFinite(n) && n >= 0 ? n : 0
+}
+
+export function formatPlanDate(raw: string | undefined, locale: string): string | undefined {
+  if (!raw?.trim()) return undefined
+  const parsed = new Date(raw.includes('T') ? raw : raw.replace(' ', 'T'))
+  if (Number.isNaN(parsed.getTime())) return undefined
+  return parsed.toLocaleString(locale === 'ar' ? 'ar-SY' : 'en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
 }
 
 export function normalizeCompanySubscriptionPlan(raw: unknown): CompanySubscriptionPlan | null {
@@ -80,6 +107,8 @@ export function normalizeCompanySubscriptionPlan(raw: unknown): CompanySubscript
     maxTicketsPerTrip: parseConditions(record),
     isActive: parseBool(record.is_active),
     activeSubscribers: parseSubscriberCount(record),
+    createdAt: pickString(record, 'created_at') || undefined,
+    updatedAt: pickString(record, 'updated_at') || undefined,
   }
 }
 
@@ -108,18 +137,26 @@ export function buildPlanFeatureLines(
       t('packages.feature.maxTicketsPerTrip', { count: plan.maxTicketsPerTrip }),
     )
   }
-  const description = plan.descriptionEn || plan.descriptionAr
-  if (description) lines.push(description)
+  const description = (plan.descriptionEn || plan.descriptionAr).trim()
+  const name = (plan.nameEn || plan.nameAr).trim()
+  if (description && description !== name && !lines.some((line) => line.includes(description))) {
+    lines.push(description)
+  }
   return lines.filter(Boolean)
 }
 
-export function formatPlanPrice(price: number, locale: string, validityDays: number): string {
+export function formatPlanPrice(
+  price: number,
+  locale: string,
+  validityDays: number,
+  t: (key: string, vars?: Record<string, string | number>) => string,
+): string {
   const amount = new Intl.NumberFormat(locale === 'ar' ? 'ar-SY' : 'en-US', {
     style: 'currency',
     currency: 'SYP',
     maximumFractionDigits: 0,
   }).format(price)
-  return `${amount} / ${validityDays}d`
+  return t('packages.pricePerValidity', { price: amount, days: validityDays })
 }
 
 export function mapPlanToCard(
@@ -127,17 +164,21 @@ export function mapPlanToCard(
   locale: string,
   t: (key: string, vars?: Record<string, string | number>) => string,
 ): SubscriptionPlanCard {
-  const billing = plan.validityDays >= 365 ? 'yearly' : 'monthly'
   return {
     id: String(plan.id),
     name: planDisplayName(plan, locale),
-    billing,
+    billing: plan.validityDays >= 365 ? 'yearly' : 'monthly',
     status: plan.isActive ? 'active' : 'inactive',
     price: plan.price,
-    priceDisplay: formatPlanPrice(plan.price, locale, plan.validityDays),
+    priceDisplay: formatPlanPrice(plan.price, locale, plan.validityDays, t),
     theme: PLAN_THEMES[plan.id % PLAN_THEMES.length],
     features: buildPlanFeatureLines(plan, t),
     activeSubscribers: plan.activeSubscribers,
+    validityDays: plan.validityDays,
+    planType: plan.type,
+    createdAtLabel: formatPlanDate(plan.createdAt, locale),
+    updatedAtLabel: formatPlanDate(plan.updatedAt, locale),
+    validityNote: t('packages.subscriberValidityNote', { days: plan.validityDays }),
     isPopular: plan.type === 'multi_trip' && (plan.totalTrips ?? 0) >= 10,
     savingsNote:
       plan.type === 'discount_pass' && plan.discountPercentage != null

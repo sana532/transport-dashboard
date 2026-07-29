@@ -51,15 +51,36 @@ export type StationFormInput = {
   longitude: string
 }
 
-/** Read-only catalog — GET /api/rest-areas (company Postman → Geography) */
+/** Platform + company catalog — GET /api/platform/rest-areas or /api/rest-areas */
 export type RestArea = {
   id: number
   name: string
+  description?: string | null
   city_id?: number
   governorate_name?: string | null
   latitude?: number
   longitude?: number
+  is_active?: boolean
   city?: CityRef | null
+}
+
+/** POST/PATCH body — Admin-Platform Postman → Geography → Rest Areas */
+export type RestAreaWritePayload = {
+  city_id: number
+  name: string
+  description: string
+  latitude: number
+  longitude: number
+  is_active: boolean
+}
+
+export type RestAreaFormInput = {
+  cityId: string
+  name: string
+  description: string
+  latitude: string
+  longitude: string
+  isActive: boolean
 }
 
 /** Sent on POST/PATCH /api/company/routes */

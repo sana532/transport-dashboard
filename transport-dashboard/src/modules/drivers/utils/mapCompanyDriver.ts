@@ -15,6 +15,12 @@ function mapProfileStatus(raw: string | undefined): DriverStatus {
   return 'Off Duty'
 }
 
+/** Maps UI availability to API driver_profile.status */
+export function mapDriverStatusToApi(status: DriverStatus): string {
+  if (status === 'Off Duty') return 'inactive'
+  return 'active'
+}
+
 function formatJoinDate(iso: string | undefined): string | undefined {
   if (!iso) return undefined
   const date = new Date(iso)
@@ -30,23 +36,35 @@ export function mapCompanyDriverToDriver(row: CompanyDriver): Driver {
   const profile = row.driver_profile
   const rating = profile?.rating != null ? Number.parseFloat(String(profile.rating)) : undefined
   const licenseNumber = profile?.license_number?.trim() || '—'
+  const experienceYears = profile?.years_of_experience
+  const licenseExpiry = profile?.license_expiration_date?.slice(0, 10)
 
   return {
     id: String(row.id),
+    profileId: profile?.id ? String(profile.id) : undefined,
     name: row.name,
     status: mapProfileStatus(profile?.status),
     phone: row.phone_number,
     licenseNumber,
-    experienceYears: 0,
-    avatarUrl: firstMediaUrl(profile?.avatar, profile),
+    experienceYears:
+      experienceYears != null && Number.isFinite(experienceYears)
+        ? Math.round(experienceYears)
+        : 0,
+    avatarUrl: firstMediaUrl(
+      profile?.avatar,
+      profile?.media,
+      profile,
+      row,
+      { parentId: profile?.id, collection: 'avatar' },
+    ),
     avatarInitials: initialsFromName(row.name),
     email: row.email ?? undefined,
     username: row.username,
-    licenseExpiry: undefined,
+    licenseExpiry: licenseExpiry || undefined,
     assignedVehicle: undefined,
     driverCode: row.username ? row.username : `DRV-${row.id}`,
     joinDateLabel: formatJoinDate(profile?.created_at ?? row.created_at),
-    totalTrips: profile?.total_rides ?? 0,
+    totalTrips: profile?.total_trips ?? profile?.total_rides ?? 0,
     rating: Number.isFinite(rating) ? rating : undefined,
   }
 }

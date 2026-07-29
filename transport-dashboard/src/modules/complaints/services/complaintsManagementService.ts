@@ -1,4 +1,4 @@
-import type { ComplaintCategory, ComplaintsManagementData } from '@/modules/complaints/types'
+import type { ComplaintCategory, ComplaintsManagementData, ComplaintStatusUpdateInput } from '@/modules/complaints/types'
 import {
   complaintsService,
   type ComplaintsListQuery,
@@ -33,5 +33,13 @@ export const complaintsManagementService = {
     } catch {
       return null
     }
+  },
+
+  async updateComplaintStatus(id: string, input: ComplaintStatusUpdateInput, locale: string) {
+    const numericId = Number(id)
+    if (!Number.isFinite(numericId)) {
+      throw new Error('Invalid complaint id')
+    }
+    return complaintsService.updateComplaintStatus(numericId, input, locale)
   },
 }

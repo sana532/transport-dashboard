@@ -1,5 +1,6 @@
 import { pickRouteNameFields } from '@/modules/routes/utils/routeDisplay'
 import { formatRouteLabel } from '@/modules/trips/utils/formatRouteLabel'
+import { formatScheduleDateTime } from '@/shared/utils/formatDateTime'
 import type {
   CompanyTrip,
   CompanyTripStatus,
@@ -242,13 +243,5 @@ export function formatTripRouteLabel(trip: CompanyTrip, locale = 'en'): string {
 }
 
 export function formatTripDateTime(iso: string, locale: string): string {
-  const parsed = new Date(iso)
-  if (Number.isNaN(parsed.getTime())) return iso
-  return parsed.toLocaleString(locale, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  return formatScheduleDateTime(iso, locale)
 }

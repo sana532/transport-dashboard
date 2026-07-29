@@ -1,6 +1,8 @@
 import type { LucideIcon } from 'lucide-react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '@/modules/auth/hooks/useAuth'
+import { NotificationBell } from '@/modules/notifications/components/NotificationBell'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import { cn } from '@/shared/utils/cn'
 import { Button } from '@/shared/ui/Button'
 
@@ -10,6 +12,11 @@ export type AppShellNavItem = {
   end?: boolean
   /** Optional icon (e.g. from `lucide-react`) */
   Icon?: LucideIcon
+  /**
+   * Optional group label. When set and different from the previous item's
+   * section, a small heading is rendered above the link.
+   */
+  section?: string
 }
 
 type AppShellProps = {
@@ -33,19 +40,20 @@ export function AppShell({
   variant = 'company',
 }: AppShellProps) {
   const { logout } = useAuth()
+  const { t } = useTranslation()
 
   const isCompany = variant === 'company'
 
   return (
     <div
       className={cn(
-        'flex min-h-screen',
+        'flex h-screen overflow-hidden',
         isCompany ? 'bg-background' : 'bg-background',
       )}
     >
       <aside
         className={cn(
-          'flex w-56 shrink-0 flex-col border-r',
+          'flex h-full w-56 shrink-0 flex-col overflow-y-auto border-r',
           isCompany
             ? 'border-[#243217] bg-[#2F3E1F] text-white'
             : 'border-border bg-surface text-text-primary',
@@ -53,8 +61,8 @@ export function AppShell({
       >
         <div
           className={cn(
-            'border-b px-4 py-4',
-            isCompany ? 'border-white/15 bg-[#2F3E1F]' : 'border-border',
+            'sticky top-0 z-10 shrink-0 border-b px-4 py-4',
+            isCompany ? 'border-white/15 bg-[#2F3E1F]' : 'border-border bg-surface',
           )}
         >
           <p
@@ -75,45 +83,59 @@ export function AppShell({
           </p>
         </div>
         <nav className="flex flex-1 flex-col gap-0.5 p-2">
-          {navItems.map(({ to, label, end = false, Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={end}
-              className={({ isActive }) =>
-                cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                  isCompany
-                    ? isActive
-                      ? 'bg-white/15 text-white'
-                      : 'text-white/90 hover:bg-white/10'
-                    : isActive
-                      ? 'bg-surface-muted text-text-primary'
-                      : 'text-text-secondary hover:bg-surface-muted',
-                )
-              }
-            >
-              {Icon ? (
-                <Icon
-                  className="h-5 w-5 shrink-0 opacity-90"
-                  aria-hidden
-                />
-              ) : null}
-              <span className="min-w-0">{label}</span>
-            </NavLink>
-          ))}
+          {navItems.map(({ to, label, end = false, Icon, section }, index) => {
+            const prevSection = index > 0 ? navItems[index - 1]?.section : undefined
+            const showSection = Boolean(section && section !== prevSection)
+
+            return (
+              <div key={to} className={cn(showSection && index > 0 && 'mt-3')}>
+                {showSection ? (
+                  <p
+                    className={cn(
+                      'px-3 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider',
+                      isCompany ? 'text-white/50' : 'text-text-muted',
+                    )}
+                  >
+                    {section}
+                  </p>
+                ) : null}
+                <NavLink
+                  to={to}
+                  end={end}
+                  className={({ isActive }) =>
+                    cn(
+                      'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                      isCompany
+                        ? isActive
+                          ? 'bg-white/15 text-white'
+                          : 'text-white/90 hover:bg-white/10'
+                        : isActive
+                          ? 'bg-surface-muted text-text-primary'
+                          : 'text-text-secondary hover:bg-surface-muted',
+                    )
+                  }
+                >
+                  {Icon ? (
+                    <Icon className="h-5 w-5 shrink-0 opacity-90" aria-hidden />
+                  ) : null}
+                  <span className="min-w-0">{label}</span>
+                </NavLink>
+              </div>
+            )
+          })}
         </nav>
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <header
           className={cn(
-            'flex h-14 shrink-0 items-center justify-end border-b px-6',
+            'flex h-14 shrink-0 items-center justify-end gap-1 border-b px-6',
             isCompany
               ? 'border-[#243217] bg-[#2F3E1F] text-white'
               : 'border-border bg-surface',
           )}
         >
+          <NotificationBell variant={variant} />
           <Button
             type="button"
             variant="ghost"
@@ -124,10 +146,10 @@ export function AppShell({
                 : undefined
             }
           >
-            Sign out
+            {t('common.signOut')}
           </Button>
         </header>
-        <main className="flex-1 overflow-auto p-6">
+        <main className="min-h-0 flex-1 overflow-y-auto p-6">
           <Outlet />
         </main>
       </div>
