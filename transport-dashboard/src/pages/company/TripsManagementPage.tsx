@@ -3,6 +3,7 @@ import {
   Archive,
   CalendarClock,
   ClipboardList,
+  Loader2,
   MapPin,
   Navigation,
   Pencil,
@@ -62,16 +63,36 @@ function statusBadgeClass(status: TripsRecentRow['status']): string {
   return 'bg-amber-100 text-amber-800'
 }
 
-function TripsLoadingBody() {
+function TripsLoadingBody({ message }: { message: string }) {
   return (
     <>
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <div className="flex flex-col items-center justify-center gap-3 py-10">
+        <Loader2 className="h-10 w-10 animate-spin text-slate-400" />
+        <p className="text-sm font-medium text-text-muted">{message}</p>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, idx) => (
-          <div key={idx} className="h-28 animate-pulse rounded-xl bg-surface-muted" />
+          <div
+            key={idx}
+            className="h-28 animate-pulse rounded-xl border border-border bg-surface shadow-sm"
+          />
         ))}
       </div>
-      <div className="h-40 animate-pulse rounded-xl bg-surface-muted" />
-      <div className="h-[420px] animate-pulse rounded-xl bg-surface-muted" />
+      <div className="animate-pulse rounded-xl border border-border bg-surface p-4 shadow-sm">
+        <div className="mb-3 h-4 w-24 rounded bg-slate-200" />
+        <div className="h-10 rounded-lg bg-slate-100" />
+      </div>
+      <div className="animate-pulse rounded-xl border border-border bg-surface shadow-sm">
+        <div className="border-b border-border p-4">
+          <div className="h-5 w-40 rounded bg-slate-200" />
+          <div className="mt-2 h-3 w-24 rounded bg-slate-100" />
+        </div>
+        <div className="space-y-3 p-4">
+          {Array.from({ length: 5 }).map((_, idx) => (
+            <div key={idx} className="h-10 rounded bg-slate-100" />
+          ))}
+        </div>
+      </div>
     </>
   )
 }
@@ -167,7 +188,7 @@ export function TripsManagementPage() {
           </h1>
           <p className="mt-1 text-sm text-text-muted">{t('trips.subtitle')}</p>
         </div>
-        <TripsLoadingBody />
+        <TripsLoadingBody message={t('common.loading')} />
       </div>
     )
   }

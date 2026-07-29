@@ -3,6 +3,7 @@ export type AppLocale = 'ar' | 'en'
 export const messages: Record<AppLocale, Record<string, string>> = {
   en: {
     'common.retry': 'Retry',
+    'common.loading': 'Loading…',
     'common.cancel': 'Cancel',
     'common.back': 'Back',
     'common.saveChanges': 'Save Changes',
@@ -976,6 +977,7 @@ export const messages: Record<AppLocale, Record<string, string>> = {
   },
   ar: {
     'common.retry': 'إعادة المحاولة',
+    'common.loading': 'جاري التحميل…',
     'common.cancel': 'إلغاء',
     'common.back': 'رجوع',
     'common.saveChanges': 'حفظ التعديلات',
