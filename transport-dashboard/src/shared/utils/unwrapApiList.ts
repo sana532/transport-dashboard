@@ -9,6 +9,8 @@ const LIST_KEYS = [
   'complaints',
   'complaint_categories',
   'promo_codes',
+  'companies',
+  'users',
   'items',
   'records',
   'results',

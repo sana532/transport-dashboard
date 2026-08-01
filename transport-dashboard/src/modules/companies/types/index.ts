@@ -1,4 +1,4 @@
-export type CompanyStatus = 'active' | 'inactive'
+export type CompanyStatus = 'active' | 'inactive' | 'suspended'
 
 export type PlatformCompany = {
   id: number
@@ -11,6 +11,11 @@ export type PlatformCompany = {
   logo_url?: string | null
   cover_image_url?: string | null
   created_at?: string
+}
+
+export type CompaniesListQuery = {
+  search?: string
+  status?: CompanyStatus | CompanyStatus[] | ''
 }
 
 export type CreateCompanyInput = {
@@ -32,6 +37,15 @@ export type CreateCompanyInput = {
     password: string
     passwordConfirmation: string
   }
+}
+
+export type UpdateCompanyInput = {
+  name: string
+  email: string
+  phone: string
+  address: string
+  description: string
+  status: CompanyStatus
 }
 
 export type CreateCompanyResult = {

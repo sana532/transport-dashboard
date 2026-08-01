@@ -1,33 +1,54 @@
 import { useCallback, useEffect, useState } from 'react'
 import { companiesService } from '@/modules/companies/services/companiesService'
-import type { CreateCompanyInput, PlatformCompany } from '@/modules/companies/types'
+import type {
+  CompaniesListQuery,
+  CreateCompanyInput,
+  PlatformCompany,
+} from '@/modules/companies/types'
 
-export function useCompanies() {
+export function useCompanies(query?: CompaniesListQuery) {
   const [companies, setCompanies] = useState<PlatformCompany[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const reload = useCallback(() => {
-    setCompanies(companiesService.readRecentCompanies())
-    setIsLoading(false)
-  }, [])
+  const search = query?.search?.trim() ?? ''
+  const status = query?.status
+
+  const load = useCallback(async () => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const list = await companiesService.listCompanies({
+        search: search || undefined,
+        status: status || undefined,
+      })
+      setCompanies(list)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load companies')
+      setCompanies([])
+    } finally {
+      setIsLoading(false)
+    }
+  }, [search, status])
 
   useEffect(() => {
-    reload()
-  }, [reload])
+    void load()
+  }, [load])
 
   const createCompany = useCallback(
     async (input: CreateCompanyInput) => {
       const result = await companiesService.createCompany(input)
-      setCompanies(companiesService.readRecentCompanies())
+      await load()
       return result
     },
-    [],
+    [load],
   )
 
   return {
     companies,
     isLoading,
-    reload,
+    error,
+    reload: load,
     createCompany,
   }
 }

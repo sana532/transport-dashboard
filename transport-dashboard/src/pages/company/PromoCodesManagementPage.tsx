@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronDown, Pencil, Plus, Search, Trash2 } from 'lucide-react'
+import { ChevronDown, Loader2, Pencil, Plus, Search, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { PromoLifecycleBadge } from '@/modules/promo-codes/components/PromoLifecycleBadge'
 import { usePromoCodesManagement } from '@/modules/promo-codes/hooks/usePromoCodesManagement'
@@ -33,16 +33,19 @@ function statCardClass(variant: PromoCodesStatVariant): string {
   return 'border-l-4 border-l-blue-500'
 }
 
-function PromoLoadingState() {
+function PromoLoadingState({ message }: { message: string }) {
   return (
     <div className="space-y-5">
-      <div className="h-16 w-72 animate-pulse rounded-lg bg-surface-muted" />
+      <div className="flex flex-col items-center justify-center gap-3 py-10">
+        <Loader2 className="h-10 w-10 animate-spin text-slate-400" />
+        <p className="text-sm font-medium text-text-muted">{message}</p>
+      </div>
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-28 animate-pulse rounded-xl bg-surface-muted" />
+          <div key={i} className="h-28 animate-pulse rounded-xl border border-border bg-surface shadow-sm" />
         ))}
       </div>
-      <div className="h-[420px] animate-pulse rounded-xl bg-surface-muted" />
+      <div className="h-[420px] animate-pulse rounded-xl border border-border bg-surface shadow-sm" />
     </div>
   )
 }
@@ -95,7 +98,7 @@ export function PromoCodesManagementPage() {
     }
   }
 
-  if (isLoading) return <PromoLoadingState />
+  if (isLoading) return <PromoLoadingState message={t('common.loading')} />
   if (error || !data) {
     return (
       <PromoErrorState

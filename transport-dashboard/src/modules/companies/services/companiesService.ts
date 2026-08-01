@@ -1,44 +1,14 @@
 import { api } from '@/services/api'
 import type {
+  CompaniesListQuery,
+  CompanyStatus,
   CreateCompanyInput,
   CreateCompanyResult,
   PlatformCompany,
+  UpdateCompanyInput,
 } from '@/modules/companies/types'
-
-const RECENT_STORAGE_KEY = 'admin_recent_companies'
-
-type ApiValidationErrors = Record<string, string[]>
-
-function getApiErrorMessage(error: unknown, fallback: string): string {
-  if (typeof error !== 'object' || error === null || !('response' in error)) {
-    return fallback
-  }
-
-  const response = (error as { response?: { status?: number; data?: { message?: string; errors?: ApiValidationErrors } } })
-    .response
-
-  if (response?.status === 401) {
-    return 'Session expired or not signed in. Sign out, then log in again as a platform admin.'
-  }
-
-  const data = response?.data
-
-  if (typeof data?.message === 'string' && data.message.trim()) {
-    const message = data.message.trim()
-    if (message.toLowerCase() === 'unauthenticated') {
-      return 'Session expired or not signed in. Sign out, then log in again as a platform admin.'
-    }
-    return message
-  }
-
-  if (data?.errors) {
-    for (const messages of Object.values(data.errors)) {
-      if (Array.isArray(messages) && messages[0]) return messages[0]
-    }
-  }
-
-  return fallback
-}
+import { getApiErrorMessage } from '@/shared/utils/getApiErrorMessage'
+import { collectApiListItems } from '@/shared/utils/unwrapApiList'
 
 function appendIfPresent(form: FormData, key: string, value: string | File | null | undefined) {
   if (value === null || value === undefined) return
@@ -74,21 +44,45 @@ function pickString(record: Record<string, unknown>, key: string): string | unde
   return typeof value === 'string' ? value : undefined
 }
 
-function normalizeCompany(raw: unknown, fallback: Partial<PlatformCompany>): PlatformCompany {
-  const record =
-    raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
+function pickId(record: Record<string, unknown>): number | null {
+  const value = record.id
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string' && value.trim() && Number.isFinite(Number(value))) {
+    return Number(value)
+  }
+  return null
+}
 
+function normalizeStatus(raw: unknown, fallback: CompanyStatus = 'active'): CompanyStatus {
+  if (raw === 'active' || raw === 'inactive' || raw === 'suspended') return raw
+  return fallback
+}
+
+function normalizeCompany(raw: unknown, fallback: Partial<PlatformCompany> = {}): PlatformCompany | null {
+  if (!raw || typeof raw !== 'object') {
+    if (fallback.id == null) return null
+    return {
+      id: fallback.id,
+      name: fallback.name ?? '—',
+      email: fallback.email ?? '—',
+      phone: fallback.phone ?? '—',
+      address: fallback.address ?? null,
+      description: fallback.description ?? null,
+      status: fallback.status ?? 'active',
+      logo_url: fallback.logo_url ?? null,
+      cover_image_url: fallback.cover_image_url ?? null,
+      created_at: fallback.created_at,
+    }
+  }
+
+  const record = raw as Record<string, unknown>
   const nested =
     record.company && typeof record.company === 'object'
       ? (record.company as Record<string, unknown>)
       : record
 
-  const id =
-    typeof nested.id === 'number'
-      ? nested.id
-      : typeof record.id === 'number'
-        ? record.id
-        : fallback.id ?? Date.now()
+  const id = pickId(nested) ?? pickId(record) ?? fallback.id ?? null
+  if (id == null) return null
 
   return {
     id,
@@ -97,77 +91,105 @@ function normalizeCompany(raw: unknown, fallback: Partial<PlatformCompany>): Pla
     phone: pickString(nested, 'phone') ?? fallback.phone ?? '—',
     address: pickString(nested, 'address') ?? fallback.address ?? null,
     description: pickString(nested, 'description') ?? fallback.description ?? null,
-    status:
-      nested.status === 'inactive' || nested.status === 'active'
-        ? nested.status
-        : (fallback.status ?? 'active'),
-    logo_url: pickString(nested, 'logo_url') ?? pickString(nested, 'logo') ?? null,
+    status: normalizeStatus(nested.status ?? record.status, fallback.status ?? 'active'),
+    logo_url: pickString(nested, 'logo_url') ?? pickString(nested, 'logo') ?? fallback.logo_url ?? null,
     cover_image_url:
-      pickString(nested, 'cover_image_url') ?? pickString(nested, 'cover_image') ?? null,
-    created_at: pickString(nested, 'created_at') ?? new Date().toISOString(),
+      pickString(nested, 'cover_image_url') ??
+      pickString(nested, 'cover_image') ??
+      fallback.cover_image_url ??
+      null,
+    created_at: pickString(nested, 'created_at') ?? fallback.created_at,
   }
 }
 
-function parseCreateResponse(
-  data: unknown,
-  input: CreateCompanyInput,
-): PlatformCompany {
-  if (data && typeof data === 'object') {
-    const root = data as Record<string, unknown>
-    if (root.data && typeof root.data === 'object') {
-      return normalizeCompany(root.data, {
-        name: input.company.name,
-        email: input.company.email,
-        phone: input.company.phone,
-        address: input.company.address,
-        description: input.company.description,
-        status: input.company.status,
-      })
-    }
-    return normalizeCompany(root, {
-      name: input.company.name,
-      email: input.company.email,
-      phone: input.company.phone,
-      address: input.company.address,
-      description: input.company.description,
-      status: input.company.status,
-    })
+function unwrapCompanyList(payload: unknown): PlatformCompany[] {
+  const items = collectApiListItems(payload)
+  const fromItems = items
+    .map((item) => normalizeCompany(item))
+    .filter((item): item is PlatformCompany => item !== null)
+
+  if (fromItems.length > 0) return fromItems
+
+  if (Array.isArray(payload)) {
+    return payload
+      .map((item) => normalizeCompany(item))
+      .filter((item): item is PlatformCompany => item !== null)
   }
 
-  return normalizeCompany(null, {
+  return []
+}
+
+function unwrapCompanyOne(payload: unknown): PlatformCompany | null {
+  if (!payload || typeof payload !== 'object') return null
+  const root = payload as Record<string, unknown>
+  if (root.data != null) return normalizeCompany(root.data)
+  return normalizeCompany(root)
+}
+
+function buildListParams(query?: CompaniesListQuery): Record<string, string> {
+  const params: Record<string, string> = {}
+  const search = query?.search?.trim()
+  if (search) params.search = search
+
+  if (Array.isArray(query?.status) && query.status.length > 0) {
+    params.status = query.status.join(',')
+  } else if (typeof query?.status === 'string' && query.status) {
+    params.status = query.status
+  }
+
+  return params
+}
+
+function buildUpdatePayload(input: UpdateCompanyInput): Record<string, string> {
+  const payload: Record<string, string> = {
+    name: input.name.trim(),
+    email: input.email.trim(),
+    phone: input.phone.trim(),
+    status: input.status,
+  }
+  if (input.address.trim()) payload.address = input.address.trim()
+  if (input.description.trim()) payload.description = input.description.trim()
+  return payload
+}
+
+function parseCreateResponse(data: unknown, input: CreateCompanyInput): PlatformCompany {
+  const fromApi = unwrapCompanyOne(data)
+  if (fromApi) return fromApi
+
+  return {
+    id: Date.now(),
     name: input.company.name,
     email: input.company.email,
     phone: input.company.phone,
-    address: input.company.address,
-    description: input.company.description,
+    address: input.company.address || null,
+    description: input.company.description || null,
     status: input.company.status,
-  })
+  }
 }
 
+/** Admin-Platform Postman → Companies */
 export const companiesService = {
-  readRecentCompanies(): PlatformCompany[] {
+  async listCompanies(query?: CompaniesListQuery): Promise<PlatformCompany[]> {
     try {
-      const raw = sessionStorage.getItem(RECENT_STORAGE_KEY)
-      if (!raw) return []
-      const parsed = JSON.parse(raw) as unknown
-      if (!Array.isArray(parsed)) return []
-      return parsed.filter(
-        (item): item is PlatformCompany =>
-          typeof item === 'object' &&
-          item !== null &&
-          typeof (item as PlatformCompany).id === 'number' &&
-          typeof (item as PlatformCompany).name === 'string',
-      )
-    } catch {
-      return []
+      const { data } = await api.get<unknown>('/platform/companies', {
+        params: buildListParams(query),
+      })
+      return unwrapCompanyList(data)
+    } catch (error) {
+      throw new Error(getApiErrorMessage(error, 'Failed to load companies'))
     }
   },
 
-  saveRecentCompany(company: PlatformCompany): PlatformCompany[] {
-    const existing = companiesService.readRecentCompanies()
-    const next = [company, ...existing.filter((c) => c.id !== company.id)].slice(0, 50)
-    sessionStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(next))
-    return next
+  async getCompany(id: number): Promise<PlatformCompany> {
+    try {
+      const { data } = await api.get<unknown>(`/platform/companies/${id}`)
+      const company = unwrapCompanyOne(data)
+      if (!company) throw new Error('Company not found')
+      return company
+    } catch (error) {
+      if (error instanceof Error && error.message === 'Company not found') throw error
+      throw new Error(getApiErrorMessage(error, 'Failed to load company'))
+    }
   },
 
   async createCompany(input: CreateCompanyInput): Promise<CreateCompanyResult> {
@@ -181,10 +203,31 @@ export const companiesService = {
         buildCreateCompanyFormData(input),
       )
       const company = parseCreateResponse(data, input)
-      const recent = companiesService.saveRecentCompany(company)
-      return { company, raw: data ?? { recentCount: recent.length } }
+      return { company, raw: data }
     } catch (error) {
       throw new Error(getApiErrorMessage(error, 'Failed to create company'))
+    }
+  },
+
+  async updateCompany(id: number, input: UpdateCompanyInput): Promise<PlatformCompany> {
+    try {
+      const { data } = await api.patch<unknown>(
+        `/platform/companies/${id}`,
+        buildUpdatePayload(input),
+      )
+      const updated = unwrapCompanyOne(data)
+      if (updated) return updated
+      return {
+        id,
+        name: input.name.trim(),
+        email: input.email.trim(),
+        phone: input.phone.trim(),
+        address: input.address.trim() || null,
+        description: input.description.trim() || null,
+        status: input.status,
+      }
+    } catch (error) {
+      throw new Error(getApiErrorMessage(error, 'Failed to update company'))
     }
   },
 }

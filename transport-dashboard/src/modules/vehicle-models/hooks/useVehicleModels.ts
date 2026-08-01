@@ -31,6 +31,7 @@ export function useVehicleModels() {
   const createModel = useCallback(
     async (input: CreateVehicleModelInput) => {
       const created = await vehicleModelsService.createVehicleModel(input)
+      await vehicleModelsService.syncModelSeatsFromLayout(created.id, input.layoutConfigJson)
       await load()
       return created
     },
@@ -40,6 +41,7 @@ export function useVehicleModels() {
   const updateModel = useCallback(
     async (id: number, input: UpdateVehicleModelInput) => {
       const updated = await vehicleModelsService.updateVehicleModel(id, input)
+      await vehicleModelsService.syncModelSeatsFromLayout(id, input.layoutConfigJson)
       await load()
       return updated
     },

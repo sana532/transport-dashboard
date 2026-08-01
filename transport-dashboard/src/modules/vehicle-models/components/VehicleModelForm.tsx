@@ -240,21 +240,21 @@ export function VehicleModelForm({
               />
             </div>
           </details>
+
+          <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
+            <button
+              type="submit"
+              disabled={pending}
+              className="inline-flex items-center justify-center rounded-lg bg-[#2F3E1F] px-4 py-2 text-sm font-medium text-white hover:bg-[#243217] disabled:pointer-events-none disabled:opacity-50"
+            >
+              {pending ? pendingLabel : submitLabel}
+            </button>
+            <Button type="button" variant="outline" onClick={onCancel}>
+              {t('admin.vehicleModels.form.cancel')}
+            </Button>
+          </div>
         </CardContent>
       </Card>
-
-      <div className="flex flex-wrap justify-end gap-3">
-        <Button type="button" variant="outline" onClick={onCancel}>
-          {t('admin.vehicleModels.form.cancel')}
-        </Button>
-        <Button
-          type="submit"
-          disabled={pending}
-          className="bg-brand-primary text-white hover:bg-brand-primary-dark"
-        >
-          {pending ? pendingLabel : submitLabel}
-        </Button>
-      </div>
     </form>
   )
 }

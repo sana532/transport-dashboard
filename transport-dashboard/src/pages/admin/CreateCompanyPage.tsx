@@ -193,6 +193,7 @@ export function CreateCompanyPage() {
               >
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
+                <option value="suspended">Suspended</option>
               </select>
             </div>
             <Input
@@ -297,14 +298,19 @@ export function CreateCompanyPage() {
           </div>
         </FormSection>
 
-        <div className="flex flex-wrap justify-end gap-3">
-          <Button type="button" variant="outline" onClick={() => navigate(paths.admin.companies)}>
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:flex-wrap sm:justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => navigate(paths.admin.companies)}
+            className="w-full sm:w-auto"
+          >
             Cancel
           </Button>
           <Button
             type="submit"
             disabled={pending}
-            className="bg-brand-primary text-white hover:bg-brand-primary-dark"
+            className="w-full bg-brand-primary text-white hover:bg-brand-primary-dark sm:w-auto"
           >
             {pending ? 'Creating…' : 'Create company'}
           </Button>

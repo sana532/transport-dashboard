@@ -1,14 +1,20 @@
+import { useEffect, useState } from 'react'
 import { ArrowLeft, Clock, FileText, ImageIcon, type LucideIcon } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import { ComplaintBadge } from '@/modules/complaints/components/ComplaintBadge'
 import { ComplaintAttachments } from '@/modules/complaints/components/ComplaintAttachments'
 import { usePlatformComplaintDetail } from '@/modules/complaints/hooks/usePlatformComplaintDetail'
+import type { ComplaintStatus } from '@/modules/complaints/types'
+import { COMPLAINT_STATUSES } from '@/modules/complaints/types'
 import { complaintDisplayType } from '@/modules/complaints/utils/mapCompanyComplaint'
 import { paths } from '@/routes/paths'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/Card'
 import { cn } from '@/shared/utils/cn'
 import { useTranslation } from '@/shared/i18n/useTranslation'
+
+const selectClass =
+  'mt-2 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary shadow-sm focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30'
 
 function Field({
   label,
@@ -54,7 +60,35 @@ function SectionCard({
 export function PlatformComplaintDetailsPage() {
   const { t } = useTranslation()
   const { complaintId } = useParams<{ complaintId: string }>()
-  const { row, isLoading, error, reload } = usePlatformComplaintDetail(complaintId)
+  const { row, isLoading, isSaving, error, reload, updateStatus } =
+    usePlatformComplaintDetail(complaintId)
+
+  const [statusDraft, setStatusDraft] = useState<ComplaintStatus>('pending')
+  const [adminNotesDraft, setAdminNotesDraft] = useState('')
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [saveSuccess, setSaveSuccess] = useState(false)
+
+  useEffect(() => {
+    if (!row) return
+    setStatusDraft(row.status)
+    setAdminNotesDraft(row.adminNotes)
+    setSaveSuccess(false)
+  }, [row])
+
+  async function handleSave() {
+    if (!row) return
+    setSaveError(null)
+    setSaveSuccess(false)
+    try {
+      await updateStatus({
+        status: statusDraft,
+        admin_notes: adminNotesDraft.trim() || undefined,
+      })
+      setSaveSuccess(true)
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : t('complaintDetails.saveFailed'))
+    }
+  }
 
   if (isLoading) {
     return (
@@ -119,10 +153,6 @@ export function PlatformComplaintDetailsPage() {
         </p>
       </div>
 
-      <div className="rounded-lg border border-border bg-surface-muted/40 px-4 py-3 text-sm text-text-muted">
-        {t('admin.complaints.readOnlyNote')}
-      </div>
-
       <div className="grid gap-4 lg:grid-cols-2">
         <SectionCard
           title={t('complaintDetails.passengerInfo')}
@@ -158,14 +188,6 @@ export function PlatformComplaintDetailsPage() {
         iconClassName="bg-amber-100 text-amber-900"
       >
         <p className="whitespace-pre-wrap text-sm text-text-primary">{row.description || '—'}</p>
-        {row.adminNotes ? (
-          <div className="rounded-lg border border-border bg-surface-muted/50 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
-              {t('complaintDetails.adminNotes')}
-            </p>
-            <p className="mt-1 whitespace-pre-wrap text-sm text-text-primary">{row.adminNotes}</p>
-          </div>
-        ) : null}
       </SectionCard>
 
       {row.attachments.length > 0 ? (
@@ -177,6 +199,93 @@ export function PlatformComplaintDetailsPage() {
           <ComplaintAttachments attachments={row.attachments} />
         </SectionCard>
       ) : null}
+
+      <SectionCard
+        title={t('complaintDetails.statusTitle')}
+        icon={Clock}
+        iconClassName="bg-amber-100 text-amber-800"
+      >
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3 border-b border-surface-muted pb-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-text-muted">{t('complaintDetails.statusUpdateHint')}</p>
+            <Button
+              type="button"
+              onClick={() => void handleSave()}
+              disabled={isSaving}
+              className="w-full shrink-0 bg-[#2F3E1F] px-6 py-2.5 text-white hover:bg-[#243217] disabled:opacity-70 sm:w-auto"
+            >
+              {isSaving ? t('common.saving') : t('common.saveChanges')}
+            </Button>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <p className="text-sm font-semibold text-text-secondary">
+                {t('complaintDetails.currentStatus')}
+              </p>
+              <div className="mt-2">
+                <ComplaintBadge status={row.status} />
+              </div>
+            </div>
+            <div>
+              <label
+                htmlFor="platform-complaint-status-update"
+                className="text-sm font-semibold text-text-secondary"
+              >
+                {t('complaintDetails.updateStatus')}
+              </label>
+              <select
+                id="platform-complaint-status-update"
+                value={statusDraft}
+                onChange={(e) => {
+                  setStatusDraft(e.target.value as ComplaintStatus)
+                  setSaveSuccess(false)
+                }}
+                className={selectClass}
+                disabled={isSaving}
+              >
+                {COMPLAINT_STATUSES.map((key) => (
+                  <option key={key} value={key}>
+                    {t(`complaints.status.${key}`)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label
+              htmlFor="platform-complaint-admin-notes"
+              className="text-sm font-semibold text-text-secondary"
+            >
+              {t('complaintDetails.adminNotes')}
+            </label>
+            <textarea
+              id="platform-complaint-admin-notes"
+              rows={4}
+              value={adminNotesDraft}
+              onChange={(e) => {
+                setAdminNotesDraft(e.target.value)
+                setSaveSuccess(false)
+              }}
+              disabled={isSaving}
+              placeholder={t('complaintDetails.adminNotesPlaceholder')}
+              className={cn(selectClass, 'mt-2 resize-y')}
+            />
+          </div>
+
+          {saveError ? (
+            <p className="text-sm text-red-700" role="alert">
+              {saveError}
+            </p>
+          ) : null}
+          {saveSuccess ? (
+            <p className="text-sm text-green-700" role="status">
+              {t('complaintDetails.saveSuccess')}
+            </p>
+          ) : null}
+        </div>
+      </SectionCard>
     </div>
   )
 }

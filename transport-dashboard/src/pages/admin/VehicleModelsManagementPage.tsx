@@ -16,7 +16,7 @@ const createBtnClass = cn(
 const iconBtnClass =
   'inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-text-secondary transition-colors hover:bg-surface-muted hover:text-text-primary'
 
-function ActiveBadge({ active }: { active: boolean }) {
+function ActiveBadge({ active, activeLabel, inactiveLabel }: { active: boolean; activeLabel: string; inactiveLabel: string }) {
   return (
     <span
       className={cn(
@@ -24,7 +24,7 @@ function ActiveBadge({ active }: { active: boolean }) {
         active ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-600',
       )}
     >
-      {active ? 'Active' : 'Inactive'}
+      {active ? activeLabel : inactiveLabel}
     </span>
   )
 }
@@ -64,7 +64,7 @@ export function VehicleModelsManagementPage() {
         </div>
         <Link to={paths.admin.vehicleModelNew} className={createBtnClass}>
           <Plus className="h-4 w-4" aria-hidden />
-          Add model
+          {t('admin.vehicleModels.table.add')}
         </Link>
       </div>
 
@@ -85,7 +85,7 @@ export function VehicleModelsManagementPage() {
               onClick={() => void reload()}
               className="bg-[#2F3E1F] text-white hover:bg-[#243217]"
             >
-              Retry
+              {t('admin.vehicleModels.table.retry')}
             </Button>
           </CardContent>
         </Card>
@@ -95,52 +95,91 @@ export function VehicleModelsManagementPage() {
             <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#2F3E1F]/10 text-[#2F3E1F]">
               <Bus className="h-5 w-5" aria-hidden />
             </span>
-            <CardTitle className="text-lg">All models</CardTitle>
+            <CardTitle className="text-lg">{t('admin.vehicleModels.table.all')}</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <p className="text-sm text-text-muted">Loading…</p>
+              <p className="text-sm text-text-muted">{t('admin.vehicleModels.table.loading')}</p>
             ) : models.length === 0 ? (
               <div className="rounded-lg border border-dashed border-border px-6 py-10 text-center">
-                <p className="text-sm text-text-muted">No vehicle models yet.</p>
+                <p className="text-sm text-text-muted">{t('admin.vehicleModels.table.empty')}</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[800px] text-start text-sm">
+              <div className="overflow-x-auto rounded-lg border border-border">
+                <table className="w-full min-w-[780px] table-fixed border-collapse text-sm">
+                  <colgroup>
+                    <col className="w-[24%]" />
+                    <col className="w-[26%]" />
+                    <col className="w-[5rem]" />
+                    <col className="w-[5.5rem]" />
+                    <col className="w-[6rem]" />
+                    <col className="w-[4.5rem]" />
+                    <col className="w-[7rem]" />
+                  </colgroup>
                   <thead>
-                    <tr className="border-b border-border text-text-muted">
-                      <th className="pb-3 pe-4 font-medium">Name</th>
-                      <th className="pb-3 pe-4 font-medium">Description</th>
-                      <th className="pb-3 pe-4 font-medium">Status</th>
-                      <th className="pb-3 pe-4 font-medium">Images</th>
-                      <th className="pb-3 font-medium text-end">Actions</th>
+                    <tr className="border-b border-border bg-surface-muted/50 text-xs uppercase tracking-wide text-text-muted">
+                      <th className="py-3 ps-4 pe-2 text-start font-semibold">
+                        {t('admin.vehicleModels.table.name')}
+                      </th>
+                      <th className="px-2 py-3 text-start font-semibold">
+                        {t('admin.vehicleModels.table.description')}
+                      </th>
+                      <th className="px-2 py-3 text-center font-semibold">
+                        {t('admin.vehicleModels.table.seats')}
+                      </th>
+                      <th className="px-2 py-3 text-center font-semibold">
+                        {t('admin.vehicleModels.table.vehicles')}
+                      </th>
+                      <th className="px-2 py-3 text-start font-semibold">
+                        {t('admin.vehicleModels.table.status')}
+                      </th>
+                      <th className="px-2 py-3 text-center font-semibold">
+                        {t('admin.vehicleModels.table.images')}
+                      </th>
+                      <th className="py-3 ps-2 pe-3 text-end font-semibold">
+                        {t('admin.vehicleModels.table.actions')}
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {models.map((model) => (
                       <tr
                         key={model.id}
-                        className="border-b border-surface-muted last:border-0"
+                        className="border-b border-surface-muted transition-colors last:border-0 hover:bg-surface-muted/40"
                       >
-                        <td className="py-3 pe-4 font-medium text-text-primary">
-                          <div>{model.nameEn || model.name}</div>
+                        <td className="py-3 ps-4 pe-2 align-middle text-start font-medium text-text-primary">
+                          <span className="block truncate" title={model.nameEn || model.name}>
+                            {model.nameEn || model.name}
+                          </span>
                           {model.nameAr && model.nameAr !== model.nameEn ? (
-                            <div className="text-xs text-text-muted" dir="rtl">
+                            <span className="mt-0.5 block truncate text-xs text-text-muted" dir="rtl" title={model.nameAr}>
                               {model.nameAr}
-                            </div>
+                            </span>
                           ) : null}
                         </td>
-                        <td className="max-w-xs truncate py-3 pe-4 text-text-secondary">
-                          {model.description || '—'}
+                        <td className="px-2 py-3 align-middle text-start text-text-secondary">
+                          <span className="block truncate" title={model.description ?? undefined}>
+                            {model.description || '—'}
+                          </span>
                         </td>
-                        <td className="py-3 pe-4">
-                          <ActiveBadge active={model.is_active} />
+                        <td className="px-2 py-3 align-middle text-center tabular-nums text-text-primary">
+                          {model.seat_count != null ? model.seat_count : '—'}
                         </td>
-                        <td className="py-3 pe-4 text-text-secondary">
+                        <td className="px-2 py-3 align-middle text-center tabular-nums text-text-primary">
+                          {model.vehicles_count != null ? model.vehicles_count : '—'}
+                        </td>
+                        <td className="px-2 py-3 align-middle">
+                          <ActiveBadge
+                            active={model.is_active}
+                            activeLabel={t('admin.vehicleModels.table.active')}
+                            inactiveLabel={t('admin.vehicleModels.table.inactive')}
+                          />
+                        </td>
+                        <td className="px-2 py-3 align-middle text-center tabular-nums text-text-secondary">
                           {model.image_urls?.length ?? 0}
                         </td>
-                        <td className="py-3">
-                          <div className="flex items-center justify-end gap-2">
+                        <td className="py-3 ps-2 pe-3 align-middle">
+                          <div className="flex items-center justify-end gap-1.5">
                             <Link
                               to={paths.admin.vehicleModelEdit(String(model.id))}
                               className={iconBtnClass}

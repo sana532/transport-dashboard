@@ -2,9 +2,10 @@ import {
   BusFront,
   CircleDollarSign,
   Route,
+  TrendingDown,
   TrendingUp,
   Users,
-  type LucideIcon,
+  UserX,
 } from 'lucide-react'
 import type {
   DashboardStatCard,
@@ -34,18 +35,34 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return value as Record<string, unknown>
 }
 
+/**
+ * Unwrap `{ data: T }` envelopes, but keep flat KPI payloads that already
+ * expose fields like `monthly_revenue` at the root.
+ */
 function unwrapData(payload: unknown): unknown {
   const root = asRecord(payload)
-  if (!root) return payload
-  if ('data' in root) return root.data
-  return payload
+  if (!root || !('data' in root)) return payload
+
+  const hasKpiFields =
+    'monthly_revenue' in root ||
+    'daily_revenue' in root ||
+    'total_active_vehicles' in root ||
+    'total_monthly_passengers' in root ||
+    'most_profitable_route' in root
+
+  if (hasKpiFields) return root
+
+  const inner = root.data
+  if (inner == null) return root
+  if (asRecord(inner) || Array.isArray(inner)) return inner
+  return root
 }
 
 function pickNumber(record: Record<string, unknown>, ...keys: string[]): number | null {
   for (const key of keys) {
     const raw = record[key]
     if (raw == null || raw === '') continue
-    const n = typeof raw === 'number' ? raw : Number(raw)
+    const n = typeof raw === 'number' ? raw : Number(String(raw).replace(/,/g, ''))
     if (Number.isFinite(n)) return n
   }
   return null
@@ -60,45 +77,18 @@ function pickString(record: Record<string, unknown>, ...keys: string[]): string 
   return ''
 }
 
-function formatCount(value: number, locale: string): string {
-  return value.toLocaleString(locale === 'ar' ? 'ar-SY' : 'en-US')
+/** Always Latin digits so KPI values stay readable with dashboard fonts. */
+function formatCount(value: number): string {
+  return value.toLocaleString('en-US')
 }
 
-function formatMoney(value: number, locale: string): string {
-  return `${formatCount(value, locale)} SYP`
+function formatMoney(value: number): string {
+  return `${formatCount(value)} SYP`
 }
 
-function formatTrendPercent(value: number | null): string | undefined {
-  if (value == null || !Number.isFinite(value)) return undefined
+function formatPercent(value: number): string {
   const rounded = Math.round(value * 10) / 10
-  const sign = rounded > 0 ? '+' : ''
-  return `${sign}${rounded}%`
-}
-
-function resolveTrend(
-  record: Record<string, unknown>,
-  prefixes: string[],
-): { label?: string; tone: DashboardStatCard['trendTone'] } {
-  for (const prefix of prefixes) {
-    const percent = pickNumber(
-      record,
-      `${prefix}_change_percent`,
-      `${prefix}_growth_percent`,
-      `${prefix}_trend_percent`,
-      `${prefix}_change`,
-      `${prefix}_growth`,
-      `${prefix}_trend`,
-    )
-    if (percent != null) {
-      return {
-        label: formatTrendPercent(percent),
-        tone: percent > 0 ? 'up' : percent < 0 ? 'down' : 'neutral',
-      }
-    }
-    const text = pickString(record, `${prefix}_trend_label`, `${prefix}_note`)
-    if (text) return { label: text, tone: 'neutral' }
-  }
-  return { tone: 'neutral' }
+  return `${formatCount(rounded)}%`
 }
 
 function monthKeyFromValue(raw: unknown): string | undefined {
@@ -116,158 +106,164 @@ function monthKeyFromValue(raw: unknown): string | undefined {
   return undefined
 }
 
-type KpiDef = {
-  id: string
-  titleKey: string
-  Icon: LucideIcon
-  valueKeys: string[]
-  format: 'count' | 'money' | 'text'
-  trendPrefixes: string[]
-  nestedKeys?: string[]
-}
-
-const KPI_DEFS: KpiDef[] = [
-  {
-    id: 'monthly-passengers',
-    titleKey: 'dashboard.stats.monthlyPassengers.title',
-    Icon: Users,
-    valueKeys: [
-      'monthly_passengers',
-      'passengers_monthly',
-      'passengers_count',
-      'total_passengers',
-      'passengers',
-    ],
-    format: 'count',
-    trendPrefixes: ['monthly_passengers', 'passengers'],
-  },
-  {
-    id: 'monthly-revenue',
-    titleKey: 'dashboard.stats.monthlyRevenue.title',
-    Icon: CircleDollarSign,
-    valueKeys: ['monthly_revenue', 'revenue_monthly', 'revenue_this_month', 'total_revenue'],
-    format: 'money',
-    trendPrefixes: ['monthly_revenue', 'revenue'],
-  },
-  {
-    id: 'daily-revenue',
-    titleKey: 'dashboard.stats.dailyRevenue.title',
-    Icon: TrendingUp,
-    valueKeys: ['daily_revenue', 'revenue_today', 'today_revenue', 'revenue_daily'],
-    format: 'money',
-    trendPrefixes: ['daily_revenue', 'today_revenue'],
-  },
-  {
-    id: 'top-route',
-    titleKey: 'dashboard.stats.topRoute.title',
-    Icon: Route,
-    valueKeys: ['top_route', 'most_profitable_route', 'best_route', 'top_route_name'],
-    format: 'text',
-    trendPrefixes: ['top_route'],
-    nestedKeys: ['top_route', 'most_profitable_route', 'best_route'],
-  },
-  {
-    id: 'buses',
-    titleKey: 'dashboard.stats.buses.title',
-    Icon: BusFront,
-    valueKeys: [
-      'buses_count',
-      'vehicles_count',
-      'total_buses',
-      'total_vehicles',
-      'fleet_size',
-      'buses',
-      'vehicles',
-    ],
-    format: 'count',
-    trendPrefixes: ['buses', 'vehicles', 'fleet'],
-    nestedKeys: ['buses', 'vehicles', 'fleet'],
-  },
-]
-
-function resolveKpiValue(
-  record: Record<string, unknown>,
-  def: KpiDef,
-  locale: string,
-): { value: string; trendLabel?: string; trendTone: DashboardStatCard['trendTone'] } | null {
-  if (def.format === 'text' || def.nestedKeys) {
-    for (const key of def.nestedKeys ?? []) {
-      const nested = asRecord(record[key])
-      if (nested) {
-        const label = pickString(nested, 'name', 'name_en', 'name_ar', 'code', 'label', 'title')
-        if (label) {
-          const revenue = pickNumber(nested, 'revenue', 'monthly_revenue', 'total_revenue')
-          const trend = resolveTrend(nested, def.trendPrefixes)
-          return {
-            value: label,
-            trendLabel:
-              trend.label ??
-              (revenue != null ? formatMoney(revenue, locale) : undefined),
-            trendTone: trend.tone,
-          }
-        }
-        const count = pickNumber(nested, 'total', 'count', 'active', 'operational')
-        if (count != null && def.format === 'count') {
-          const operational = pickNumber(nested, 'operational', 'active')
-          const maintenance = pickNumber(nested, 'maintenance', 'inactive')
-          const trend = resolveTrend(nested, def.trendPrefixes)
-          return {
-            value: formatCount(count, locale),
-            trendLabel:
-              trend.label ??
-              (operational != null || maintenance != null
-                ? [
-                    operational != null
-                      ? `${formatCount(operational, locale)} ${locale === 'ar' ? 'عاملة' : 'operational'}`
-                      : null,
-                    maintenance != null
-                      ? `${formatCount(maintenance, locale)} ${locale === 'ar' ? 'صيانة' : 'maintenance'}`
-                      : null,
-                  ]
-                    .filter(Boolean)
-                    .join(', ')
-                : undefined),
-            trendTone: trend.tone,
-          }
-        }
-      }
-    }
-  }
-
-  if (def.format === 'text') {
-    const text = pickString(record, ...def.valueKeys)
-    if (!text) return null
-    const trend = resolveTrend(record, def.trendPrefixes)
-    return { value: text, trendLabel: trend.label, trendTone: trend.tone }
-  }
-
-  const amount = pickNumber(record, ...def.valueKeys)
-  if (amount == null) return null
-  const trend = resolveTrend(record, def.trendPrefixes)
-  return {
-    value: def.format === 'money' ? formatMoney(amount, locale) : formatCount(amount, locale),
-    trendLabel: trend.label,
-    trendTone: trend.tone,
-  }
+function pushCard(
+  cards: DashboardStatCard[],
+  card: Omit<DashboardStatCard, 'trendTone'> & { trendTone?: DashboardStatCard['trendTone'] },
+) {
+  cards.push({
+    trendTone: 'neutral',
+    ...card,
+  })
 }
 
 /** Normalize GET /company/dashboard/kpis */
-export function mapDashboardKpis(payload: unknown, locale: string): DashboardStatCard[] {
-  const data = unwrapData(payload)
-  const record = asRecord(data) ?? asRecord(payload)
+export function mapDashboardKpis(payload: unknown, _locale: string): DashboardStatCard[] {
+  const record = asRecord(unwrapData(payload)) ?? asRecord(payload)
   if (!record) return []
 
   const cards: DashboardStatCard[] = []
-  for (const def of KPI_DEFS) {
-    const mapped = resolveKpiValue(record, def, locale)
-    if (!mapped) continue
-    cards.push({
-      id: def.id,
-      titleKey: def.titleKey,
-      value: mapped.value,
-      trendLabel: mapped.trendLabel,
-      trendTone: mapped.trendTone,
-      Icon: def.Icon,
+
+  const monthlyRevenue = pickNumber(
+    record,
+    'monthly_revenue',
+    'revenue_monthly',
+    'revenue_this_month',
+    'total_revenue',
+  )
+  if (monthlyRevenue != null) {
+    pushCard(cards, {
+      id: 'monthly-revenue',
+      titleKey: 'dashboard.stats.monthlyRevenue.title',
+      value: formatMoney(monthlyRevenue),
+      Icon: CircleDollarSign,
+    })
+  }
+
+  const passengers = pickNumber(
+    record,
+    'total_monthly_passengers',
+    'monthly_passengers',
+    'passengers_monthly',
+    'passengers_count',
+    'total_passengers',
+    'passengers',
+  )
+  if (passengers != null) {
+    pushCard(cards, {
+      id: 'monthly-passengers',
+      titleKey: 'dashboard.stats.monthlyPassengers.title',
+      value: formatCount(passengers),
+      Icon: Users,
+    })
+  }
+
+  const dailyRevenue = pickNumber(
+    record,
+    'daily_revenue',
+    'revenue_today',
+    'today_revenue',
+    'revenue_daily',
+  )
+  if (dailyRevenue != null) {
+    pushCard(cards, {
+      id: 'daily-revenue',
+      titleKey: 'dashboard.stats.dailyRevenue.title',
+      value: formatMoney(dailyRevenue),
+      Icon: TrendingUp,
+    })
+  }
+
+  const topRouteNested =
+    asRecord(record.most_profitable_route) ??
+    asRecord(record.top_route) ??
+    asRecord(record.best_route)
+
+  if (topRouteNested) {
+    const routeName = pickString(
+      topRouteNested,
+      'route_name',
+      'name',
+      'name_en',
+      'name_ar',
+      'code',
+      'label',
+      'title',
+    )
+    const routeRevenue = pickNumber(
+      topRouteNested,
+      'monthly_revenue',
+      'revenue',
+      'total_revenue',
+    )
+    if (routeName) {
+      pushCard(cards, {
+        id: 'top-route',
+        titleKey: 'dashboard.stats.topRoute.title',
+        value: routeName,
+        trendLabel: routeRevenue != null ? formatMoney(routeRevenue) : undefined,
+        Icon: Route,
+      })
+    }
+  } else {
+    const routeName = pickString(
+      record,
+      'top_route_name',
+      'most_profitable_route_name',
+      'top_route',
+    )
+    if (routeName) {
+      pushCard(cards, {
+        id: 'top-route',
+        titleKey: 'dashboard.stats.topRoute.title',
+        value: routeName,
+        Icon: Route,
+      })
+    }
+  }
+
+  const vehicles = pickNumber(
+    record,
+    'total_active_vehicles',
+    'active_vehicles',
+    'buses_count',
+    'vehicles_count',
+    'total_buses',
+    'total_vehicles',
+    'fleet_size',
+    'buses',
+    'vehicles',
+  )
+  if (vehicles != null) {
+    pushCard(cards, {
+      id: 'buses',
+      titleKey: 'dashboard.stats.buses.title',
+      value: formatCount(vehicles),
+      Icon: BusFront,
+    })
+  }
+
+  const noShowRate = pickNumber(record, 'no_show_rate', 'noshow_rate', 'no_shows_rate')
+  if (noShowRate != null) {
+    pushCard(cards, {
+      id: 'no-show-rate',
+      titleKey: 'dashboard.stats.noShowRate.title',
+      value: formatPercent(noShowRate),
+      Icon: UserX,
+    })
+  }
+
+  const lostRevenue = pickNumber(
+    record,
+    'lost_revenue_from_no_shows',
+    'lost_revenue_no_shows',
+    'no_show_lost_revenue',
+  )
+  if (lostRevenue != null) {
+    pushCard(cards, {
+      id: 'lost-revenue-no-shows',
+      titleKey: 'dashboard.stats.lostRevenueNoShows.title',
+      value: formatMoney(lostRevenue),
+      Icon: TrendingDown,
     })
   }
 

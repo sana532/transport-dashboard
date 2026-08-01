@@ -26,7 +26,8 @@ function gridClass(count: number): string {
   if (count === 2) return 'grid-cols-1 sm:grid-cols-2'
   if (count === 3) return 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3'
   if (count === 4) return 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-4'
-  return 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-5'
+  if (count <= 6) return 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3'
+  return 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-4'
 }
 
 export function DashboardStatsGrid({ statCards }: DashboardStatsGridProps) {
@@ -46,6 +47,7 @@ export function DashboardStatsGrid({ statCards }: DashboardStatsGridProps) {
     <motion.div className={cn('grid gap-4', gridClass(statCards.length))} variants={listMotion}>
       {statCards.map(({ id, titleKey, value, trendLabel, trendTone, Icon }, index) => {
         const featured = index === 0
+        const longValue = value.length > 14
         return (
           <motion.div
             key={id}
@@ -55,13 +57,13 @@ export function DashboardStatsGrid({ statCards }: DashboardStatsGridProps) {
           >
             <Card
               className={cn(
-                'h-full overflow-hidden border-border shadow-sm transition-shadow hover:shadow-md',
+                'h-full border-border shadow-sm transition-shadow hover:shadow-md',
                 featured && 'border-[#2F3E1F]/25 bg-gradient-to-br from-[#2F3E1F] to-[#3F5429] text-white',
               )}
             >
               <CardContent className="p-5">
                 <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p
                       className={cn(
                         'text-xs font-medium',
@@ -72,9 +74,11 @@ export function DashboardStatsGrid({ statCards }: DashboardStatsGridProps) {
                     </p>
                     <p
                       className={cn(
-                        'mt-2 truncate text-3xl font-semibold tracking-tight tabular-nums',
+                        'mt-2 break-words font-semibold tracking-tight',
+                        longValue ? 'text-xl leading-snug' : 'text-3xl',
                         featured ? 'text-white' : 'text-text-primary',
                       )}
+                      dir="ltr"
                     >
                       {value}
                     </p>
@@ -100,6 +104,7 @@ export function DashboardStatsGrid({ statCards }: DashboardStatsGridProps) {
                             ? 'text-green-700'
                             : 'text-text-muted',
                     )}
+                    dir="ltr"
                   >
                     {trendLabel}
                   </p>

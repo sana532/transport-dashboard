@@ -36,6 +36,7 @@ export const paths = {
     companyNew: '/admin/companies/new',
     companyDetails: (companyId: string) => `/admin/companies/${companyId}`,
     users: '/admin/users',
+    userDetails: (userId: string) => `/admin/users/${userId}`,
     vehicleModels: '/admin/vehicle-models',
     vehicleModelNew: '/admin/vehicle-models/new',
     vehicleModelEdit: (modelId: string) => `/admin/vehicle-models/${modelId}/edit`,

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { CircleGauge, Download, Plus, Search } from 'lucide-react'
+import { CircleGauge, Download, Loader2, Plus, Search } from 'lucide-react'
 import { cn } from '@/shared/utils/cn'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/Card'
@@ -32,19 +32,22 @@ function trendClass(variant: VehiclesStatVariant): string {
   return 'text-green-700'
 }
 
-function VehiclesLoadingState() {
+function VehiclesLoadingState({ message }: { message: string }) {
   return (
     <div className="space-y-5">
-      <div className="h-12 w-72 animate-pulse rounded-lg bg-surface-muted" />
+      <div className="flex flex-col items-center justify-center gap-3 py-10">
+        <Loader2 className="h-10 w-10 animate-spin text-slate-400" />
+        <p className="text-sm font-medium text-text-muted">{message}</p>
+      </div>
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, idx) => (
-          <div key={idx} className="h-36 animate-pulse rounded-xl bg-surface-muted" />
+          <div key={idx} className="h-36 animate-pulse rounded-xl border border-border bg-surface shadow-sm" />
         ))}
       </div>
-      <div className="h-44 animate-pulse rounded-xl bg-surface-muted" />
+      <div className="h-44 animate-pulse rounded-xl border border-border bg-surface shadow-sm" />
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {Array.from({ length: 6 }).map((_, idx) => (
-          <div key={idx} className="h-48 animate-pulse rounded-xl bg-surface-muted" />
+          <div key={idx} className="h-48 animate-pulse rounded-xl border border-border bg-surface shadow-sm" />
         ))}
       </div>
     </div>
@@ -114,7 +117,7 @@ export function VehiclesManagementPage() {
     }
   }
 
-  if (isLoading) return <VehiclesLoadingState />
+  if (isLoading) return <VehiclesLoadingState message={t('common.loading')} />
   if (error || !data) {
     return (
       <VehiclesErrorState

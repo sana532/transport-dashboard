@@ -146,3 +146,60 @@ code {
   background: var(--brand-primary);
   box-shadow: 0 4px 14px rgba(47, 62, 31, 0.45);
 }
+
+/* Login page — light entrance motion */
+@keyframes login-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes login-soft-scale {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes login-panel-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.login-animate-panel {
+  animation: login-panel-in 0.5s ease-out both;
+}
+
+.login-animate-brand {
+  animation: login-soft-scale 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.login-animate-form {
+  animation: login-fade-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both;
+}
+
+.login-animate-footer {
+  animation: login-fade-up 0.45s ease-out 0.28s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-animate-panel,
+  .login-animate-brand,
+  .login-animate-form,
+  .login-animate-footer {
+    animation: none;
+  }
+}

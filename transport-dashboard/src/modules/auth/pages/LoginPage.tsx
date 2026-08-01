@@ -1,8 +1,11 @@
 import { type FormEvent, useId, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
+import { Eye, EyeOff, Languages } from 'lucide-react'
 import { authService } from '@/modules/auth/services/authService'
 import { useAuth } from '@/modules/auth/hooks/useAuth'
 import { paths } from '@/routes/paths'
+import { useTranslation } from '@/shared/i18n/useTranslation'
+import { usePreferences } from '@/shared/preferences/PreferencesProvider'
 import { Button } from '@/shared/ui/Button'
 import { Input } from '@/shared/ui/Input'
 import { Card, CardContent } from '@/shared/ui/Card'
@@ -113,11 +116,15 @@ const inputFocusClass =
 export function LoginPage() {
   const { isAuthenticated, login, role } = useAuth()
   const navigate = useNavigate()
+  const { t, locale } = useTranslation()
+  const { setLocale } = usePreferences()
   const emailId = useId()
   const passwordId = useId()
+  const isRtl = locale === 'ar'
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
@@ -139,16 +146,16 @@ export function LoginPage() {
       const next = homePathByRole(nextRole)
       navigate(next, { replace: true })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Sign in failed')
+      setError(err instanceof Error ? err.message : t('login.errorFallback'))
     } finally {
       setPending(false)
     }
   }
 
   return (
-    <div className="grid h-screen min-h-screen w-screen grid-cols-1 overflow-hidden bg-background md:grid-cols-2">
-      {/* Left: illustration (tablet/desktop) */}
-      <div className="relative hidden h-full min-h-screen overflow-hidden bg-[#F2F2EE] md:flex">
+    <div className="grid min-h-svh w-full grid-cols-1 overflow-x-hidden overflow-y-auto bg-background md:grid-cols-2">
+      {/* Illustration (tablet/desktop) */}
+      <div className="login-animate-panel relative hidden min-h-svh overflow-hidden bg-[#F2F2EE] md:flex">
         <img
           src={loginIllustration}
           alt=""
@@ -156,29 +163,63 @@ export function LoginPage() {
         />
       </div>
 
-      {/* Right: login form */}
-      <div className="flex h-full min-h-screen flex-col justify-between px-6 py-5 sm:px-8 sm:py-6">
+      {/* Login form column */}
+      <div className="relative flex min-h-svh flex-col justify-between px-6 py-5 sm:px-8 sm:py-6">
+        <div className="absolute end-6 top-5 z-10 sm:end-8 sm:top-6 login-animate-footer">
+          <div
+            className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface p-0.5 shadow-sm"
+            role="group"
+            aria-label={t('login.language')}
+          >
+            <Languages className="ms-1 h-3 w-3 text-text-muted" aria-hidden />
+            <button
+              type="button"
+              onClick={() => setLocale('ar')}
+              aria-pressed={isRtl}
+              className={cn(
+                'rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors duration-200',
+                isRtl
+                  ? 'bg-brand-primary text-white shadow-sm'
+                  : 'text-text-secondary hover:bg-surface-muted hover:text-text-primary',
+              )}
+            >
+              {t('settings.languageArabic')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setLocale('en')}
+              aria-pressed={!isRtl}
+              className={cn(
+                'rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors duration-200',
+                !isRtl
+                  ? 'bg-brand-primary text-white shadow-sm'
+                  : 'text-text-secondary hover:bg-surface-muted hover:text-text-primary',
+              )}
+            >
+              {t('settings.languageEnglish')}
+            </button>
+          </div>
+        </div>
+
         <div className="mx-auto flex w-full max-w-[720px] flex-1 flex-col items-center justify-start -translate-y-3 pt-0">
-          <header className="mb-3 flex flex-col items-center gap-2 text-center">
+          <header className="login-animate-brand mb-3 flex flex-col items-center gap-2 text-center">
             <div className="flex flex-col items-center gap-2">
-              <div
-                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand-primary"
-              >
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand-primary">
                 <BusIcon className="h-6 w-6 text-white" />
               </div>
               <div className="min-w-0 max-w-[420px] text-center">
                 <p className="mt-2 text-[32px] leading-normal text-gray-700">
-                  <span className="block">Bus Transportation</span>
-                  <span className="block">Management System</span>
+                  <span className="block">{t('login.brandTitleLine1')}</span>
+                  <span className="block">{t('login.brandTitleLine2')}</span>
                 </p>
                 <p className="mt-2 text-sm leading-normal text-text-muted">
-                  Company Administration Portal
+                  {t('login.brandSubtitle')}
                 </p>
               </div>
             </div>
           </header>
 
-          <Card className="h-[390px] w-[420px] max-w-full border-border shadow-[0_8px_24px_rgba(15,23,42,0.12)]">
+          <Card className="login-animate-form h-[390px] w-[420px] max-w-full border-border shadow-[0_8px_24px_rgba(15,23,42,0.12)]">
             <CardContent className="flex h-full flex-col p-4 sm:p-5">
               <form className="space-y-3" onSubmit={onSubmit} noValidate>
                 <div>
@@ -186,21 +227,21 @@ export function LoginPage() {
                     htmlFor={emailId}
                     className="mb-1.5 block text-xs font-medium text-text-secondary"
                   >
-                    Username or Phone
+                    {t('login.usernameLabel')}
                   </label>
                   <div className="relative">
-                    <MailIcon className="pointer-events-none absolute left-3 top-1/2 z-10 h-5 w-5 -translate-y-1/2 text-text-muted" />
+                    <MailIcon className="pointer-events-none absolute start-3 top-1/2 z-10 h-5 w-5 -translate-y-1/2 text-text-muted" />
                     <Input
                       id={emailId}
                       name="identifier"
                       type="text"
                       autoComplete="username"
-                      placeholder="Enter username or phone number"
+                      placeholder={t('login.usernamePlaceholder')}
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       label={undefined}
                       required
-                      className={cn('py-1.5 pl-10', inputFocusClass)}
+                      className={cn('py-1.5 ps-10', inputFocusClass)}
                     />
                   </div>
                 </div>
@@ -210,22 +251,37 @@ export function LoginPage() {
                     htmlFor={passwordId}
                     className="mb-1.5 block text-sm font-medium text-text-secondary"
                   >
-                    Password
+                    {t('login.passwordLabel')}
                   </label>
                   <div className="relative">
-                    <LockIcon className="pointer-events-none absolute left-3 top-1/2 z-10 h-5 w-5 -translate-y-1/2 text-text-muted" />
+                    <LockIcon className="pointer-events-none absolute start-3 top-1/2 z-10 h-5 w-5 -translate-y-1/2 text-text-muted" />
                     <Input
                       id={passwordId}
                       name="password"
-                      type="password"
+                      type={showPassword ? 'text' : 'password'}
                       autoComplete="current-password"
-                      placeholder="Enter your password"
+                      placeholder={t('login.passwordPlaceholder')}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       label={undefined}
                       required
-                      className={cn('py-1.5 pl-10', inputFocusClass)}
+                      className={cn('py-1.5 ps-10 pe-10', inputFocusClass)}
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      className="absolute end-2 top-1/2 z-10 -translate-y-1/2 rounded-md p-1 text-text-muted transition-colors duration-200 hover:bg-surface-muted hover:text-text-secondary focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring/30"
+                      aria-label={
+                        showPassword ? t('login.hidePassword') : t('login.showPassword')
+                      }
+                      aria-pressed={showPassword}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" aria-hidden />
+                      ) : (
+                        <Eye className="h-4 w-4" aria-hidden />
+                      )}
+                    </button>
                   </div>
                 </div>
 
@@ -238,7 +294,7 @@ export function LoginPage() {
                       onChange={(e) => setRememberMe(e.target.checked)}
                       className="h-4 w-4 rounded border-border text-brand-primary focus:ring-ring/30"
                     />
-                    Remember me
+                    {t('login.rememberMe')}
                   </label>
                   <button
                     type="button"
@@ -247,7 +303,7 @@ export function LoginPage() {
                       /* Wire to forgot-password route when available */
                     }}
                   >
-                    Forgot Password?
+                    {t('login.forgotPassword')}
                   </button>
                 </div>
 
@@ -265,24 +321,25 @@ export function LoginPage() {
                     'hover:!bg-[#243217] focus-visible:ring-ring disabled:!bg-[#2F3E1F] disabled:!text-white disabled:opacity-100',
                   )}
                 >
-                  <LoginArrowIcon className="h-5 w-5 shrink-0" />
-                  {pending ? 'Signing in…' : 'Login'}
+                  <LoginArrowIcon
+                    className={cn('h-5 w-5 shrink-0', isRtl && 'rotate-180')}
+                  />
+                  {pending ? t('login.submitting') : t('login.submit')}
                 </Button>
 
                 <p className="flex items-center justify-center gap-1.5 text-center text-xs text-text-muted">
                   <ShieldIcon className="h-4 w-4 shrink-0 text-text-muted" />
-                  Secure access for authorized company staff
+                  {t('login.secureNote')}
                 </p>
               </form>
             </CardContent>
           </Card>
         </div>
 
-        <footer className="mx-auto mt-5 w-full max-w-[448px] pb-1 text-center text-xs text-text-muted md:mt-0">
-        © 2026 Bus Transportation Management System
+        <footer className="login-animate-footer mx-auto mt-5 w-full max-w-[448px] pb-1 text-center text-xs text-text-muted md:mt-0">
+          {t('login.copyright')}
         </footer>
       </div>
-
     </div>
   )
 }

@@ -29,6 +29,7 @@ const StationsManagementPage = lazy(() => import('@/pages/admin/StationsManageme
 const VehicleModelsManagementPage = lazy(() => import('@/pages/admin/VehicleModelsManagementPage').then(m => ({ default: m.VehicleModelsManagementPage })))
 const CompanyDetailsPage = lazy(() => import('@/pages/admin/CompanyDetailsPage').then(m => ({ default: m.CompanyDetailsPage })))
 const UsersManagementPage = lazy(() => import('@/pages/admin/UsersManagementPage').then(m => ({ default: m.UsersManagementPage })))
+const UserDetailsPage = lazy(() => import('@/pages/admin/UserDetailsPage').then(m => ({ default: m.UserDetailsPage })))
 
 // Company pages
 const DashboardPage = lazy(() => import('@/pages/company/DashboardPage').then(m => ({ default: m.DashboardPage })))
@@ -137,6 +138,7 @@ export function AppRoutes() {
             <Route path="complaints" element={<PlatformComplaintsPage />} />
             <Route path="complaint-categories" element={<PlatformComplaintCategoriesPage />} />
             <Route path="users" element={<UsersManagementPage />} />
+            <Route path="users/:userId" element={<UserDetailsPage />} />
             <Route path="settings" element={<AdminSettingsPage />} />
           </Route>
         </Route>

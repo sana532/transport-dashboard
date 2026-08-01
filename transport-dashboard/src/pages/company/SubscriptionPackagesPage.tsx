@@ -1,4 +1,4 @@
-import { Plus } from 'lucide-react'
+import { Loader2, Plus } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { SubscriptionPlanCard } from '@/modules/subscription-packages/components/SubscriptionPlanCard'
 import { usePackagesManagement } from '@/modules/subscription-packages/hooks/usePackagesManagement'
@@ -15,18 +15,21 @@ function statCardClass(variant: PackagesStatVariant): string {
   return 'border-l-4 border-l-violet-500'
 }
 
-function PackagesLoadingState() {
+function PackagesLoadingState({ message }: { message: string }) {
   return (
     <div className="space-y-5">
-      <div className="h-20 animate-pulse rounded-lg bg-surface-muted" />
+      <div className="flex flex-col items-center justify-center gap-3 py-10">
+        <Loader2 className="h-10 w-10 animate-spin text-slate-400" />
+        <p className="text-sm font-medium text-text-muted">{message}</p>
+      </div>
       <div className="grid gap-3 md:grid-cols-3">
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="h-28 animate-pulse rounded-xl bg-surface-muted" />
+          <div key={i} className="h-28 animate-pulse rounded-xl border border-border bg-surface shadow-sm" />
         ))}
       </div>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="h-96 animate-pulse rounded-xl bg-surface-muted" />
+          <div key={i} className="h-96 animate-pulse rounded-xl border border-border bg-surface shadow-sm" />
         ))}
       </div>
     </div>
@@ -61,7 +64,7 @@ export function SubscriptionPackagesPage() {
     }
   }
 
-  if (isLoading) return <PackagesLoadingState />
+  if (isLoading) return <PackagesLoadingState message={t('common.loading')} />
   if (error || !data) {
     return (
       <PackagesErrorState
