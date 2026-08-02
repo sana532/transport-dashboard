@@ -5,6 +5,7 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '@/modules/auth/hooks/useAuth'
 import { NotificationBell } from '@/modules/notifications/components/NotificationBell'
 import { useTranslation } from '@/shared/i18n/useTranslation'
+import { useMediaImageSrc } from '@/shared/hooks/useMediaImageSrc'
 import { cn } from '@/shared/utils/cn'
 import { Button } from '@/shared/ui/Button'
 
@@ -28,6 +29,10 @@ type AppShellProps = {
   brandLabel: string
   /** Main sidebar heading (e.g. Company / Admin) */
   sectionTitle: string
+  /** Optional link for the brand block (e.g. company settings / profile) */
+  brandHref?: string
+  /** Optional logo / cover thumbnail next to the brand title */
+  brandImageUrl?: string | null
   /**
    * `company`: sidebar + top bar use brand primary (#2F3E1F) with white text.
    * `neutral`: light sidebar + light top bar (legacy admin-style shell).
@@ -35,24 +40,60 @@ type AppShellProps = {
   variant?: 'company' | 'neutral'
 }
 
+function SidebarBrandAvatar({
+  imageUrl,
+  label,
+  isCompany,
+}: {
+  imageUrl?: string | null
+  label: string
+  isCompany: boolean
+}) {
+  const { src, failed, onError } = useMediaImageSrc(imageUrl ?? undefined)
+  const initial = label.trim().charAt(0).toUpperCase() || '?'
+
+  if (src && !failed) {
+    return (
+      <img
+        src={src}
+        alt=""
+        onError={onError}
+        className="h-9 w-9 shrink-0 rounded-lg object-cover ring-1 ring-white/25"
+      />
+    )
+  }
+
+  return (
+    <span
+      className={cn(
+        'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-semibold',
+        isCompany ? 'bg-white/15 text-white' : 'bg-surface-muted text-text-primary',
+      )}
+      aria-hidden
+    >
+      {initial}
+    </span>
+  )
+}
+
 function SidebarBrand({
   brandLabel,
   sectionTitle,
+  brandHref,
+  brandImageUrl,
   isCompany,
   trailing,
 }: {
   brandLabel: string
   sectionTitle: string
+  brandHref?: string
+  brandImageUrl?: string | null
   isCompany: boolean
   trailing?: ReactNode
 }) {
-  return (
-    <div
-      className={cn(
-        'sticky top-0 z-10 flex shrink-0 items-start justify-between gap-2 border-b px-4 py-4',
-        isCompany ? 'border-white/15 bg-[#2F3E1F]' : 'border-border bg-surface',
-      )}
-    >
+  const titleBlock = (
+    <>
+      <SidebarBrandAvatar imageUrl={brandImageUrl} label={sectionTitle} isCompany={isCompany} />
       <div className="min-w-0">
         <p
           className={cn(
@@ -64,13 +105,37 @@ function SidebarBrand({
         </p>
         <p
           className={cn(
-            'mt-0.5 text-sm font-medium',
+            'mt-0.5 truncate text-sm font-medium',
             isCompany ? 'text-white' : 'text-text-primary',
           )}
+          title={sectionTitle}
         >
           {sectionTitle}
         </p>
       </div>
+    </>
+  )
+
+  return (
+    <div
+      className={cn(
+        'sticky top-0 z-10 flex shrink-0 items-start justify-between gap-2 border-b px-4 py-4',
+        isCompany ? 'border-white/15 bg-[#2F3E1F]' : 'border-border bg-surface',
+      )}
+    >
+      {brandHref ? (
+        <NavLink
+          to={brandHref}
+          className={cn(
+            'flex min-w-0 flex-1 items-center gap-2.5 rounded-lg outline-none transition-opacity hover:opacity-90 focus-visible:ring-2',
+            isCompany ? 'focus-visible:ring-white/40' : 'focus-visible:ring-ring/40',
+          )}
+        >
+          {titleBlock}
+        </NavLink>
+      ) : (
+        <div className="flex min-w-0 flex-1 items-center gap-2.5">{titleBlock}</div>
+      )}
       {trailing}
     </div>
   )
@@ -134,6 +199,8 @@ export function AppShell({
   navItems,
   brandLabel,
   sectionTitle,
+  brandHref,
+  brandImageUrl,
   variant = 'company',
 }: AppShellProps) {
   const { logout } = useAuth()
@@ -181,6 +248,8 @@ export function AppShell({
         <SidebarBrand
           brandLabel={brandLabel}
           sectionTitle={sectionTitle}
+          brandHref={brandHref}
+          brandImageUrl={brandImageUrl}
           isCompany={isCompany}
         />
         <SidebarNav navItems={navItems} isCompany={isCompany} />
@@ -219,6 +288,8 @@ export function AppShell({
           <SidebarBrand
             brandLabel={brandLabel}
             sectionTitle={sectionTitle}
+            brandHref={brandHref}
+            brandImageUrl={brandImageUrl}
             isCompany={isCompany}
             trailing={
               <button

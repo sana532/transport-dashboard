@@ -12,10 +12,12 @@ import {
 } from 'lucide-react'
 import { paths } from '@/routes/paths'
 import { AppShell, type AppShellNavItem } from '@/layouts/AppShell'
+import { CompanyProfileProvider, useCompanyProfile } from '@/modules/companies/components/CompanyProfileProvider'
 import { useTranslation } from '@/shared/i18n/useTranslation'
 
-export function CompanyLayout() {
+function CompanyLayoutShell() {
   const { t } = useTranslation()
+  const { profile } = useCompanyProfile()
 
   const companyNavItems: AppShellNavItem[] = [
     {
@@ -81,12 +83,26 @@ export function CompanyLayout() {
     },
   ]
 
+  const companyName = profile?.name?.trim() && profile.name !== '—'
+    ? profile.name
+    : t('sidebar.company')
+
   return (
     <AppShell
       variant="company"
       brandLabel="Bus TMS"
-      sectionTitle={t('sidebar.company')}
+      sectionTitle={companyName}
+      brandHref={paths.company.settings}
+      brandImageUrl={profile?.logoUrl ?? profile?.coverImageUrl}
       navItems={companyNavItems}
     />
+  )
+}
+
+export function CompanyLayout() {
+  return (
+    <CompanyProfileProvider>
+      <CompanyLayoutShell />
+    </CompanyProfileProvider>
   )
 }
