@@ -45,7 +45,7 @@ function initialTheme(): ThemePreference {
 }
 
 function initialLocale(): AppLocale {
-  return readStoredLocale() ?? 'en'
+  return readStoredLocale() ?? 'ar'
 }
 
 function applyDomTheme(mode: ThemePreference) {

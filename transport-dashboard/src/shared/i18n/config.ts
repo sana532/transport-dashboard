@@ -11,7 +11,7 @@ function readInitialLanguage(): AppLocale {
   } catch {
     // ignore storage read failures
   }
-  return 'en'
+  return 'ar'
 }
 
 if (!i18n.isInitialized) {
