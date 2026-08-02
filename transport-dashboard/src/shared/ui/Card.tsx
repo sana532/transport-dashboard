@@ -8,7 +8,8 @@ export function Card({
   return (
     <div
       className={cn(
-        'rounded-xl border border-border bg-surface shadow-sm',
+        /* bg via .ui-card in @layer components so bg-* utilities can override */
+        'ui-card rounded-xl border border-border shadow-sm',
         className,
       )}
       {...props}

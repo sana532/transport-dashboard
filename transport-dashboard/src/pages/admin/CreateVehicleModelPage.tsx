@@ -33,7 +33,7 @@ export function CreateVehicleModelPage() {
           <ArrowLeft className="h-4 w-4" aria-hidden />
           {t('admin.vehicleModels.backToList')}
         </Link>
-        <h1 className="text-2xl font-semibold tracking-tight text-text-primary">
+        <h1 className="text-2xl font-semibold tracking-tight text-[var(--title-h1)]">
           {t('admin.vehicleModels.createTitle')}
         </h1>
         <p className="mt-1 text-sm text-text-muted">{t('admin.vehicleModels.createSubtitle')}</p>

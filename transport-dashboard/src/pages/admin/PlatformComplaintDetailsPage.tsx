@@ -139,7 +139,7 @@ export function PlatformComplaintDetailsPage() {
           {t('admin.nav.support')}
         </p>
         <div className="mt-1 flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight text-text-primary">
+          <h1 className="text-2xl font-semibold tracking-tight text-[var(--title-h1)]">
             {row.complaintCode}
           </h1>
           <ComplaintBadge status={row.status} />

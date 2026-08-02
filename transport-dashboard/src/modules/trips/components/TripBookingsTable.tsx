@@ -29,7 +29,7 @@ export function TripBookingsTable({ bookings }: TripBookingsTableProps) {
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[880px] text-start text-sm">
+      <table className="app-table w-full min-w-[880px] text-start text-sm">
         <thead className="border-y border-surface-muted bg-background text-text-muted">
           <tr>
             {[

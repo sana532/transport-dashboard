@@ -280,7 +280,7 @@ export function TripSchedulesPage() {
       <Modal open={dialogOpen} onClose={closeDialog} className="max-w-2xl p-0">
         <form onSubmit={handleSubmit}>
           <div className="border-b border-surface-muted px-6 py-4">
-            <h2 className="text-lg font-semibold text-text-primary">
+            <h2 className="section-title text-lg font-semibold text-[var(--title-h2)]">
               {isEditing ? t('tripTemplates.modal.editTitle') : t('tripTemplates.modal.addTitle')}
             </h2>
             <p className="mt-1 text-sm text-text-muted">{t('tripTemplates.modal.hint')}</p>
@@ -526,7 +526,7 @@ export function TripSchedulesPage() {
         </Link>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="text-[34px] font-semibold tracking-tight text-text-primary">
+            <h1 className="text-[34px] font-semibold tracking-tight text-[var(--title-h1)]">
               {t('tripTemplates.title')}
             </h1>
             <p className="mt-1 max-w-2xl text-sm text-text-muted">{t('tripTemplates.subtitle')}</p>
@@ -559,7 +559,7 @@ export function TripSchedulesPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[880px] text-start text-sm">
+              <table className="app-table w-full min-w-[880px] text-start text-sm">
                 <thead className="border-y border-surface-muted bg-background text-text-muted">
                   <tr>
                     <th className="px-4 py-3 font-medium">{t('tripTemplates.col.name')}</th>

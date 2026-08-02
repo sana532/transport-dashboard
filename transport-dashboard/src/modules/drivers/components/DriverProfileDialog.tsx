@@ -68,7 +68,7 @@ export function DriverProfileDialog({
       <div className="border-b border-surface-muted px-5 py-4 sm:px-6">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-xl font-semibold text-text-primary">{t('drivers.profile.title')}</h2>
+            <h2 className="text-xl font-semibold text-[var(--title-h2)]">{t('drivers.profile.title')}</h2>
             <p className="mt-1 text-sm text-text-muted">{t('drivers.profile.subtitle')}</p>
           </div>
           <button

@@ -73,7 +73,7 @@ export function DashboardSearchDriversRow({
             />
           </div>
           <div className="overflow-hidden rounded-lg border border-surface-muted">
-            <table className="w-full text-left text-xs">
+            <table className="app-table w-full text-left text-xs">
               <thead className="bg-background text-text-muted">
                 <tr>
                   <th className="px-3 py-2 font-medium">{t('dashboard.col.customerName')}</th>

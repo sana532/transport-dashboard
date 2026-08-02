@@ -188,7 +188,7 @@ export function PlatformPlansPage() {
           <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
             {t('admin.nav.offers')}
           </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-text-primary">
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[var(--title-h1)]">
             {t('admin.sidebar.platformPlans')}
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-text-muted">
@@ -210,7 +210,7 @@ export function PlatformPlansPage() {
       <Modal open={dialogOpen} onClose={closeDialog} className="max-w-xl p-0">
         <form onSubmit={handleSubmit}>
           <div className="border-b border-surface-muted px-6 py-4">
-            <h2 className="text-lg font-semibold text-text-primary">
+            <h2 className="section-title text-lg font-semibold text-[var(--title-h2)]">
               {isEditing ? 'Edit platform plan' : 'Add platform plan'}
             </h2>
           </div>
@@ -323,7 +323,7 @@ export function PlatformPlansPage() {
               </div>
             ) : (
               <div className="overflow-x-auto rounded-lg border border-border">
-                <table className="w-full min-w-[720px] text-sm">
+                <table className="app-table w-full min-w-[720px] text-sm">
                   <thead>
                     <tr className="border-b border-border bg-surface-muted/50 text-xs uppercase tracking-wide text-text-muted">
                       <th className="px-4 py-3 text-start font-semibold">Name</th>

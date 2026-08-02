@@ -216,7 +216,7 @@ export function PromoCodeFormPage() {
           <ArrowLeft className="h-4 w-4" aria-hidden />
           {t('common.back')}
         </Link>
-        <h1 className="text-[34px] font-semibold tracking-tight text-text-primary">
+        <h1 className="text-[34px] font-semibold tracking-tight text-[var(--title-h1)]">
           {isEdit ? t('promoCodes.editTitle') : t('promoCodes.addTitle')}
         </h1>
         <p className="mt-1 text-sm text-text-muted">{t('promoCodes.formSubtitle')}</p>

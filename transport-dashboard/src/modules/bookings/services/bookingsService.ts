@@ -6,26 +6,29 @@ import { getApiErrorMessage } from '@/shared/utils/getApiErrorMessage'
 import { collectApiListItems } from '@/shared/utils/unwrapApiList'
 
 function unwrapList(payload: unknown): CompanyBooking[] {
-  const items = collectApiListItems(payload)
-  if (items.length > 0) {
-    return items
+  const mapItems = (items: unknown[]) =>
+    items
       .map(normalizeCompanyBooking)
       .filter((item): item is CompanyBooking => item !== null)
-  }
 
-  if (Array.isArray(payload)) {
-    return payload
-      .map(normalizeCompanyBooking)
-      .filter((item): item is CompanyBooking => item !== null)
-  }
-
+  if (Array.isArray(payload)) return mapItems(payload)
   if (!payload || typeof payload !== 'object') return []
+
   const root = payload as Record<string, unknown>
-  if (Array.isArray(root.data)) {
-    return root.data
-      .map(normalizeCompanyBooking)
-      .filter((item): item is CompanyBooking => item !== null)
+  if (Array.isArray(root.data)) return mapItems(root.data)
+
+  if (root.data && typeof root.data === 'object') {
+    const nested = root.data as Record<string, unknown>
+    if (Array.isArray(nested.data)) return mapItems(nested.data)
+    if (Array.isArray(nested.bookings)) return mapItems(nested.bookings)
   }
+
+  if (Array.isArray(root.bookings)) return mapItems(root.bookings)
+
+  // Last resort: generic collector (may over-flatten nested resources).
+  const items = collectApiListItems(payload)
+  if (items.length > 0) return mapItems(items)
+
   const single = normalizeCompanyBooking(root.data ?? root)
   return single ? [single] : []
 }

@@ -78,7 +78,7 @@ export function TripsArchivePage() {
         </Link>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="text-[34px] font-semibold tracking-tight text-text-primary">
+            <h1 className="text-[34px] font-semibold tracking-tight text-[var(--title-h1)]">
               {t('trips.archive.title')}
             </h1>
             <p className="mt-1 max-w-2xl text-sm text-text-muted">{t('trips.archive.subtitle')}</p>
@@ -101,7 +101,7 @@ export function TripsArchivePage() {
             <p className="p-6 text-sm text-text-muted">{t('trips.archive.empty')}</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[920px] text-left text-sm">
+              <table className="app-table w-full min-w-[920px] text-left text-sm">
                 <thead className="border-y border-surface-muted bg-background text-text-muted">
                   <tr>
                     {(

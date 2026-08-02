@@ -51,7 +51,7 @@ export function PlatformPromoCodesPage() {
           <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
             {t('admin.nav.offers')}
           </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-text-primary">
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[var(--title-h1)]">
             {t('admin.sidebar.promoCodes')}
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-text-muted">
@@ -111,7 +111,7 @@ export function PlatformPromoCodesPage() {
               </div>
             ) : (
               <div className="overflow-x-auto rounded-lg border border-border">
-                <table className="w-full min-w-[720px] text-sm">
+                <table className="app-table w-full min-w-[720px] text-sm">
                   <thead>
                     <tr className="border-b border-border bg-surface-muted/50 text-xs uppercase tracking-wide text-text-muted">
                       <th className="px-4 py-3 text-start font-semibold">Code</th>

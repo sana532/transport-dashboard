@@ -124,7 +124,7 @@ export function StationsManagementPage() {
           <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
             {t('admin.nav.catalog')}
           </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-text-primary">
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[var(--title-h1)]">
             {t('admin.sidebar.stations')}
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-text-muted">{t('admin.stations.subtitle')}</p>
@@ -144,7 +144,7 @@ export function StationsManagementPage() {
       <Modal open={dialogOpen} onClose={closeDialog} className="max-w-lg p-0">
         <form onSubmit={handleSubmit}>
           <div className="border-b border-surface-muted px-6 py-4">
-            <h2 className="text-lg font-semibold text-text-primary">
+            <h2 className="section-title text-lg font-semibold text-[var(--title-h2)]">
               {isEditing ? 'Edit station' : 'Add station'}
             </h2>
             <p className="mt-1 text-sm text-text-muted">
@@ -245,7 +245,7 @@ export function StationsManagementPage() {
               </div>
             ) : (
               <div className="overflow-x-auto rounded-lg border border-border" dir="rtl">
-                <table className="w-full min-w-[680px] table-fixed border-collapse text-sm">
+                <table className="app-table w-full min-w-[680px] table-fixed border-collapse text-sm">
                   <colgroup>
                     <col className="w-[28%]" />
                     <col className="w-[22%]" />

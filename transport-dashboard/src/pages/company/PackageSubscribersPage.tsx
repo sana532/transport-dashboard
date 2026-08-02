@@ -78,7 +78,7 @@ function SubscriberTableRow({
   t: (key: string) => string
 }) {
   return (
-    <tr className="border-b border-surface-muted text-text-secondary transition-colors last:border-b-0 hover:bg-surface-muted/40">
+    <tr className="border-b border-surface-muted text-text-secondary transition-colors last:border-b-0 hover:bg-table-rowHover">
       <td className="px-4 py-3.5">
         <div className="flex min-w-0 items-center gap-3">
           <SubscriberAvatar row={row} />
@@ -216,7 +216,7 @@ export function PackageSubscribersPage() {
         </Link>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="text-[34px] font-semibold tracking-tight text-text-primary">
+            <h1 className="text-[34px] font-semibold tracking-tight text-[var(--title-h1)]">
               {t('packageSubscribers.title')}
             </h1>
             <p className="mt-1 text-lg font-medium text-text-secondary">{data.packageTitle}</p>
@@ -331,7 +331,7 @@ export function PackageSubscribersPage() {
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-start text-sm">
+            <table className="app-table w-full min-w-[760px] text-start text-sm">
               <thead className="border-b border-surface-muted bg-background text-xs uppercase tracking-wide text-text-muted">
                 <tr>
                   {[

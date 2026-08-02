@@ -85,12 +85,16 @@ function normalizeBooleanFlag(raw: unknown): boolean {
 function normalizeSeatMapEntry(raw: unknown): TripSeatMapEntry | null {
   if (!raw || typeof raw !== 'object') return null
   const record = raw as Record<string, unknown>
-  const seat_number = Number(record.seat_number)
+  const seat_number = Number(
+    record.seat_number ?? record.number ?? record.seatNumber ?? record.label,
+  )
   if (!Number.isFinite(seat_number)) return null
 
   return {
     seat_number,
-    is_booked: normalizeBooleanFlag(record.is_booked),
+    is_booked: normalizeBooleanFlag(
+      record.is_booked ?? record.booked ?? record.isBooked ?? record.occupied,
+    ),
     ticket_id:
       record.ticket_id === null || record.ticket_id === undefined
         ? null

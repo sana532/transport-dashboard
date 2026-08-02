@@ -71,15 +71,26 @@ export function listenForForegroundMessages(
   return onMessage(messaging, callback)
 }
 
-export function showBrowserNotification(payload: MessagePayload): void {
-  if (!('Notification' in window) || Notification.permission !== 'granted') return
-
+/** Extract title/body from an FCM payload for in-app toasts. */
+export function getForegroundToastContent(payload: MessagePayload): {
+  title: string
+  body: string
+} {
   const title =
     payload.notification?.title ??
     (typeof payload.data?.title === 'string' ? payload.data.title : 'Notification')
   const body =
     payload.notification?.body ??
     (typeof payload.data?.body === 'string' ? payload.data.body : '')
+
+  return { title, body }
+}
+
+/** System/browser notification (works alongside in-app toast). */
+export function showBrowserNotification(payload: MessagePayload): void {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return
+
+  const { title, body } = getForegroundToastContent(payload)
 
   new Notification(title, {
     body,

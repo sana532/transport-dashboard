@@ -10,11 +10,13 @@ import {
 import { useAuth } from '@/modules/auth/hooks/useAuth'
 import type { AppNotification } from '@/modules/notifications/types'
 import {
+  getForegroundToastContent,
   listenForForegroundMessages,
   registerWebPush,
   showBrowserNotification,
 } from '@/modules/notifications/services/fcmService'
 import { notificationsService } from '@/modules/notifications/services/notificationsService'
+import { useToast } from '@/shared/ui/Toast'
 
 type NotificationsContextValue = {
   notifications: AppNotification[]
@@ -34,6 +36,7 @@ const NotificationsContext = createContext<NotificationsContextValue | null>(nul
 
 export function NotificationsProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth()
+  const { toast } = useToast()
   const [notifications, setNotifications] = useState<AppNotification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
@@ -80,20 +83,17 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     }
   }, [isAuthenticated])
 
-  const markAsRead = useCallback(
-    async (notificationId: string) => {
-      await notificationsService.markAsRead(notificationId)
-      setNotifications((prev) =>
-        prev.map((item) =>
-          item.id === notificationId
-            ? { ...item, readAt: item.readAt ?? new Date().toISOString() }
-            : item,
-        ),
-      )
-      setUnreadCount((prev) => Math.max(0, prev - 1))
-    },
-    [],
-  )
+  const markAsRead = useCallback(async (notificationId: string) => {
+    await notificationsService.markAsRead(notificationId)
+    setNotifications((prev) =>
+      prev.map((item) =>
+        item.id === notificationId
+          ? { ...item, readAt: item.readAt ?? new Date().toISOString() }
+          : item,
+      ),
+    )
+    setUnreadCount((prev) => Math.max(0, prev - 1))
+  }, [])
 
   const markAllAsRead = useCallback(async () => {
     await notificationsService.markAllAsRead()
@@ -125,14 +125,17 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     if (!isAuthenticated) return
 
     const unsubscribe = listenForForegroundMessages((payload) => {
+      const { title, body } = getForegroundToastContent(payload)
+      toast({ title, description: body || undefined, variant: 'info' })
       showBrowserNotification(payload)
       void refreshUnreadCount()
+      if (isOpen) void refresh()
     })
 
     return () => {
       unsubscribe?.()
     }
-  }, [isAuthenticated, refreshUnreadCount])
+  }, [isAuthenticated, refreshUnreadCount, toast, isOpen, refresh])
 
   useEffect(() => {
     if (!isAuthenticated) return

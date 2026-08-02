@@ -91,7 +91,7 @@ export function UsersManagementPage() {
         <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
           {t('admin.nav.access')}
         </p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-text-primary">
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[var(--title-h1)]">
           {t('admin.sidebar.users')}
         </h1>
         <p className="mt-1 max-w-2xl text-sm text-text-muted">{t('admin.users.subtitle')}</p>
@@ -272,7 +272,7 @@ export function UsersManagementPage() {
 
               {/* Desktop table */}
               <div className="hidden overflow-x-auto md:block">
-                <table className="w-full min-w-[800px] text-start text-sm">
+                <table className="app-table w-full min-w-[800px] text-start text-sm">
                   <thead>
                     <tr className="border-b border-border text-text-muted">
                       <th className="pb-3 pe-4 font-medium">{t('admin.users.colName')}</th>

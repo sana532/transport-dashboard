@@ -73,7 +73,7 @@ export function BookingDetailsPage() {
             <ArrowLeft className="h-4 w-4" aria-hidden />
             {t('bookings.backToList')}
           </Link>
-          <h1 className="text-[34px] font-semibold tracking-tight text-text-primary">
+          <h1 className="text-[34px] font-semibold tracking-tight text-[var(--title-h1)]">
             {t('bookings.detailsTitle')}
           </h1>
           <p className="mt-1 font-mono text-sm text-text-muted">{booking.reference}</p>

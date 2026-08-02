@@ -134,7 +134,7 @@ export function ComplaintDetailsPage() {
     <div className="space-y-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-[34px] font-semibold tracking-tight text-text-primary">
+          <h1 className="text-[34px] font-semibold tracking-tight text-[var(--title-h1)]">
             {t('complaintDetails.title')}
           </h1>
           <p className="mt-1 text-sm text-text-muted">{t('complaintDetails.subtitle')}</p>

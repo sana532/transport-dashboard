@@ -138,7 +138,7 @@ export function UserDetailsPage() {
         <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-text-muted">
           {t('admin.nav.access')}
         </p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-text-primary">
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[var(--title-h1)]">
           {user?.name ?? t('admin.users.detailsTitle')}
         </h1>
         <p className="mt-1 text-sm text-text-muted">{t('admin.users.detailsSubtitle')}</p>

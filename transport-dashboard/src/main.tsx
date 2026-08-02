@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import { AuthProvider } from '@/modules/auth/components/AuthProvider'
 import { NotificationsProvider } from '@/modules/notifications/components/NotificationsProvider'
 import { PreferencesProvider } from '@/shared/preferences/PreferencesProvider'
+import { ToastProvider } from '@/shared/ui/Toast'
 import '@/shared/i18n/config'
 import App from '@/App'
 import './index.css'
@@ -13,9 +14,11 @@ createRoot(document.getElementById('root')!).render(
     <PreferencesProvider>
       <BrowserRouter>
         <AuthProvider>
-          <NotificationsProvider>
-            <App />
-          </NotificationsProvider>
+          <ToastProvider>
+            <NotificationsProvider>
+              <App />
+            </NotificationsProvider>
+          </ToastProvider>
         </AuthProvider>
       </BrowserRouter>
     </PreferencesProvider>

@@ -88,7 +88,7 @@ export function TripTrackingPage() {
           <ArrowLeft className="h-4 w-4" aria-hidden />
           {t('tripTracking.backToDetails')}
         </Link>
-        <h1 className="text-2xl font-semibold tracking-tight text-text-primary">
+        <h1 className="text-2xl font-semibold tracking-tight text-[var(--title-h1)]">
           {t('tripTracking.title')}
         </h1>
         <p className="mt-1 text-sm text-text-muted">

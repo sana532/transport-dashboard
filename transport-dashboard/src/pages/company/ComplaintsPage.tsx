@@ -101,7 +101,7 @@ export function ComplaintsPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-[34px] font-semibold tracking-tight text-text-primary">
+        <h1 className="text-[34px] font-semibold tracking-tight text-[var(--title-h1)]">
           {t('complaints.title')}
         </h1>
         <p className="mt-1 text-sm text-text-muted">
@@ -179,7 +179,7 @@ export function ComplaintsPage() {
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-left text-sm">
+            <table className="app-table w-full min-w-[900px] text-left text-sm">
               <thead className="border-y border-surface-muted bg-background text-text-muted">
                 <tr>
                   {[

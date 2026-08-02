@@ -95,7 +95,7 @@ export function CompanyDetailsPage() {
         <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-text-muted">
           {t('admin.nav.tenants')}
         </p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-text-primary">
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[var(--title-h1)]">
           {company?.name ?? t('admin.companies.detailsTitle')}
         </h1>
         <p className="mt-1 text-sm text-text-muted">{t('admin.companies.detailsSubtitle')}</p>

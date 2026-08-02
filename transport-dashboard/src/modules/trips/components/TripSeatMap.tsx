@@ -1,8 +1,13 @@
 import { useMemo, useState } from 'react'
 import { HelpCircle, User, X } from 'lucide-react'
+import type { CompanyBooking } from '@/modules/bookings/types'
 import type { TripSeatMapEntry, TripSeatStats, TripVehicleLayout } from '@/modules/trips/types/companyTrip'
 import { parseLayoutConfig } from '@/modules/vehicle-models/utils/parseLayoutConfig'
 import { deriveSeatStatsFromMap } from '@/modules/trips/utils/deriveSeatStats'
+import {
+  collectOccupiedSeatNumbers,
+  mergeBookingsIntoSeatMap,
+} from '@/modules/trips/utils/mergeBookingsIntoSeatMap'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/Card'
 import { Modal } from '@/shared/ui/Modal'
@@ -12,6 +17,8 @@ import { useTranslation } from '@/shared/i18n/useTranslation'
 type TripSeatMapProps = {
   vehicleLayout: TripVehicleLayout | null | undefined
   seatMap: TripSeatMapEntry[] | undefined
+  /** Trip bookings — used to mark seats red even when API seat_map lags. */
+  bookings?: CompanyBooking[]
   stats?: TripSeatStats | null
   className?: string
 }
@@ -29,7 +36,13 @@ function buildSeatLookup(seatMap: TripSeatMapEntry[]): Map<number, TripSeatMapEn
   return lookup
 }
 
-export function TripSeatMap({ vehicleLayout, seatMap, stats, className }: TripSeatMapProps) {
+export function TripSeatMap({
+  vehicleLayout,
+  seatMap,
+  bookings = [],
+  stats,
+  className,
+}: TripSeatMapProps) {
   const { t, locale } = useTranslation()
   const dateLocale = locale === 'ar' ? 'ar-SY' : 'en-US'
   const [selectedSeat, setSelectedSeat] = useState<SelectedSeat | null>(null)
@@ -39,17 +52,38 @@ export function TripSeatMap({ vehicleLayout, seatMap, stats, className }: TripSe
     return parseLayoutConfig(JSON.stringify(vehicleLayout))
   }, [vehicleLayout])
 
+  const effectiveSeatMap = useMemo(
+    () => mergeBookingsIntoSeatMap(seatMap, bookings) ?? seatMap ?? [],
+    [seatMap, bookings],
+  )
+
+  const occupiedByBooking = useMemo(
+    () => collectOccupiedSeatNumbers(bookings),
+    [bookings],
+  )
+
   const seatLookup = useMemo(
-    () => buildSeatLookup(seatMap ?? []),
-    [seatMap],
+    () => buildSeatLookup(effectiveSeatMap),
+    [effectiveSeatMap],
   )
 
   const displayStats = useMemo(() => {
     if (!parsed?.ok) return stats ?? null
-    return deriveSeatStatsFromMap(seatMap ?? [], parsed.layout.seatCount, stats)
-  }, [parsed, seatMap, stats])
+    const fromMap = deriveSeatStatsFromMap(
+      effectiveSeatMap,
+      parsed.layout.seatCount,
+      stats,
+    )
+    if (!fromMap) return null
+    const booked_seats = Math.max(fromMap.booked_seats, occupiedByBooking.size)
+    return {
+      ...fromMap,
+      booked_seats,
+      available_seats: Math.max(0, fromMap.total_seats - booked_seats),
+    }
+  }, [parsed, effectiveSeatMap, stats, occupiedByBooking])
 
-  if (!parsed?.ok || !seatMap?.length) {
+  if (!parsed?.ok || !effectiveSeatMap.length) {
     return (
       <p className={cn('text-sm text-text-muted', className)}>{t('tripDetails.seatPlaceholder')}</p>
     )
@@ -57,8 +91,36 @@ export function TripSeatMap({ vehicleLayout, seatMap, stats, className }: TripSe
 
   const { layout } = parsed
 
+  function resolveEntry(seatNumber: number): TripSeatMapEntry | null {
+    const fromMap = seatLookup.get(seatNumber)
+    const booking = occupiedByBooking.get(seatNumber)
+    if (fromMap) {
+      if (!booking) return fromMap
+      return {
+        ...fromMap,
+        is_booked: true,
+        booking_reference: fromMap.booking_reference ?? booking.reference,
+        passenger_name: fromMap.passenger_name ?? booking.passengerName,
+        passenger_phone_number:
+          fromMap.passenger_phone_number ?? booking.passengerPhone,
+      }
+    }
+    if (booking) {
+      return {
+        seat_number: seatNumber,
+        is_booked: true,
+        ticket_id: null,
+        booking_reference: booking.reference,
+        passenger_name: booking.passengerName,
+        passenger_phone_number: booking.passengerPhone,
+        passenger_gender: null,
+      }
+    }
+    return null
+  }
+
   function openSeatDetail(seatNumber: number) {
-    const entry = seatLookup.get(seatNumber)
+    const entry = resolveEntry(seatNumber)
     if (!entry) return
     setSelectedSeat({ seatNumber, entry })
   }
@@ -119,8 +181,9 @@ export function TripSeatMap({ vehicleLayout, seatMap, stats, className }: TripSe
                   )
                 }
 
-                const seat = seatLookup.get(cell.seatNumber)
-                const isBooked = seat?.is_booked ?? false
+                const entry = resolveEntry(cell.seatNumber)
+                const isBooked =
+                  Boolean(entry?.is_booked) || occupiedByBooking.has(cell.seatNumber)
                 const isSelected = selectedSeat?.seatNumber === cell.seatNumber
 
                 return (

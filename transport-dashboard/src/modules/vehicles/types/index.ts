@@ -70,9 +70,9 @@ export type Vehicle = {
 export type VehiclesStatVariant = 'primary' | 'info' | 'success' | 'warning'
 
 export type VehiclesStatCard = {
-  title: string
+  titleKey: string
   value: string
-  note: string
+  noteKey: string
   trend: string
   variant: VehiclesStatVariant
   Icon: LucideIcon

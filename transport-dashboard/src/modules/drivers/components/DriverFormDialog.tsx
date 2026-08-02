@@ -298,7 +298,7 @@ export function DriverFormDialog({
             <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
             Back to Drivers Management
           </button>
-          <h2 id={titleId} className="text-2xl font-semibold tracking-tight text-text-primary">
+          <h2 id={titleId} className="text-2xl font-semibold tracking-tight text-[var(--title-h2)]">
             {heading}
           </h2>
           <p id={descId} className="mt-1 text-sm text-text-muted">

@@ -132,7 +132,7 @@ export function BookingsManagementPage() {
       <div className="space-y-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="text-[34px] font-semibold tracking-tight text-text-primary">
+            <h1 className="text-[34px] font-semibold tracking-tight text-[var(--title-h1)]">
               {t('bookings.title')}
             </h1>
             <p className="mt-1 text-sm text-text-muted">{t('bookings.subtitle')}</p>
@@ -156,7 +156,7 @@ export function BookingsManagementPage() {
     <div className="space-y-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-[34px] font-semibold tracking-tight text-text-primary">
+          <h1 className="text-[34px] font-semibold tracking-tight text-[var(--title-h1)]">
             {t('bookings.title')}
           </h1>
           <p className="mt-1 text-sm text-text-muted">{t('bookings.subtitle')}</p>
@@ -277,7 +277,7 @@ export function BookingsManagementPage() {
           ) : (
             <>
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[960px] text-left text-sm">
+                <table className="app-table w-full min-w-[960px] text-left text-sm">
                   <thead className="border-y border-surface-muted bg-background text-text-muted">
                     <tr>
                       {[

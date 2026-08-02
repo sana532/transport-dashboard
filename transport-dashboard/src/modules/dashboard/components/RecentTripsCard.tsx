@@ -49,7 +49,7 @@ export function RecentTripsCard({ recentTrips }: RecentTripsCardProps) {
       </CardHeader>
       <CardContent className="p-0">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-left text-sm">
+          <table className="app-table w-full min-w-[760px] text-left text-sm">
             <thead className="border-y border-surface-muted bg-background text-text-muted">
               <tr>
                 {[t('dashboard.col.tripId'), t('dashboard.col.busId'), t('dashboard.col.driverName'), t('dashboard.col.route'), t('dashboard.col.departureTime'), t('common.status'), t('dashboard.col.revenue')].map((head) => (

@@ -170,7 +170,7 @@ export function VehiclesManagementPage() {
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="text-[34px] font-semibold tracking-tight text-text-primary">
+            <h1 className="text-[34px] font-semibold tracking-tight text-[var(--title-h1)]">
               {t('vehicles.title')}
             </h1>
             <p className="mt-1 text-sm text-text-muted">{t('vehicles.subtitle')}</p>
@@ -206,8 +206,8 @@ export function VehiclesManagementPage() {
       </div>
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        {data.stats.map(({ title, value, note, trend, Icon, variant }) => (
-          <Card key={title} className={cn('shadow-md', statCardClass(variant))}>
+        {data.stats.map(({ titleKey, value, noteKey, trend, Icon, variant }) => (
+          <Card key={titleKey} className={cn('shadow-md', statCardClass(variant))}>
             <CardContent className="p-4">
               <div className="flex items-start justify-between gap-3">
                 <div
@@ -229,7 +229,7 @@ export function VehiclesManagementPage() {
                     variant === 'primary' ? 'text-white/90' : 'text-text-muted',
                   )}
                 >
-                  {title}
+                  {t(titleKey)}
                 </p>
               </div>
 
@@ -247,7 +247,7 @@ export function VehiclesManagementPage() {
                   variant === 'primary' ? 'text-white/80' : 'text-text-muted',
                 )}
               >
-                {note}
+                {t(noteKey)}
               </p>
               <p className={cn('mt-1 text-xs font-medium', trendClass(variant))}>{trend}</p>
             </CardContent>

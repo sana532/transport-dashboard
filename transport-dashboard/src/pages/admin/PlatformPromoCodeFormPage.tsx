@@ -189,7 +189,7 @@ export function PlatformPromoCodeFormPage() {
           Back to platform promos
         </Link>
         <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-text-muted">Offers</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-text-primary">
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[var(--title-h1)]">
           {isEdit ? 'Edit platform promo' : 'Add platform promo'}
         </h1>
         <p className="mt-1 text-sm text-text-muted">

@@ -85,7 +85,7 @@ export function AdminDashboardPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-text-primary">
+        <h1 className="text-2xl font-semibold tracking-tight text-[var(--title-h1)]">
           {t('admin.overview.title')}
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-text-muted">{t('admin.overview.subtitle')}</p>

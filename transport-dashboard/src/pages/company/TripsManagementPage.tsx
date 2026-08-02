@@ -183,7 +183,7 @@ export function TripsManagementPage() {
     return (
       <div className="space-y-5">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-text-primary sm:text-3xl">
+          <h1 className="text-2xl font-semibold tracking-tight text-[var(--title-h1)] sm:text-3xl">
             {t('trips.title')}
           </h1>
           <p className="mt-1 text-sm text-text-muted">{t('trips.subtitle')}</p>
@@ -206,7 +206,7 @@ export function TripsManagementPage() {
     <div className="space-y-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-text-primary sm:text-3xl">
+          <h1 className="text-2xl font-semibold tracking-tight text-[var(--title-h1)] sm:text-3xl">
             {t('trips.title')}
           </h1>
           <p className="mt-1 max-w-xl text-sm text-text-muted">{t('trips.subtitle')}</p>
@@ -453,7 +453,7 @@ export function TripsManagementPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[980px] text-left text-sm">
+              <table className="app-table w-full min-w-[980px] text-left text-sm">
                 <thead className="border-y border-border bg-background text-text-muted">
                   <tr>
                     {(

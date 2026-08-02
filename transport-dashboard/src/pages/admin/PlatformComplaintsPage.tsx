@@ -74,7 +74,7 @@ export function PlatformComplaintsPage() {
         <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
           {t('admin.nav.support')}
         </p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-text-primary">
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[var(--title-h1)]">
           {t('admin.sidebar.complaints')}
         </h1>
         <p className="mt-1 max-w-2xl text-sm text-text-muted">
@@ -190,7 +190,7 @@ export function PlatformComplaintsPage() {
             ) : (
               <>
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[960px] text-start text-sm">
+                  <table className="app-table w-full min-w-[960px] text-start text-sm">
                     <thead className="border-y border-surface-muted bg-background text-text-muted">
                       <tr>
                         {[

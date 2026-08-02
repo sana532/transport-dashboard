@@ -104,7 +104,7 @@ export function TripDetailsPage() {
             <ArrowLeft className="h-4 w-4" aria-hidden />
             {t('tripDetails.backToTrips')}
           </Link>
-          <h1 className="text-2xl font-semibold tracking-tight text-text-primary">
+          <h1 className="text-2xl font-semibold tracking-tight text-[var(--title-h1)]">
             {t('tripDetails.title')}
           </h1>
           <p className="mt-1 text-sm text-text-muted">
@@ -242,6 +242,7 @@ export function TripDetailsPage() {
               <TripSeatMap
                 vehicleLayout={trip.vehicle_layout}
                 seatMap={trip.seat_map}
+                bookings={bookings}
                 stats={trip.stats}
               />
             </CardContent>
@@ -257,6 +258,7 @@ export function TripDetailsPage() {
               <TripSeatMap
                 vehicleLayout={trip.vehicle_layout}
                 seatMap={trip.seat_map}
+                bookings={bookings}
                 stats={trip.stats}
               />
             </CardContent>

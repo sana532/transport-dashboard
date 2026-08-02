@@ -131,24 +131,51 @@ function resolveSeatCount(record: Record<string, unknown>): number {
 }
 
 function resolveSeatNumbers(record: Record<string, unknown>): string | null {
-  const raw = record.seat_numbers ?? record.seats
-  if (Array.isArray(raw)) {
-    const labels = raw
-      .map((item) => {
-        if (typeof item === 'string' || typeof item === 'number') return String(item)
-        if (item && typeof item === 'object') {
-          const seat = item as Record<string, unknown>
-          return (
-            pickString(seat, 'seat_number', 'number', 'label') ??
-            (typeof seat.id === 'number' ? String(seat.id) : undefined)
-          )
-        }
-        return undefined
-      })
-      .filter((v): v is string => Boolean(v))
-    return labels.length ? labels.join(', ') : null
+  const candidates = [
+    record.seat_numbers,
+    record.seats,
+    record.tickets,
+    record.booking_seats,
+    record.trip_seats,
+    record.reserved_seats,
+    record.held_seats,
+  ]
+
+  for (const raw of candidates) {
+    if (Array.isArray(raw)) {
+      const labels = raw
+        .map((item) => {
+          if (typeof item === 'string' || typeof item === 'number') return String(item)
+          if (item && typeof item === 'object') {
+            const seat = item as Record<string, unknown>
+            const nestedSeat =
+              seat.seat && typeof seat.seat === 'object'
+                ? (seat.seat as Record<string, unknown>)
+                : null
+            const modelSeat =
+              seat.model_seat && typeof seat.model_seat === 'object'
+                ? (seat.model_seat as Record<string, unknown>)
+                : null
+            return (
+              pickString(seat, 'seat_number', 'number', 'label', 'seatNumber') ??
+              (nestedSeat
+                ? pickString(nestedSeat, 'seat_number', 'number', 'label', 'seatNumber')
+                : undefined) ??
+              (modelSeat
+                ? pickString(modelSeat, 'seat_number', 'number', 'label', 'seatNumber')
+                : undefined) ??
+              (seat.seat_number != null && Number.isFinite(Number(seat.seat_number))
+                ? String(seat.seat_number)
+                : undefined)
+            )
+          }
+          return undefined
+        })
+        .filter((v): v is string => Boolean(v))
+      if (labels.length) return labels.join(', ')
+    }
+    if (typeof raw === 'string' && raw.trim()) return raw.trim()
   }
-  if (typeof raw === 'string' && raw.trim()) return raw.trim()
   return null
 }
 

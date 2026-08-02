@@ -55,7 +55,7 @@ export function VehicleModelsManagementPage() {
           <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
             {t('admin.nav.catalog')}
           </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-text-primary">
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[var(--title-h1)]">
             {t('admin.sidebar.vehicleModels')}
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-text-muted">
@@ -106,7 +106,7 @@ export function VehicleModelsManagementPage() {
               </div>
             ) : (
               <div className="overflow-x-auto rounded-lg border border-border">
-                <table className="w-full min-w-[780px] table-fixed border-collapse text-sm">
+                <table className="app-table w-full min-w-[780px] table-fixed border-collapse text-sm">
                   <colgroup>
                     <col className="w-[24%]" />
                     <col className="w-[26%]" />

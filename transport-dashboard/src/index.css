@@ -1,11 +1,24 @@
 @import "tailwindcss";
+@config "../tailwind.config.ts";
 
 @custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: 'Plus Jakarta Sans', 'IBM Plex Sans Arabic', system-ui, 'Segoe UI',
+    sans-serif;
+  --font-heading: 'Plus Jakarta Sans', 'IBM Plex Sans Arabic', system-ui, 'Segoe UI',
+    sans-serif;
+}
 
 :root {
   /* Brand primary (dashboard green); keep in sync with tailwind `colors.brand` */
   --brand-primary: #2f3e1f;
   --brand-primary-dark: #243217;
+  --brand-accent: #4a6741;
+
+  /* Heading colors */
+  --title-h1: #2f3e1f;
+  --title-h2: #111827;
 
   /* Tailwind semantic tokens (light) */
   --app-bg: #f9fafb;
@@ -16,24 +29,39 @@
   --app-text-muted: #9ca3af;
   --app-border: #d1d5db;
 
+  /* Tables — SaaS style: brand header, near-white body */
+  --table-bg: #ffffff;
+  --table-head: #2f3e1f;
+  --table-head-fg: #f4f7ef;
+  --table-head-muted: rgba(244, 247, 239, 0.72);
+  --table-row-alt: #fafbf8;
+  --table-row-hover: #f3f5f0;
+  --table-border: #e6e9e1;
+
   --text: #6b6375;
   --text-h: #08060d;
   --bg: #fff;
   --border: #e5e4e7;
   --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
+  /* Brand-family green (replaces Vite purple accent) */
+  --accent: #4a6741;
+  --accent-bg: rgba(74, 103, 65, 0.1);
+  --accent-border: rgba(74, 103, 65, 0.5);
   --social-bg: rgba(244, 243, 236, 0.5);
   --shadow:
     rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --sans: 'Plus Jakarta Sans', 'IBM Plex Sans Arabic', system-ui, 'Segoe UI',
+    sans-serif;
+  --heading: 'Plus Jakarta Sans', 'IBM Plex Sans Arabic', system-ui, 'Segoe UI',
+    sans-serif;
   --mono: ui-monospace, Consolas, monospace;
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
+  /* Unitless line-height so children (large h1s) scale correctly — % would freeze ~23px */
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.45;
+  letter-spacing: 0.01em;
   color-scheme: light;
   color: var(--text);
   background: var(--bg);
@@ -41,14 +69,13 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
 }
 
 html.dark {
   color-scheme: dark;
+
+  --title-h1: #b4c79a;
+  --title-h2: #f3f4f6;
 
   --app-bg: #0b0d11;
   --app-surface: #14161c;
@@ -58,14 +85,22 @@ html.dark {
   --app-text-muted: #9ca3af;
   --app-border: #2c3038;
 
+  --table-bg: #14161c;
+  --table-head: #2f3e1f;
+  --table-head-fg: #eef3e8;
+  --table-head-muted: rgba(238, 243, 232, 0.7);
+  --table-row-alt: #161a14;
+  --table-row-hover: rgba(74, 103, 65, 0.14);
+  --table-border: #2a2f28;
+
   --text: #9ca3af;
   --text-h: #f3f4f6;
   --bg: #16171d;
   --border: #2e303a;
   --code-bg: #1f2028;
-  --accent: #c084fc;
-  --accent-bg: rgba(192, 132, 252, 0.15);
-  --accent-border: rgba(192, 132, 252, 0.5);
+  --accent: #8fa878;
+  --accent-bg: rgba(143, 168, 120, 0.15);
+  --accent-border: rgba(143, 168, 120, 0.5);
   --social-bg: rgba(47, 48, 58, 0.5);
   --shadow:
     rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
@@ -80,39 +115,103 @@ html.dark #social .button-icon {
   width: 100%;
   margin: 0;
   box-sizing: border-box;
+  font-family: var(--sans);
 }
 
 body {
   margin: 0;
+  font-family: var(--sans);
 }
 
 h1,
 h2 {
   font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
+  font-weight: 600;
 }
 
 h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
+  color: var(--title-h1);
+  /* Light tracking for English only; Arabic resets below */
+  letter-spacing: -0.02em;
+  line-height: 1.35;
 }
+
+/* Beat Tailwind `tracking-tight` on page titles when Arabic/RTL */
+html[lang='ar'] h1,
+html[dir='rtl'] h1 {
+  letter-spacing: normal !important;
+}
+
+/* Keep subtitle clear of Arabic glyph descenders on large titles */
+h1 + p {
+  margin-top: 0.5rem;
+}
+
 h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
+  color: var(--title-h2);
+  letter-spacing: normal;
+  line-height: 1.35;
 }
+
+/* Section titles — brand side bar (logical for LTR/RTL) */
+.section-title {
+  border-inline-start: 3px solid var(--brand-primary);
+  padding-inline-start: 0.75rem;
+  color: var(--title-h2);
+  font-family: var(--heading);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
 p {
   margin: 0;
+}
+
+/* Default card surface — @layer so bg-* / gradient utilities win when passed */
+@layer components {
+  .ui-card {
+    background-color: var(--app-surface);
+  }
+}
+
+/*
+ * Data tables — Stripe / Linear style: olive header, near-white rows.
+ * Unlayered so these beat Tailwind thead bg-*/text-* utilities.
+ */
+.app-table {
+  background-color: var(--table-bg);
+  border-collapse: collapse;
+}
+
+.app-table > thead,
+.app-table > thead > tr {
+  background-color: var(--table-head);
+  color: var(--table-head-fg);
+}
+
+.app-table > thead th {
+  color: var(--table-head-fg);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border-bottom: 1px solid color-mix(in srgb, var(--table-head) 85%, #000);
+}
+
+.app-table > tbody > tr {
+  background-color: var(--table-bg);
+  border-bottom: 1px solid var(--table-border);
+  transition: background-color 0.12s ease;
+}
+
+.app-table > tbody > tr:nth-child(even) {
+  background-color: var(--table-row-alt);
+}
+
+.app-table > tbody > tr:hover {
+  background-color: var(--table-row-hover);
+}
+
+.app-table > tbody > tr:last-child {
+  border-bottom-color: transparent;
 }
 
 code,
