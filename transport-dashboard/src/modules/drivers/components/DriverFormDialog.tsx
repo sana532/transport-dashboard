@@ -271,16 +271,26 @@ export function DriverFormDialog({
   const quickTrips = !isEdit ? '0' : String(driver?.totalTrips ?? 0)
 
   const heading = isEdit ? t('drivers.form.editTitle') : t('drivers.form.addTitle')
-  const passwordActionLabel = isEdit ? 'Reset Password' : 'Set Password'
-  const infoText = isEdit
-    ? 'You can resend login details or trigger a password reset email to the driver’s registered email at any time.'
-    : 'After creating the driver account, the system will automatically send login credentials to the driver’s registered email address.'
-  const submitLabel = isEdit ? 'Save Changes' : 'Create Driver'
+  const passwordActionLabel = isEdit
+    ? t('drivers.form.resetPassword')
+    : t('drivers.form.setPassword')
+  const infoText = isEdit ? t('drivers.form.infoEdit') : t('drivers.form.infoAdd')
+  const submitLabel = isEdit ? t('drivers.form.saveChanges') : t('drivers.form.create')
 
   const availabilityOptions =
     isEdit && driver?.status === 'On Trip'
       ? (['On Trip', 'Off Duty'] as const)
       : EDITABLE_AVAILABILITY_OPTIONS
+
+  const statusLabel = (status: string) => {
+    if (status === 'Available') return t('drivers.status.available')
+    if (status === 'On Trip') return t('drivers.status.onTrip')
+    if (status === 'Off Duty') return t('drivers.status.offDuty')
+    return status
+  }
+
+  const vehicleOptionLabel = (option: string) =>
+    option === 'No Vehicle Assigned' ? t('drivers.form.noVehicle') : option
 
   return (
     <Modal
@@ -296,7 +306,7 @@ export function DriverFormDialog({
             className="mb-3 flex items-center gap-1.5 text-sm font-medium text-text-muted transition-colors hover:text-text-primary"
           >
             <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
-            Back to Drivers Management
+            {t('drivers.form.back')}
           </button>
           <h2 id={titleId} className="text-2xl font-semibold tracking-tight text-[var(--title-h2)]">
             {heading}
@@ -314,11 +324,11 @@ export function DriverFormDialog({
 
         <div className="grid gap-6 p-5 lg:grid-cols-[1fr_min(280px,32%)] lg:items-start sm:p-6">
           <div className="min-w-0 space-y-5">
-            <FormSection icon={User} title="Personal Information">
+            <FormSection icon={User} title={t('drivers.form.sectionPersonal')}>
               <Input
                 name="fullName"
                 label={t('drivers.form.name')}
-                placeholder="Enter full name"
+                placeholder={t('drivers.form.namePlaceholder')}
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 required
@@ -335,8 +345,8 @@ export function DriverFormDialog({
                 <Input
                   name="email"
                   type="email"
-                  label="Email Address"
-                  placeholder="name@company.com"
+                  label={t('drivers.form.email')}
+                  placeholder={t('drivers.form.emailPlaceholder')}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={isEdit}
@@ -366,43 +376,43 @@ export function DriverFormDialog({
               ) : null}
             </FormSection>
 
-            <FormSection icon={CreditCard} title="License Information">
+            <FormSection icon={CreditCard} title={t('drivers.form.sectionLicense')}>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Input
                   name="licenseNumber"
-                  label="License Number"
-                  placeholder="e.g. DL-789456123"
+                  label={t('drivers.form.licenseNumber')}
+                  placeholder={t('drivers.form.licenseNumberPlaceholder')}
                   value={licenseNumber}
                   onChange={(e) => setLicenseNumber(e.target.value)}
                 />
                 <Input
                   name="licenseExpiry"
                   type="date"
-                  label="License Expiration Date"
+                  label={t('drivers.form.licenseExpiry')}
                   value={licenseExpiry}
                   onChange={(e) => setLicenseExpiry(e.target.value)}
                 />
                 <div className="sm:col-span-2 sm:max-w-xs">
                   <Input
                     name="experienceYears"
-                    label="Years of Driving Experience"
-                    placeholder="e.g. 12"
+                    label={t('drivers.form.experienceYears')}
+                    placeholder={t('drivers.form.experienceYearsPlaceholder')}
                     inputMode="numeric"
                     value={experienceYears}
                     onChange={(e) => setExperienceYears(e.target.value)}
                     readOnly={isEdit}
                     disabled={isEdit}
-                    title={isEdit ? 'Calculated by the system from driving history' : undefined}
+                    title={isEdit ? t('drivers.form.experienceReadonlyHint') : undefined}
                   />
                 </div>
               </div>
             </FormSection>
 
-            <FormSection icon={Briefcase} title="Work Status">
+            <FormSection icon={Briefcase} title={t('drivers.form.sectionWork')}>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5">
                   <label htmlFor="availability" className="text-sm font-medium text-text-secondary">
-                    Availability Status
+                    {t('drivers.form.availability')}
                   </label>
                   {isEdit && driver?.status === 'On Trip' ? (
                     <p className="text-xs text-text-muted">{t('drivers.form.onTripHint')}</p>
@@ -416,14 +426,14 @@ export function DriverFormDialog({
                   >
                     {availabilityOptions.map((o) => (
                       <option key={o} value={o}>
-                        {o}
+                        {statusLabel(o)}
                       </option>
                     ))}
                   </select>
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label htmlFor="assignedVehicle" className="text-sm font-medium text-text-secondary">
-                    Assigned Vehicle
+                    {t('drivers.form.assignedVehicle')}
                   </label>
                   <select
                     id="assignedVehicle"
@@ -434,7 +444,7 @@ export function DriverFormDialog({
                   >
                     {VEHICLE_ASSIGN_OPTIONS.map((o) => (
                       <option key={o} value={o}>
-                        {o}
+                        {vehicleOptionLabel(o)}
                       </option>
                     ))}
                   </select>
@@ -442,11 +452,11 @@ export function DriverFormDialog({
               </div>
             </FormSection>
 
-            <FormSection icon={Lock} title="Account Settings">
+            <FormSection icon={Lock} title={t('drivers.form.sectionAccount')}>
               <Input
                 name="username"
                 label={t('drivers.form.usernameReadonly')}
-                placeholder="e.g. mthompson"
+                placeholder={t('drivers.form.usernamePlaceholder')}
                 autoComplete="username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
@@ -473,7 +483,7 @@ export function DriverFormDialog({
                   }}
                 >
                   <Mail className="h-4 w-4" aria-hidden />
-                  Send Login Details
+                  {t('drivers.form.sendLoginDetails')}
                 </Button>
               </div>
               <div
@@ -489,20 +499,22 @@ export function DriverFormDialog({
           <aside className="flex flex-col gap-5 lg:sticky lg:top-0">
             <Card className="border border-border shadow-sm">
               <CardHeader className="border-b border-surface-muted px-4 py-3">
-                <CardTitle className="text-base font-semibold text-text-primary">Driver Photo</CardTitle>
+                <CardTitle className="text-base font-semibold text-text-primary">
+                  {t('drivers.form.photoTitle')}
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 p-4">
                 <div className="relative mx-auto aspect-square w-full max-w-[220px] overflow-hidden rounded-xl bg-surface-muted ring-1 ring-black/5">
                   {photoPreview ? (
                     <img
                       src={photoPreview}
-                      alt="Driver preview"
+                      alt={t('drivers.form.photoAlt')}
                       className="h-full w-full object-cover"
                     />
                   ) : (
                     <div className="flex h-full w-full flex-col items-center justify-center gap-1 p-4 text-center text-xs text-text-muted">
                       <User className="h-10 w-10 opacity-40" aria-hidden />
-                      <span>No photo selected</span>
+                      <span>{t('drivers.form.noPhoto')}</span>
                     </div>
                   )}
                   <span
@@ -512,9 +524,7 @@ export function DriverFormDialog({
                     <Camera className="h-4 w-4" />
                   </span>
                 </div>
-                <p className="text-center text-xs text-text-muted">
-                  Upload a professional photo of the driver.
-                </p>
+                <p className="text-center text-xs text-text-muted">{t('drivers.form.photoHint')}</p>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -530,30 +540,32 @@ export function DriverFormDialog({
                   onClick={() => fileInputRef.current?.click()}
                 >
                   <Upload className="h-4 w-4" aria-hidden />
-                  Change Photo
+                  {t('drivers.form.changePhoto')}
                 </Button>
               </CardContent>
             </Card>
 
             <Card className="border border-border shadow-sm">
               <CardHeader className="border-b border-surface-muted px-4 py-3">
-                <CardTitle className="text-base font-semibold text-text-primary">Quick Info</CardTitle>
+                <CardTitle className="text-base font-semibold text-text-primary">
+                  {t('drivers.form.quickInfo')}
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 p-4 text-sm">
                 <div className="flex justify-between gap-2 border-b border-surface-muted pb-2">
-                  <span className="text-text-muted">Driver ID</span>
+                  <span className="text-text-muted">{t('drivers.profile.driverId')}</span>
                   <span className="font-mono font-medium text-text-primary">{quickDriverId}</span>
                 </div>
                 <div className="flex justify-between gap-2 border-b border-surface-muted pb-2">
-                  <span className="text-text-muted">Join Date</span>
+                  <span className="text-text-muted">{t('drivers.profile.joinDate')}</span>
                   <span className="font-medium text-text-primary">{quickJoin}</span>
                 </div>
                 <div className="flex justify-between gap-2 border-b border-surface-muted pb-2">
-                  <span className="text-text-muted">Total Trips</span>
+                  <span className="text-text-muted">{t('drivers.profile.totalTrips')}</span>
                   <span className="font-medium text-text-primary">{quickTrips}</span>
                 </div>
                 <div className="flex justify-between gap-2">
-                  <span className="text-text-muted">Rating</span>
+                  <span className="text-text-muted">{t('drivers.profile.rating')}</span>
                   <span className="inline-flex items-center gap-1 font-medium text-text-primary">
                     <Star className="h-4 w-4 fill-amber-400 text-amber-400" aria-hidden />
                     {isEdit && driver?.rating != null ? driver.rating : '—'}
@@ -574,7 +586,7 @@ export function DriverFormDialog({
             {pending ? '…' : submitLabel}
           </Button>
           <Button type="button" variant="outline" onClick={handleClose}>
-            Cancel
+            {t('common.cancel')}
           </Button>
         </div>
       </form>

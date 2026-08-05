@@ -3,6 +3,7 @@ import { Coffee, Pencil, Plus, Trash2 } from 'lucide-react'
 import type { RestArea, RestAreaFormInput } from '@/modules/geography/types'
 import { usePlatformCities } from '@/modules/geography/hooks/usePlatformCities'
 import { usePlatformRestAreas } from '@/modules/geography/hooks/usePlatformRestAreas'
+import { formatCityLabel } from '@/modules/geography/utils/cityApi'
 import {
   formatRestAreaCityLabel,
   formatRestAreaCoords,
@@ -178,8 +179,7 @@ export function RestAreasManagementPage() {
                 <option value="">{citiesLoading ? 'Loading cities…' : 'Select a city'}</option>
                 {cities.map((city) => (
                   <option key={city.id} value={city.id}>
-                    {city.name}
-                    {city.governorate_name ? ` — ${city.governorate_name}` : ''}
+                    {formatCityLabel(city)}
                   </option>
                 ))}
               </select>

@@ -4,9 +4,18 @@ import type { PlatformUser, PlatformUsersListQuery } from '@/modules/users/types
 
 export function usePlatformUsers(query?: PlatformUsersListQuery) {
   const [users, setUsers] = useState<PlatformUser[]>([])
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    lastPage: 1,
+    perPage: 0,
+    total: 0,
+    from: 0,
+    to: 0,
+  })
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  const page = query?.page ?? 1
   const search = query?.search?.trim() ?? ''
   const role = query?.role ?? ''
   const status = query?.status ?? ''
@@ -20,7 +29,8 @@ export function usePlatformUsers(query?: PlatformUsersListQuery) {
     setIsLoading(true)
     setError(null)
     try {
-      const list = await platformUsersService.listUsers({
+      const result = await platformUsersService.listUsers({
+        page,
         search: search || undefined,
         role: role || undefined,
         status: status || undefined,
@@ -30,18 +40,27 @@ export function usePlatformUsers(query?: PlatformUsersListQuery) {
         admin_flagged: adminFlagged,
         is_banned: isBanned,
       })
-      setUsers(list)
+      setUsers(result.users)
+      setPagination({
+        currentPage: result.currentPage,
+        lastPage: result.lastPage,
+        perPage: result.perPage,
+        total: result.total,
+        from: result.from,
+        to: result.to,
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load users')
       setUsers([])
+      setPagination((previous) => ({ ...previous, from: 0, to: 0 }))
     } finally {
       setIsLoading(false)
     }
-  }, [search, role, status, companyId, minScore, maxScore, adminFlagged, isBanned])
+  }, [page, search, role, status, companyId, minScore, maxScore, adminFlagged, isBanned])
 
   useEffect(() => {
     void load()
   }, [load])
 
-  return { users, isLoading, error, reload: load }
+  return { users, pagination, isLoading, error, reload: load }
 }

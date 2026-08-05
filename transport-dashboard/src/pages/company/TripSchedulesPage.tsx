@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { ArrowLeft, CalendarClock, Pencil, Plus, Trash2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import type { CompanyRoute } from '@/modules/routes/types'
@@ -14,6 +14,12 @@ import type { CompanyTripTemplate } from '@/modules/trip-templates/types'
 import { WEEKDAY_INDICES } from '@/modules/trip-templates/types'
 import { useTripTemplatesManagement } from '@/modules/trip-templates/hooks/useTripTemplatesManagement'
 import { formatDaysOfWeekLabel } from '@/modules/trip-templates/utils/mapCompanyTripTemplate'
+import {
+  checkTemplateGeneration,
+  type TemplateGenerationCheck,
+} from '@/modules/trip-templates/utils/templateGenerationCheck'
+import type { CompanyTrip } from '@/modules/trips/types/companyTrip'
+import { companyTripsService } from '@/modules/trips/services/companyTripsService'
 import { paths } from '@/routes/paths'
 import { useTranslation } from '@/shared/i18n/useTranslation'
 import { Button } from '@/shared/ui/Button'
@@ -114,6 +120,8 @@ export function TripSchedulesPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [drivers, setDrivers] = useState<Driver[]>([])
   const [catalogsLoading, setCatalogsLoading] = useState(true)
+  const [trips, setTrips] = useState<CompanyTrip[]>([])
+  const [tripsLoaded, setTripsLoaded] = useState(false)
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
@@ -146,6 +154,37 @@ export function TripSchedulesPage() {
   useEffect(() => {
     void loadCatalogs()
   }, [loadCatalogs])
+
+  useEffect(() => {
+    let cancelled = false
+
+    void companyTripsService
+      .listTrips()
+      .then((rows) => {
+        if (cancelled) return
+        setTrips(rows)
+        setTripsLoaded(true)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setTrips([])
+        setTripsLoaded(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const generationChecks = useMemo(() => {
+    const map = new Map<number, TemplateGenerationCheck>()
+    if (!tripsLoaded) return map
+    const nowMs = Date.now()
+    templates.forEach((template) => {
+      map.set(template.id, checkTemplateGeneration(template, trips, nowMs))
+    })
+    return map
+  }, [templates, trips, tripsLoaded])
 
   const openAddDialog = () => {
     setEditingId(null)
@@ -270,6 +309,13 @@ export function TripSchedulesPage() {
     if (driverId == null) return t('tripTemplates.noDriver')
     const driver = drivers.find((d) => Number(d.id) === driverId)
     return driver?.name ?? `#${driverId}`
+  }
+
+  const generationBadgeClass = (status: TemplateGenerationCheck['status']) => {
+    if (status === 'ok') return 'bg-green-100 text-green-700'
+    if (status === 'partial') return 'bg-amber-100 text-amber-800'
+    if (status === 'missing') return 'bg-red-100 text-red-700'
+    return 'bg-slate-100 text-slate-600'
   }
 
   if (isLoading || catalogsLoading) return <SchedulesLoadingState />
@@ -568,6 +614,7 @@ export function TripSchedulesPage() {
                     <th className="px-4 py-3 font-medium">{t('tripTemplates.col.schedule')}</th>
                     <th className="px-4 py-3 font-medium">{t('tripTemplates.col.basePrice')}</th>
                     <th className="px-4 py-3 font-medium">{t('tripTemplates.col.status')}</th>
+                    <th className="px-4 py-3 font-medium">{t('tripTemplates.col.generation')}</th>
                     <th className="px-4 py-3 font-medium">{t('tripTemplates.col.actions')}</th>
                   </tr>
                 </thead>
@@ -614,6 +661,39 @@ export function TripSchedulesPage() {
                         >
                           {row.isActive ? t('common.active') : t('common.inactive')}
                         </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {(() => {
+                          const check = generationChecks.get(row.id)
+                          if (!check) {
+                            return <span className="text-text-muted">{t('tripTemplates.generation.unknown')}</span>
+                          }
+                          return (
+                            <div className="space-y-1">
+                              <span
+                                className={cn(
+                                  'inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium',
+                                  generationBadgeClass(check.status),
+                                )}
+                              >
+                                {t(`tripTemplates.generation.status.${check.status}`)}
+                              </span>
+                              <p className="text-xs text-text-muted">
+                                {t('tripTemplates.generation.counts', {
+                                  matched: check.matched,
+                                  expected: check.expected,
+                                  days: check.horizonDays,
+                                })}
+                              </p>
+                              <p className="text-xs text-text-muted">
+                                {t('tripTemplates.generation.upcomingBreakdown', {
+                                  route: check.sameRouteUpcoming,
+                                  total: check.totalUpcoming,
+                                })}
+                              </p>
+                            </div>
+                          )
+                        })()}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">

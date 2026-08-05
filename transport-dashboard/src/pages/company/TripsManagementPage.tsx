@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
+  AlertTriangle,
   Archive,
+  Ban,
   CalendarClock,
   ClipboardList,
   Loader2,
@@ -8,7 +10,6 @@ import {
   Navigation,
   Pencil,
   Plus,
-  Trash2,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { paths } from '@/routes/paths'
@@ -18,6 +19,7 @@ import { Button } from '@/shared/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/Card'
 import { Input } from '@/shared/ui/Input'
 import type { TripsRecentRow, TripsStatVariant } from '@/modules/trips/types'
+import { CancelTripDialog } from '@/modules/trips/components/CancelTripDialog'
 import { useTripsManagement } from '@/modules/trips/hooks/useTripsManagement'
 import type { CompanyRoute } from '@/modules/routes/types'
 import { routesService } from '@/modules/routes/services/routesService'
@@ -31,6 +33,7 @@ import {
 import { mapTripToRecentRow } from '@/modules/trips/services/tripsManagementService'
 import { CountUp } from '@/shared/ui/CountUp'
 import type { TripStatFilterId } from '@/modules/trips/utils/buildTripsStats'
+import { isScheduledTripOverdue } from '@/modules/trips/utils/tripTiming'
 
 const selectClass =
   'w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary shadow-sm transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30'
@@ -114,10 +117,14 @@ function TripsErrorState({ message, onRetry }: { message: string; onRetry: () =>
 export function TripsManagementPage() {
   const { t, locale } = useTranslation()
   const navigate = useNavigate()
-  const { data, isLoading, error, reload, deleteTrip } = useTripsManagement()
+  const { data, isLoading, error, reload } = useTripsManagement()
   const [filters, setFilters] = useState<TripListFilters>(defaultTripListFilters)
   const [routes, setRoutes] = useState<CompanyRoute[]>([])
   const [statFilter, setStatFilter] = useState<TripStatFilterId>('all')
+  const [cancelTripId, setCancelTripId] = useState<number | null>(null)
+  const [cancelTripLabel, setCancelTripLabel] = useState<string>('')
+  const [showOverdueOnly, setShowOverdueOnly] = useState(false)
+  const [nowMs, setNowMs] = useState(() => Date.now())
 
   useEffect(() => {
     void routesService
@@ -125,6 +132,21 @@ export function TripsManagementPage() {
       .then(setRoutes)
       .catch(() => setRoutes([]))
   }, [])
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => setNowMs(Date.now()), 60_000)
+    return () => window.clearInterval(intervalId)
+  }, [])
+
+  const overdueTrips = useMemo(
+    () => data?.trips.filter((trip) => isScheduledTripOverdue(trip, nowMs)) ?? [],
+    [data, nowMs],
+  )
+
+  const overdueTripIds = useMemo(
+    () => new Set(overdueTrips.map((trip) => trip.id)),
+    [overdueTrips],
+  )
 
   const activeTrips = useMemo(() => {
     if (!data) return []
@@ -135,19 +157,24 @@ export function TripsManagementPage() {
       statFilter === 'scheduled' || statFilter === 'active'
         ? operational.filter((trip) => trip.status === statFilter)
         : operational
-    return filterTrips(statusScoped, filters)
-  }, [data, filters, statFilter])
+    const timingScoped = showOverdueOnly
+      ? statusScoped.filter((trip) => overdueTripIds.has(trip.id))
+      : statusScoped
+    return filterTrips(timingScoped, filters)
+  }, [data, filters, overdueTripIds, showOverdueOnly, statFilter])
 
   const tableRows = useMemo(
     () => activeTrips.map((trip) => mapTripToRecentRow(trip, locale === 'ar' ? 'ar-SY' : 'en-US')),
     [activeTrips, locale],
   )
 
-  const hasActiveFilters = hasActiveTripFilters(filters) || statFilter !== 'all'
+  const hasActiveFilters =
+    hasActiveTripFilters(filters) || statFilter !== 'all' || showOverdueOnly
 
   const handleResetFilters = () => {
     setFilters(defaultTripListFilters)
     setStatFilter('all')
+    setShowOverdueOnly(false)
   }
 
   const handleStatClick = (filterId: TripStatFilterId) => {
@@ -161,13 +188,20 @@ export function TripsManagementPage() {
     }
   }
 
-  const handleDelete = async (row: TripsRecentRow) => {
-    if (!window.confirm(t('trips.confirmDelete', { id: row.id }))) return
-    try {
-      await deleteTrip(row.numericId)
-    } catch (err) {
-      window.alert(err instanceof Error ? err.message : t('tripForm.error.saveFailed'))
-    }
+  const openCancelDialog = (row: TripsRecentRow) => {
+    setCancelTripId(row.numericId)
+    setCancelTripLabel(`${row.id} · ${row.route}`)
+  }
+
+  const closeCancelDialog = () => {
+    setCancelTripId(null)
+    setCancelTripLabel('')
+  }
+
+  const toggleOverdueFilter = () => {
+    setShowOverdueOnly((current) => !current)
+    setStatFilter('all')
+    setFilters((current) => ({ ...current, status: 'all' }))
   }
 
   if (error && !data) {
@@ -242,6 +276,34 @@ export function TripsManagementPage() {
           </Button>
         </div>
       </div>
+
+      {overdueTrips.length > 0 ? (
+        <div
+          className="flex flex-col gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-amber-950 sm:flex-row sm:items-center sm:justify-between"
+          role="status"
+        >
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" aria-hidden />
+            <div>
+              <p className="font-semibold">
+                {t('trips.overdue.title', { count: overdueTrips.length })}
+              </p>
+              <p className="mt-0.5 text-sm text-amber-800">
+                {t('trips.overdue.description')}
+              </p>
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="shrink-0 border-amber-400 bg-white text-amber-900 hover:bg-amber-100"
+            onClick={toggleOverdueFilter}
+            aria-pressed={showOverdueOnly}
+          >
+            {showOverdueOnly ? t('trips.overdue.showAll') : t('trips.overdue.review')}
+          </Button>
+        </div>
+      ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {data.stats.map((stat) => {
@@ -477,7 +539,10 @@ export function TripsManagementPage() {
                   {tableRows.map((trip) => (
                     <tr
                       key={trip.id}
-                      className="border-b border-border text-text-secondary"
+                      className={cn(
+                        'border-b border-border text-text-secondary',
+                        overdueTripIds.has(trip.numericId) && 'bg-amber-50/70',
+                      )}
                     >
                       <td className="px-4 py-3 font-medium text-text-primary">
                         {trip.id}
@@ -500,6 +565,12 @@ export function TripsManagementPage() {
                         >
                           {t(`trips.tripStatus.${trip.status}`)}
                         </span>
+                        {overdueTripIds.has(trip.numericId) ? (
+                          <span className="ms-2 inline-flex items-center gap-1 rounded-full bg-amber-200 px-2.5 py-1 text-xs font-medium text-amber-900">
+                            <AlertTriangle className="h-3 w-3" aria-hidden />
+                            {t('trips.overdue.badge')}
+                          </span>
+                        ) : null}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap items-center gap-1.5">
@@ -536,10 +607,10 @@ export function TripsManagementPage() {
                           <button
                             className="rounded p-1 text-red-600 hover:bg-red-50"
                             type="button"
-                            aria-label={t('trips.aria.delete')}
-                            onClick={() => void handleDelete(trip)}
+                            aria-label={t('trips.aria.cancel')}
+                            onClick={() => openCancelDialog(trip)}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Ban className="h-4 w-4" />
                           </button>
                         </div>
                       </td>
@@ -551,6 +622,16 @@ export function TripsManagementPage() {
           )}
         </CardContent>
       </Card>
+
+      <CancelTripDialog
+        open={cancelTripId != null}
+        tripId={cancelTripId}
+        tripLabel={cancelTripLabel}
+        onClose={closeCancelDialog}
+        onCancelled={() => {
+          void reload()
+        }}
+      />
     </div>
   )
 }

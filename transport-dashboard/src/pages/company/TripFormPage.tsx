@@ -19,6 +19,7 @@ import type { Driver } from '@/modules/drivers/types'
 import { vehiclesService } from '@/modules/vehicles/services/vehiclesService'
 import { mapCompanyVehicleToVehicle } from '@/modules/vehicles/utils/mapCompanyVehicle'
 import type { Vehicle } from '@/modules/vehicles/types'
+import { bookingsService } from '@/modules/bookings/services/bookingsService'
 import type { CompanyTripStatus } from '@/modules/trips/types/companyTrip'
 import { companyTripsService } from '@/modules/trips/services/companyTripsService'
 import {
@@ -37,7 +38,7 @@ import { Input } from '@/shared/ui/Input'
 import { useTranslation } from '@/shared/i18n/useTranslation'
 
 const selectClass =
-  'h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text-primary shadow-sm transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30'
+  'h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text-primary shadow-sm transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted'
 
 const emptyForm: TripFormState = {
   routeId: '',
@@ -82,6 +83,11 @@ export function TripFormPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [initialStatus, setInitialStatus] = useState<CompanyTripStatus | null>(null)
+  const [bookedCount, setBookedCount] = useState(0)
+  const [lockedRouteId, setLockedRouteId] = useState<string | null>(null)
+  const [lockedBaseFare, setLockedBaseFare] = useState<string | null>(null)
+
+  const hasBookings = isEdit && bookedCount > 0
 
   const selectedRoute = useMemo(
     () => routes.find((r) => String(r.id) === form.routeId) ?? null,
@@ -127,9 +133,31 @@ export function TripFormPage() {
         if (isEdit && Number.isFinite(editNumericId)) {
           const trip = await companyTripsService.getTrip(editNumericId)
           if (cancelled) return
-          setForm(applyCompanyTripToFormState(trip))
+
+          const formState = applyCompanyTripToFormState(trip)
+          setForm(formState)
           setInitialStatus(trip.status)
+          setLockedRouteId(formState.routeId)
+          setLockedBaseFare(formState.baseFare)
           setShowAdvanced(true)
+
+          let bookingsCount = 0
+          try {
+            const tripBookings = await bookingsService.listBookingsForTrip(editNumericId)
+            bookingsCount = tripBookings.length
+          } catch {
+            // Fall back to trip seat stats if bookings endpoint fails
+          }
+
+          const fromStats = trip.stats?.booked_seats ?? 0
+          const fromSeatMap = trip.seat_map?.filter((seat) => seat.is_booked).length ?? 0
+          if (!cancelled) {
+            setBookedCount(Math.max(bookingsCount, fromStats, fromSeatMap))
+          }
+        } else if (!cancelled) {
+          setBookedCount(0)
+          setLockedRouteId(null)
+          setLockedBaseFare(null)
         }
       } catch (err) {
         if (!cancelled) {
@@ -209,6 +237,22 @@ export function TripFormPage() {
 
   async function handleSaveTrip() {
     if (!validateForm()) return
+
+    if (
+      hasBookings &&
+      lockedRouteId != null &&
+      lockedBaseFare != null &&
+      (form.routeId !== lockedRouteId || form.baseFare !== lockedBaseFare)
+    ) {
+      setSaveError(t('tripForm.error.lockedFieldsChanged', { count: bookedCount }))
+      return
+    }
+
+    if (hasBookings && form.status === 'cancelled') {
+      setSaveError(t('tripForm.error.cancelViaList'))
+      return
+    }
+
     const payload = buildTripMutationPayload(form)
     if (!payload) {
       setSaveError(t('tripForm.error.validation'))
@@ -273,6 +317,15 @@ export function TripFormPage() {
         </p>
       ) : null}
 
+      {hasBookings ? (
+        <p
+          className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+          role="status"
+        >
+          {t('tripForm.bookingsLockNotice', { count: bookedCount })}
+        </p>
+      ) : null}
+
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-[36px] font-semibold tracking-tight text-[var(--title-h1)]">
@@ -305,6 +358,8 @@ export function TripFormPage() {
                 value={form.routeId}
                 onChange={(e) => setForm((prev) => ({ ...prev, routeId: e.target.value }))}
                 required
+                disabled={hasBookings}
+                title={hasBookings ? t('tripForm.bookingsLockFieldHint') : undefined}
               >
                 <option value="">{t('tripForm.chooseRouteTemplate')}</option>
                 {routes.map((route) => (
@@ -313,6 +368,9 @@ export function TripFormPage() {
                   </option>
                 ))}
               </select>
+              {hasBookings ? (
+                <p className="text-xs text-amber-800">{t('tripForm.bookingsLockFieldHint')}</p>
+              ) : null}
               {routes.length === 0 ? (
                 <p className="text-xs text-text-muted">{t('tripForm.noRoutes')}</p>
               ) : null}
@@ -402,10 +460,14 @@ export function TripFormPage() {
                   <option value="scheduled">{t('tripForm.statusScheduled')}</option>
                   <option value="active">{t('tripForm.statusActive')}</option>
                   <option value="completed">{t('tripForm.statusCompleted')}</option>
-                  <option value="cancelled">{t('tripForm.statusCancelled')}</option>
+                  <option value="cancelled" disabled={hasBookings}>
+                    {t('tripForm.statusCancelled')}
+                  </option>
                 </select>
                 {errors.status ? <p className="text-xs text-red-600">{errors.status}</p> : null}
-                {isEdit ? (
+                {hasBookings ? (
+                  <p className="text-xs text-amber-800">{t('tripForm.cancelViaListHint')}</p>
+                ) : isEdit ? (
                   <p className="text-xs text-text-muted">{t('tripForm.statusSaveHint')}</p>
                 ) : null}
               </div>
@@ -423,7 +485,10 @@ export function TripFormPage() {
                   }
                   onPaste={handlePricePaste}
                   error={errors.baseFare}
+                  hint={hasBookings ? t('tripForm.bookingsLockFieldHint') : undefined}
                   required
+                  disabled={hasBookings}
+                  title={hasBookings ? t('tripForm.bookingsLockFieldHint') : undefined}
                 />
                 <DollarSign className="pointer-events-none absolute start-2 top-9 h-4 w-4 text-text-muted" />
               </div>

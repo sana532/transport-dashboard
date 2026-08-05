@@ -16,13 +16,20 @@ export function normalizeCity(raw: unknown): City | null {
   if (!raw || typeof raw !== 'object') return null
   const record = raw as Record<string, unknown>
   const id = typeof record.id === 'number' ? record.id : Number(record.id)
-  const name = typeof record.name === 'string' ? record.name.trim() : ''
-  if (!Number.isFinite(id) || !name) return null
+  if (!Number.isFinite(id)) return null
+
+  const name_en = pickStringField(record, 'name_en')
+  const name_ar = pickStringField(record, 'name_ar')
+  const legacyName = pickStringField(record, 'name')
+  const name = name_en ?? name_ar ?? legacyName
+  if (!name) return null
 
   return {
     id,
     name,
-    governorate_name: pickStringField(record, 'governorate_name'),
+    name_en,
+    name_ar,
+    governorate_name: pickStringField(record, 'governorate_name') ?? name_ar,
     latitude: pickNumber(record, 'latitude'),
     longitude: pickNumber(record, 'longitude'),
   }
@@ -58,4 +65,12 @@ export function formatCityCoords(city: City): string {
     return `${city.latitude}, ${city.longitude}`
   }
   return '—'
+}
+
+/** Dropdown / table label: "English — Arabic" when both exist */
+export function formatCityLabel(city: City): string {
+  const en = city.name_en?.trim() || city.name
+  const ar = city.name_ar?.trim() || city.governorate_name?.trim()
+  if (ar && ar !== en) return `${en} — ${ar}`
+  return en
 }

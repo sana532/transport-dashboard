@@ -5,23 +5,27 @@ export type CityRef = {
 
 export type City = {
   id: number
+  /** Display name — usually name_en, falls back to name_ar / legacy name */
   name: string
+  name_en?: string | null
+  name_ar?: string | null
+  /** Legacy field; prefer name_ar for Arabic label when present */
   governorate_name?: string | null
   latitude?: number
   longitude?: number
 }
 
-/** POST/PATCH body — Postman Geography → Cities */
+/** POST/PATCH body — platform cities require bilingual names */
 export type CityWritePayload = {
-  name: string
-  governorate_name: string
+  name_en: string
+  name_ar: string
   latitude: number
   longitude: number
 }
 
 export type CityFormInput = {
-  name: string
-  governorateName: string
+  nameEn: string
+  nameAr: string
   latitude: string
   longitude: string
 }
@@ -38,6 +42,7 @@ export type Station = {
 
 /** POST/PATCH body for platform admin — see Postman Geography → Stations */
 export type StationWritePayload = {
+  city_id: number
   name: string
   governorate_name: string
   latitude: number
@@ -45,6 +50,7 @@ export type StationWritePayload = {
 }
 
 export type StationFormInput = {
+  cityId: string
   name: string
   governorateName: string
   latitude: string

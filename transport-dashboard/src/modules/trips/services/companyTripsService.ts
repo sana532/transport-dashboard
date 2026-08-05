@@ -1,6 +1,8 @@
 import { api } from '@/services/api'
 import type {
   CompanyTrip,
+  TripCancelInput,
+  TripCancelResult,
   TripCloneInput,
   TripMutationInput,
   TripStatusUpdateInput,
@@ -138,6 +140,71 @@ export const companyTripsService = {
       return updated
     } catch (error) {
       throw new Error(getApiErrorMessage(error, 'Failed to update trip status'))
+    }
+  },
+
+  /**
+   * Preferred cancel flow for the company dashboard.
+   *
+   * Expected backend endpoint:
+   *   POST /api/company/trips/{id}/cancel
+   * Body:
+   *   { reason?: string, notify_passengers: boolean, refund: boolean }
+   * Behavior expected from backend:
+   *   - Mark trip as cancelled (do not hard-delete)
+   *   - Cancel related active bookings
+   *   - If refund=true: refund paid bookings and mark payment as refunded
+   *   - If notify_passengers=true: notify each affected passenger
+   *   - Reject cancel only when business rules require (e.g. trip already completed)
+   * Response (flexible): trip object, optionally with cancelled_bookings_count,
+   *   refunded_amount, notified_passengers_count
+   */
+  async cancelTrip(id: number, input: TripCancelInput): Promise<TripCancelResult> {
+    try {
+      const { data } = await api.post<unknown>(`/company/trips/${id}/cancel`, {
+        reason: input.reason?.trim() || undefined,
+        notify_passengers: input.notify_passengers,
+        refund: input.refund,
+      })
+
+      if (!data || typeof data !== 'object') {
+        throw new Error('Invalid response when cancelling trip')
+      }
+
+      const root = data as Record<string, unknown>
+      const tripRaw = root.data && typeof root.data === 'object' ? root.data : root
+      const tripRecord = tripRaw as Record<string, unknown>
+      const tripCandidate =
+        tripRecord.trip && typeof tripRecord.trip === 'object'
+          ? tripRecord.trip
+          : tripRaw
+
+      const trip = normalizeCompanyTrip(tripCandidate)
+      if (!trip) throw new Error('Invalid response when cancelling trip')
+
+      return {
+        trip,
+        cancelled_bookings_count:
+          typeof tripRecord.cancelled_bookings_count === 'number'
+            ? tripRecord.cancelled_bookings_count
+            : typeof root.cancelled_bookings_count === 'number'
+              ? root.cancelled_bookings_count
+              : undefined,
+        refunded_amount:
+          typeof tripRecord.refunded_amount === 'number'
+            ? tripRecord.refunded_amount
+            : typeof root.refunded_amount === 'number'
+              ? root.refunded_amount
+              : undefined,
+        notified_passengers_count:
+          typeof tripRecord.notified_passengers_count === 'number'
+            ? tripRecord.notified_passengers_count
+            : typeof root.notified_passengers_count === 'number'
+              ? root.notified_passengers_count
+              : undefined,
+      }
+    } catch (error) {
+      throw new Error(getApiErrorMessage(error, 'Failed to cancel trip'))
     }
   },
 

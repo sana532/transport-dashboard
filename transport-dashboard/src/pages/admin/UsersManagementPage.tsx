@@ -8,6 +8,7 @@ import {
   type PlatformUser,
   type PlatformUserStatus,
 } from '@/modules/users/types'
+import { useUserRoleLabel } from '@/modules/users/utils/useUserRoleLabel'
 import { paths } from '@/routes/paths'
 import { useTranslation } from '@/shared/i18n/useTranslation'
 import { Button } from '@/shared/ui/Button'
@@ -54,8 +55,10 @@ function FlagPill({ active, label }: { active: boolean; label: string }) {
 
 export function UsersManagementPage() {
   const { t } = useTranslation()
+  const roleLabel = useUserRoleLabel()
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
   const [role, setRole] = useState('')
   const [status, setStatus] = useState<PlatformUserStatus | ''>('')
   const [companyIdInput, setCompanyIdInput] = useState('')
@@ -65,6 +68,7 @@ export function UsersManagementPage() {
 
   const query = useMemo(
     () => ({
+      page,
       search: search || undefined,
       role: role || undefined,
       status: status || undefined,
@@ -72,12 +76,19 @@ export function UsersManagementPage() {
       admin_flagged: adminFlagged === 'all' ? undefined : adminFlagged === 'true',
       is_banned: isBanned === 'all' ? undefined : isBanned === 'true',
     }),
-    [search, role, status, companyId, adminFlagged, isBanned],
+    [page, search, role, status, companyId, adminFlagged, isBanned],
   )
 
-  const { users, isLoading, error, reload } = usePlatformUsers(query)
+  const { users, pagination, isLoading, error, reload } = usePlatformUsers(query)
+
+  const visiblePages = useMemo(() => {
+    const start = Math.max(1, Math.min(pagination.currentPage - 2, pagination.lastPage - 4))
+    const end = Math.min(pagination.lastPage, start + 4)
+    return Array.from({ length: Math.max(0, end - start + 1) }, (_, index) => start + index)
+  }, [pagination.currentPage, pagination.lastPage])
 
   function applyFilters() {
+    setPage(1)
     setSearch(searchInput.trim())
     const parsed = Number(companyIdInput.trim())
     setCompanyId(
@@ -130,7 +141,10 @@ export function UsersManagementPage() {
                 id="user_role_filter"
                 className={selectClass}
                 value={role}
-                onChange={(e) => setRole(e.target.value)}
+                onChange={(e) => {
+                  setRole(e.target.value)
+                  setPage(1)
+                }}
               >
                 <option value="">{t('admin.users.roleAll')}</option>
                 {PLATFORM_USER_ROLES.map((value) => (
@@ -148,7 +162,10 @@ export function UsersManagementPage() {
                 id="user_status_filter"
                 className={selectClass}
                 value={status}
-                onChange={(e) => setStatus(e.target.value as PlatformUserStatus | '')}
+                onChange={(e) => {
+                  setStatus(e.target.value as PlatformUserStatus | '')
+                  setPage(1)
+                }}
               >
                 <option value="">{t('admin.users.statusAll')}</option>
                 {PLATFORM_USER_STATUSES.map((value) => (
@@ -177,7 +194,10 @@ export function UsersManagementPage() {
                 id="user_flagged_filter"
                 className={selectClass}
                 value={adminFlagged}
-                onChange={(e) => setAdminFlagged(e.target.value as 'all' | 'true' | 'false')}
+                onChange={(e) => {
+                  setAdminFlagged(e.target.value as 'all' | 'true' | 'false')
+                  setPage(1)
+                }}
               >
                 <option value="all">{t('admin.users.filterAll')}</option>
                 <option value="true">{t('admin.users.filterYes')}</option>
@@ -192,7 +212,10 @@ export function UsersManagementPage() {
                 id="user_banned_filter"
                 className={selectClass}
                 value={isBanned}
-                onChange={(e) => setIsBanned(e.target.value as 'all' | 'true' | 'false')}
+                onChange={(e) => {
+                  setIsBanned(e.target.value as 'all' | 'true' | 'false')
+                  setPage(1)
+                }}
               >
                 <option value="all">{t('admin.users.filterAll')}</option>
                 <option value="true">{t('admin.users.filterYes')}</option>
@@ -248,7 +271,13 @@ export function UsersManagementPage() {
                       <StatusBadge status={user.status} />
                     </div>
                     <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-text-secondary">
-                      <span>{user.role}</span>
+                      <span>{roleLabel(user.role)}</span>
+                      {user.company_name || user.company_id != null ? (
+                        <>
+                          <span className="text-text-muted">·</span>
+                          <span>{user.company_name ?? `#${user.company_id}`}</span>
+                        </>
+                      ) : null}
                       <span className="text-text-muted">·</span>
                       <span>
                         {t('admin.users.colScore')}: {user.score != null ? user.score : '—'}
@@ -278,6 +307,7 @@ export function UsersManagementPage() {
                       <th className="pb-3 pe-4 font-medium">{t('admin.users.colName')}</th>
                       <th className="pb-3 pe-4 font-medium">{t('admin.users.colContact')}</th>
                       <th className="pb-3 pe-4 font-medium">{t('admin.users.colRole')}</th>
+                      <th className="pb-3 pe-4 font-medium">{t('admin.users.colCompany')}</th>
                       <th className="pb-3 pe-4 font-medium">{t('common.status')}</th>
                       <th className="pb-3 pe-4 font-medium">{t('admin.users.colScore')}</th>
                       <th className="pb-3 pe-4 font-medium">{t('admin.users.colFlags')}</th>
@@ -292,7 +322,11 @@ export function UsersManagementPage() {
                           <div>{user.email}</div>
                           <div className="font-mono text-xs text-text-muted">{user.phone_number}</div>
                         </td>
-                        <td className="py-3 pe-4 text-text-secondary">{user.role}</td>
+                        <td className="py-3 pe-4 text-text-secondary">{roleLabel(user.role)}</td>
+                        <td className="py-3 pe-4 text-text-secondary">
+                          {user.company_name ??
+                            (user.company_id != null ? `#${user.company_id}` : '—')}
+                        </td>
                         <td className="py-3 pe-4">
                           <StatusBadge status={user.status} />
                         </td>
@@ -321,6 +355,56 @@ export function UsersManagementPage() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+
+              <div className="flex flex-col gap-3 border-t border-surface-muted pt-4 text-sm sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-text-muted">
+                  {t('admin.users.pagination.showing', {
+                    from: pagination.from,
+                    to: pagination.to,
+                    total: pagination.total,
+                  })}
+                </p>
+                <nav
+                  className="flex flex-wrap items-center gap-1"
+                  aria-label={t('admin.users.pagination.label')}
+                >
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-8 px-2 text-xs"
+                    disabled={isLoading || pagination.currentPage <= 1}
+                    onClick={() => setPage((current) => Math.max(1, current - 1))}
+                  >
+                    {t('common.previous')}
+                  </Button>
+                  {visiblePages.map((pageNumber) => (
+                    <Button
+                      key={pageNumber}
+                      type="button"
+                      variant={pageNumber === pagination.currentPage ? 'primary' : 'outline'}
+                      className="h-8 min-w-8 px-2 text-xs"
+                      aria-current={
+                        pageNumber === pagination.currentPage ? 'page' : undefined
+                      }
+                      disabled={isLoading}
+                      onClick={() => setPage(pageNumber)}
+                    >
+                      {pageNumber}
+                    </Button>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-8 px-2 text-xs"
+                    disabled={isLoading || pagination.currentPage >= pagination.lastPage}
+                    onClick={() =>
+                      setPage((current) => Math.min(pagination.lastPage, current + 1))
+                    }
+                  >
+                    {t('common.next')}
+                  </Button>
+                </nav>
               </div>
             </>
           )}

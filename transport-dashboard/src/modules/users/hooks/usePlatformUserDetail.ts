@@ -46,6 +46,7 @@ export function usePlatformUserDetail(userId: string | undefined) {
           score: nextUser.score,
           admin_flagged: nextUser.admin_flagged,
           is_banned: nextUser.is_banned,
+          banned_until: nextUser.banned_until,
           notes: null,
           raw: null,
         })

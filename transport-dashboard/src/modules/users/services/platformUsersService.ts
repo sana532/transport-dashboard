@@ -1,6 +1,7 @@
 import { api } from '@/services/api'
 import type {
   PlatformUser,
+  PlatformUsersPage,
   PlatformUsersListQuery,
   PlatformUserStatus,
   UpdatePlatformUserInput,
@@ -59,6 +60,44 @@ function nestedReliability(record: Record<string, unknown>): Record<string, unkn
   return null
 }
 
+const ROLE_PRIORITY = ['platform_admin', 'company_admin', 'driver', 'passenger']
+
+/** API returns `roles: [{ id, name }]`; older shapes may send a plain string */
+function extractRoles(record: Record<string, unknown>): string[] {
+  const raw = record.roles
+  const names: string[] = []
+
+  if (Array.isArray(raw)) {
+    for (const item of raw) {
+      if (typeof item === 'string' && item.trim()) {
+        names.push(item.trim())
+      } else if (item && typeof item === 'object') {
+        const name = pickString(item as Record<string, unknown>, 'name', 'slug', 'role')
+        if (name) names.push(name.trim())
+      }
+    }
+  }
+
+  const flat = pickString(record, 'role', 'user_role', 'type')
+  if (flat && !names.includes(flat.trim())) names.push(flat.trim())
+
+  return names
+}
+
+function primaryRole(roles: string[]): string {
+  for (const candidate of ROLE_PRIORITY) {
+    if (roles.includes(candidate)) return candidate
+  }
+  return roles[0] ?? 'passenger'
+}
+
+function isBanActive(bannedUntil: string | null): boolean {
+  if (!bannedUntil) return false
+  const parsed = new Date(bannedUntil)
+  if (Number.isNaN(parsed.getTime())) return false
+  return parsed.getTime() > Date.now()
+}
+
 export function normalizePlatformUser(raw: unknown): PlatformUser | null {
   if (!raw || typeof raw !== 'object') return null
   const record = raw as Record<string, unknown>
@@ -77,16 +116,31 @@ export function normalizePlatformUser(raw: unknown): PlatformUser | null {
     pickNumber(nested, 'score', 'reliability_score') ??
     (reliability ? pickNumber(reliability, 'score', 'reliability_score') : null)
 
+  const roles = extractRoles(nested)
+  const rolesFromRoot = roles.length > 0 ? roles : extractRoles(record)
+
+  const stats =
+    nested.stats && typeof nested.stats === 'object'
+      ? (nested.stats as Record<string, unknown>)
+      : null
+
+  const bannedUntil =
+    pickString(nested, 'banned_until') ??
+    (reliability ? pickString(reliability, 'banned_until') : undefined) ??
+    null
+
   return {
     id,
     name: pickString(nested, 'name', 'full_name') ?? '—',
+    username: pickString(nested, 'username') ?? null,
     email: pickString(nested, 'email') ?? '—',
     phone_number: pickString(nested, 'phone_number', 'phone') ?? '—',
     gender: pickString(nested, 'gender') ?? null,
     address: pickString(nested, 'address') ?? null,
     city: pickString(nested, 'city') ?? null,
     status: normalizeStatus(nested.status ?? record.status),
-    role: pickString(nested, 'role', 'user_role', 'type') ?? 'passenger',
+    role: primaryRole(rolesFromRoot),
+    roles: rolesFromRoot,
     company_id:
       pickNumber(nested, 'company_id') ??
       (company ? pickNumber(company, 'id') : null) ??
@@ -101,14 +155,25 @@ export function normalizePlatformUser(raw: unknown): PlatformUser | null {
       (reliability ? pickBool(reliability, 'admin_flagged') : false),
     is_banned:
       pickBool(nested, 'is_banned', 'banned') ||
-      (reliability ? pickBool(reliability, 'is_banned', 'banned') : false),
+      (reliability ? pickBool(reliability, 'is_banned', 'banned') : false) ||
+      isBanActive(bannedUntil),
+    banned_until: bannedUntil,
+    bookings_count: stats ? pickNumber(stats, 'bookings_count') : null,
+    active_subscriptions_count: stats ? pickNumber(stats, 'active_subscriptions_count') : null,
     created_at: pickString(nested, 'created_at') ?? null,
   }
 }
 
 export function normalizeUserReliability(raw: unknown): UserReliability {
   if (!raw || typeof raw !== 'object') {
-    return { score: null, admin_flagged: false, is_banned: false, notes: null, raw }
+    return {
+      score: null,
+      admin_flagged: false,
+      is_banned: false,
+      banned_until: null,
+      notes: null,
+      raw,
+    }
   }
 
   const root = raw as Record<string, unknown>
@@ -119,10 +184,13 @@ export function normalizeUserReliability(raw: unknown): UserReliability {
         ? (root.reliability as Record<string, unknown>)
         : root
 
+  const bannedUntil = pickString(record, 'banned_until') ?? null
+
   return {
     score: pickNumber(record, 'score', 'reliability_score'),
     admin_flagged: pickBool(record, 'admin_flagged'),
-    is_banned: pickBool(record, 'is_banned', 'banned'),
+    is_banned: pickBool(record, 'is_banned', 'banned') || isBanActive(bannedUntil),
+    banned_until: bannedUntil,
     notes: pickString(record, 'notes', 'admin_notes', 'reason') ?? null,
     raw,
   }
@@ -145,6 +213,33 @@ function unwrapUserList(payload: unknown): PlatformUser[] {
   return []
 }
 
+function unwrapUserPage(payload: unknown): PlatformUsersPage {
+  const users = unwrapUserList(payload)
+  const root =
+    payload && typeof payload === 'object'
+      ? (payload as Record<string, unknown>)
+      : null
+  const meta =
+    root?.meta && typeof root.meta === 'object'
+      ? (root.meta as Record<string, unknown>)
+      : root
+
+  const currentPage = (meta ? pickNumber(meta, 'current_page') : null) ?? 1
+  const perPage = (meta ? pickNumber(meta, 'per_page') : null) ?? users.length
+  const total = (meta ? pickNumber(meta, 'total') : null) ?? users.length
+  const lastPage =
+    (meta ? pickNumber(meta, 'last_page') : null) ??
+    Math.max(1, perPage > 0 ? Math.ceil(total / perPage) : 1)
+  const from =
+    (meta ? pickNumber(meta, 'from') : null) ??
+    (users.length > 0 ? (currentPage - 1) * perPage + 1 : 0)
+  const to =
+    (meta ? pickNumber(meta, 'to') : null) ??
+    (users.length > 0 ? from + users.length - 1 : 0)
+
+  return { users, currentPage, lastPage, perPage, total, from, to }
+}
+
 function unwrapUserOne(payload: unknown): PlatformUser | null {
   if (!payload || typeof payload !== 'object') return null
   const root = payload as Record<string, unknown>
@@ -154,6 +249,9 @@ function unwrapUserOne(payload: unknown): PlatformUser | null {
 
 function buildListParams(query?: PlatformUsersListQuery): Record<string, string | number | boolean> {
   const params: Record<string, string | number | boolean> = {}
+  if (query?.page != null && Number.isFinite(query.page) && query.page > 0) {
+    params.page = Math.floor(query.page)
+  }
   const search = query?.search?.trim()
   if (search) params.search = search
   if (query?.role) params.role = query.role
@@ -189,12 +287,12 @@ function buildUpdatePayload(input: UpdatePlatformUserInput): Record<string, stri
 
 /** Admin-Platform Postman → Users */
 export const platformUsersService = {
-  async listUsers(query?: PlatformUsersListQuery): Promise<PlatformUser[]> {
+  async listUsers(query?: PlatformUsersListQuery): Promise<PlatformUsersPage> {
     try {
       const { data } = await api.get<unknown>('/platform/users', {
         params: buildListParams(query),
       })
-      return unwrapUserList(data)
+      return unwrapUserPage(data)
     } catch (error) {
       throw new Error(getApiErrorMessage(error, 'Failed to load users'))
     }
@@ -229,6 +327,7 @@ export const platformUsersService = {
       return {
         id,
         name: input.name.trim(),
+        username: null,
         email: input.email.trim(),
         phone_number: input.phone_number.trim(),
         gender: input.gender.trim() || null,
@@ -236,11 +335,15 @@ export const platformUsersService = {
         city: input.city.trim() || null,
         status: input.status,
         role: 'passenger',
+        roles: [],
         company_id: null,
         company_name: null,
         score: null,
         admin_flagged: false,
         is_banned: false,
+        banned_until: null,
+        bookings_count: null,
+        active_subscriptions_count: null,
         created_at: null,
       }
     } catch (error) {

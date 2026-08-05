@@ -1,24 +1,35 @@
 export type PlatformUserStatus = 'active' | 'suspended' | 'inactive'
 
-export type PlatformUserRole = 'passenger' | 'driver' | 'company_manager' | 'admin' | string
+export type PlatformUserRole =
+  | 'passenger'
+  | 'driver'
+  | 'company_admin'
+  | 'platform_admin'
+  | string
 
-export type PlatformUserGender = 'male' | 'female' | string
+export type PlatformUserGender = 'male' | 'female' | 'other' | string
 
 export type PlatformUser = {
   id: number
   name: string
+  username: string | null
   email: string
   phone_number: string
   gender: PlatformUserGender | null
   address: string | null
   city: string | null
   status: PlatformUserStatus
+  /** Primary role used for display; API returns a `roles` array */
   role: PlatformUserRole
+  roles: PlatformUserRole[]
   company_id: number | null
   company_name: string | null
   score: number | null
   admin_flagged: boolean
   is_banned: boolean
+  banned_until: string | null
+  bookings_count: number | null
+  active_subscriptions_count: number | null
   created_at: string | null
 }
 
@@ -26,11 +37,13 @@ export type UserReliability = {
   score: number | null
   admin_flagged: boolean
   is_banned: boolean
+  banned_until: string | null
   notes: string | null
   raw: unknown
 }
 
 export type PlatformUsersListQuery = {
+  page?: number
   search?: string
   role?: string
   status?: PlatformUserStatus | ''
@@ -39,6 +52,16 @@ export type PlatformUsersListQuery = {
   max_score?: number
   admin_flagged?: boolean
   is_banned?: boolean
+}
+
+export type PlatformUsersPage = {
+  users: PlatformUser[]
+  currentPage: number
+  lastPage: number
+  perPage: number
+  total: number
+  from: number
+  to: number
 }
 
 export type UpdatePlatformUserInput = {
@@ -56,6 +79,12 @@ export type UpdateUserReliabilityInput = {
   clear_ban?: boolean
 }
 
-export const PLATFORM_USER_ROLES = ['passenger', 'driver', 'company_manager', 'admin'] as const
+/** Role slugs as returned/accepted by the platform API */
+export const PLATFORM_USER_ROLES = [
+  'passenger',
+  'driver',
+  'company_admin',
+  'platform_admin',
+] as const
 
 export const PLATFORM_USER_STATUSES: PlatformUserStatus[] = ['active', 'suspended', 'inactive']

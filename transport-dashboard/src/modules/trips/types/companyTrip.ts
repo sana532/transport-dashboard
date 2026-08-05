@@ -112,6 +112,24 @@ export type TripStatusUpdateInput = {
   status: CompanyTripStatus
 }
 
+/**
+ * Contract for POST /company/trips/{id}/cancel
+ * Backend should: set trip cancelled, cancel related bookings,
+ * notify passengers, and refund paid amounts when refund=true.
+ */
+export type TripCancelInput = {
+  reason?: string
+  notify_passengers: boolean
+  refund: boolean
+}
+
+export type TripCancelResult = {
+  trip: CompanyTrip
+  cancelled_bookings_count?: number
+  refunded_amount?: number
+  notified_passengers_count?: number
+}
+
 export type TripCloneInput = {
   departure_time: string
   vehicle_id: number

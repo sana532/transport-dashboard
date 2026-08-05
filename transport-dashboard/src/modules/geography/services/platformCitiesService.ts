@@ -4,17 +4,41 @@ import { unwrapCityList, unwrapCityOne } from '@/modules/geography/utils/cityApi
 import { getApiErrorMessage } from '@/shared/utils/getApiErrorMessage'
 
 function toWritePayload(input: CityFormInput): CityWritePayload {
+  const nameEn = input.nameEn.trim()
+  const nameAr = input.nameAr.trim()
   const latitude = Number(input.latitude.trim())
   const longitude = Number(input.longitude.trim())
+
+  if (!nameEn || !nameAr) {
+    throw new Error('English and Arabic names are required')
+  }
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
     throw new Error('Latitude and longitude must be valid numbers')
   }
+  if (latitude < -90 || latitude > 90) {
+    throw new Error('Latitude must be between -90 and 90')
+  }
+  if (longitude < -180 || longitude > 180) {
+    throw new Error('Longitude must be between -180 and 180')
+  }
 
   return {
-    name: input.name.trim(),
-    governorate_name: input.governorateName.trim(),
+    name_en: nameEn,
+    name_ar: nameAr,
     latitude,
     longitude,
+  }
+}
+
+function fallbackCity(id: number, payload: CityWritePayload): City {
+  return {
+    id,
+    name: payload.name_en,
+    name_en: payload.name_en,
+    name_ar: payload.name_ar,
+    governorate_name: payload.name_ar,
+    latitude: payload.latitude,
+    longitude: payload.longitude,
   }
 }
 
@@ -46,15 +70,16 @@ export const platformCitiesService = {
       const { data } = await api.post<unknown>('/platform/cities', payload)
       const created = unwrapCityOne(data)
       if (created) return created
-      return {
-        id: Date.now(),
-        name: payload.name,
-        governorate_name: payload.governorate_name,
-        latitude: payload.latitude,
-        longitude: payload.longitude,
-      }
+      return fallbackCity(Date.now(), payload)
     } catch (error) {
-      if (error instanceof Error && error.message.includes('Latitude')) throw error
+      if (
+        error instanceof Error &&
+        (error.message.includes('Latitude') ||
+          error.message.includes('Longitude') ||
+          error.message.includes('names'))
+      ) {
+        throw error
+      }
       throw new Error(getApiErrorMessage(error, 'Failed to create city'))
     }
   },
@@ -65,15 +90,16 @@ export const platformCitiesService = {
       const { data } = await api.patch<unknown>(`/platform/cities/${id}`, payload)
       const updated = unwrapCityOne(data)
       if (updated) return updated
-      return {
-        id,
-        name: payload.name,
-        governorate_name: payload.governorate_name,
-        latitude: payload.latitude,
-        longitude: payload.longitude,
-      }
+      return fallbackCity(id, payload)
     } catch (error) {
-      if (error instanceof Error && error.message.includes('Latitude')) throw error
+      if (
+        error instanceof Error &&
+        (error.message.includes('Latitude') ||
+          error.message.includes('Longitude') ||
+          error.message.includes('names'))
+      ) {
+        throw error
+      }
       throw new Error(getApiErrorMessage(error, 'Failed to update city'))
     }
   },

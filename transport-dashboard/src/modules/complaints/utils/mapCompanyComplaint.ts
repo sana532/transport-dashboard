@@ -131,8 +131,17 @@ function resolvePassenger(record: Record<string, unknown>): {
       ? (booking.user as Record<string, unknown>)
       : null
 
+  /** Platform API spells the reporter as `complainter` */
+  const complainer =
+    record.complainter && typeof record.complainter === 'object'
+      ? (record.complainter as Record<string, unknown>)
+      : record.complainant && typeof record.complainant === 'object'
+        ? (record.complainant as Record<string, unknown>)
+        : null
+
   const name =
     pickNestedString(record, ['passenger', 'name']) ||
+    (complainer ? pickString(complainer, 'name') : '') ||
     (bookingUser ? pickString(bookingUser, 'name') : '') ||
     pickNestedString(record, ['user', 'name']) ||
     pickNestedString(record, ['customer', 'name']) ||
@@ -142,24 +151,29 @@ function resolvePassenger(record: Record<string, unknown>): {
   const phone =
     pickNestedString(record, ['passenger', 'phone_number']) ||
     pickNestedString(record, ['passenger', 'phone']) ||
+    (complainer ? pickString(complainer, 'phone_number', 'phone') : '') ||
     (bookingUser ? pickString(bookingUser, 'phone_number', 'phone') : '') ||
     pickNestedString(record, ['user', 'phone_number']) ||
     pickNestedString(record, ['user', 'phone']) ||
     pickString(record, 'passenger_phone', 'phone_number', 'phone') ||
     '—'
 
-  const passengerIdRaw =
-    (record.passenger_id ??
-      pickNestedString(record, ['passenger', 'id']) ??
-      (bookingUser ? pickString(bookingUser, 'id') : null) ??
-      (booking?.user_id != null ? String(booking.user_id) : null) ??
-      pickNestedString(record, ['user', 'id'])) ||
-    ''
+  const idOf = (source: Record<string, unknown> | null): string =>
+    source && source.id != null ? String(source.id).trim() : ''
 
-  const passengerId =
-    passengerIdRaw != null && String(passengerIdRaw).trim()
-      ? `PSG-${passengerIdRaw}`
-      : '—'
+  const passengerIdRaw =
+    (record.passenger_id != null ? String(record.passenger_id).trim() : '') ||
+    idOf(record.passenger && typeof record.passenger === 'object'
+      ? (record.passenger as Record<string, unknown>)
+      : null) ||
+    idOf(complainer) ||
+    idOf(bookingUser) ||
+    (booking?.user_id != null ? String(booking.user_id).trim() : '') ||
+    idOf(record.user && typeof record.user === 'object'
+      ? (record.user as Record<string, unknown>)
+      : null)
+
+  const passengerId = passengerIdRaw ? `PSG-${passengerIdRaw}` : '—'
 
   const bookingPnr = booking ? pickString(booking, 'pnr_code', 'booking_code', 'reference') : ''
 

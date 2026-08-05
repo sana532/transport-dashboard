@@ -4,6 +4,7 @@ import { ArrowLeft, Shield, UserRound } from 'lucide-react'
 import { usePlatformUserDetail } from '@/modules/users/hooks/usePlatformUserDetail'
 import type { PlatformUserStatus, UpdatePlatformUserInput } from '@/modules/users/types'
 import { PLATFORM_USER_STATUSES } from '@/modules/users/types'
+import { useUserRoleLabel } from '@/modules/users/utils/useUserRoleLabel'
 import { paths } from '@/routes/paths'
 import { useTranslation } from '@/shared/i18n/useTranslation'
 import { Button } from '@/shared/ui/Button'
@@ -28,7 +29,8 @@ function emptyForm(): UpdatePlatformUserInput {
 
 export function UserDetailsPage() {
   const { userId } = useParams<{ userId: string }>()
-  const { t } = useTranslation()
+  const { t, locale } = useTranslation()
+  const roleLabel = useUserRoleLabel()
   const {
     user,
     reliability,
@@ -61,6 +63,19 @@ export function UserDetailsPage() {
     })
     setAdminFlagged(reliability?.admin_flagged ?? user.admin_flagged)
   }, [user, reliability])
+
+  const bannedUntilRaw = reliability?.banned_until ?? user?.banned_until ?? null
+  const bannedUntilDate = bannedUntilRaw ? new Date(bannedUntilRaw) : null
+  const bannedUntilLabel =
+    bannedUntilDate && !Number.isNaN(bannedUntilDate.getTime())
+      ? bannedUntilDate.toLocaleString(locale === 'ar' ? 'ar-SY' : 'en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+        })
+      : ''
 
   function updateField<K extends keyof UpdatePlatformUserInput>(
     key: K,
@@ -172,7 +187,7 @@ export function UserDetailsPage() {
         <>
           <div className="flex flex-wrap gap-2 text-sm text-text-muted">
             <span className="rounded-lg border border-border bg-surface-muted/50 px-2.5 py-1">
-              {t('admin.users.colRole')}: {user.role}
+              {t('admin.users.colRole')}: {roleLabel(user.role)}
             </span>
             {user.company_id != null ? (
               <span className="rounded-lg border border-border bg-surface-muted/50 px-2.5 py-1">
@@ -245,6 +260,7 @@ export function UserDetailsPage() {
                     <option value="">{t('admin.users.genderUnset')}</option>
                     <option value="male">{t('admin.users.genderMale')}</option>
                     <option value="female">{t('admin.users.genderFemale')}</option>
+                    <option value="other">{t('admin.users.genderOther')}</option>
                   </select>
                 </div>
                 <Input
@@ -336,6 +352,11 @@ export function UserDetailsPage() {
                       ? t('admin.users.filterYes')
                       : t('admin.users.filterNo')}
                   </p>
+                  {bannedUntilLabel ? (
+                    <p className="mt-1 text-xs text-text-muted">
+                      {t('admin.users.bannedUntil')}: {bannedUntilLabel}
+                    </p>
+                  ) : null}
                 </div>
               </div>
 

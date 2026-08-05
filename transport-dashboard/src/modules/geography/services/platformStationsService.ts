@@ -4,17 +4,35 @@ import { unwrapStationList, unwrapStationOne } from '@/modules/geography/utils/s
 import { getApiErrorMessage } from '@/shared/utils/getApiErrorMessage'
 
 function toWritePayload(input: StationFormInput): StationWritePayload {
+  const cityId = Number(input.cityId.trim())
   const latitude = Number(input.latitude.trim())
   const longitude = Number(input.longitude.trim())
+
+  if (!Number.isFinite(cityId) || cityId <= 0) {
+    throw new Error('Select a valid city')
+  }
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
     throw new Error('Latitude and longitude must be valid numbers')
   }
 
   return {
+    city_id: cityId,
     name: input.name.trim(),
     governorate_name: input.governorateName.trim(),
     latitude,
     longitude,
+  }
+}
+
+function fallbackStation(id: number, payload: StationWritePayload): Station {
+  return {
+    id,
+    city_id: payload.city_id,
+    name: payload.name,
+    governorate_name: payload.governorate_name,
+    latitude: payload.latitude,
+    longitude: payload.longitude,
+    city: null,
   }
 }
 
@@ -46,17 +64,11 @@ export const platformStationsService = {
       const { data } = await api.post<unknown>('/platform/stations', payload)
       const created = unwrapStationOne(data)
       if (created) return created
-      return {
-        id: Date.now(),
-        city_id: 0,
-        name: payload.name,
-        governorate_name: payload.governorate_name,
-        latitude: payload.latitude,
-        longitude: payload.longitude,
-        city: null,
-      }
+      return fallbackStation(Date.now(), payload)
     } catch (error) {
-      if (error instanceof Error && error.message.includes('Latitude')) throw error
+      if (error instanceof Error && (error.message.includes('Latitude') || error.message.includes('city'))) {
+        throw error
+      }
       throw new Error(getApiErrorMessage(error, 'Failed to create station'))
     }
   },
@@ -67,17 +79,11 @@ export const platformStationsService = {
       const { data } = await api.patch<unknown>(`/platform/stations/${id}`, payload)
       const updated = unwrapStationOne(data)
       if (updated) return updated
-      return {
-        id,
-        city_id: 0,
-        name: payload.name,
-        governorate_name: payload.governorate_name,
-        latitude: payload.latitude,
-        longitude: payload.longitude,
-        city: null,
-      }
+      return fallbackStation(id, payload)
     } catch (error) {
-      if (error instanceof Error && error.message.includes('Latitude')) throw error
+      if (error instanceof Error && (error.message.includes('Latitude') || error.message.includes('city'))) {
+        throw error
+      }
       throw new Error(getApiErrorMessage(error, 'Failed to update station'))
     }
   },

@@ -1,7 +1,9 @@
-import { useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 import { MapPin, Pencil, Plus, Trash2 } from 'lucide-react'
-import type { Station, StationFormInput } from '@/modules/geography/types'
+import type { City, Station, StationFormInput } from '@/modules/geography/types'
+import { usePlatformCities } from '@/modules/geography/hooks/usePlatformCities'
 import { usePlatformStations } from '@/modules/geography/hooks/usePlatformStations'
+import { formatCityLabel } from '@/modules/geography/utils/cityApi'
 import { formatStationCityLabel } from '@/modules/geography/utils/stationApi'
 import { useTranslation } from '@/shared/i18n/useTranslation'
 import { Button } from '@/shared/ui/Button'
@@ -18,7 +20,11 @@ const createBtnClass = cn(
 const iconBtnClass =
   'inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-text-secondary transition-colors hover:bg-surface-muted hover:text-text-primary'
 
+const selectClass =
+  'w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary shadow-sm transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30'
+
 const emptyForm: StationFormInput = {
+  cityId: '',
   name: '',
   governorateName: '',
   latitude: '',
@@ -26,7 +32,9 @@ const emptyForm: StationFormInput = {
 }
 
 function stationToForm(station: Station): StationFormInput {
+  const cityId = station.city_id || station.city?.id
   return {
+    cityId: cityId ? String(cityId) : '',
     name: station.name,
     governorateName: station.governorate_name ?? station.city?.name ?? '',
     latitude: station.latitude != null ? String(station.latitude) : '',
@@ -43,6 +51,7 @@ function formatCoords(station: Station): string {
 
 export function StationsManagementPage() {
   const { t } = useTranslation()
+  const { cities, isLoading: citiesLoading } = usePlatformCities()
   const {
     stations,
     isLoading,
@@ -53,6 +62,12 @@ export function StationsManagementPage() {
     deleteStation,
   } = usePlatformStations()
 
+  const cityById = useMemo(() => {
+    const map = new Map<number, City>()
+    cities.forEach((city) => map.set(city.id, city))
+    return map
+  }, [cities])
+
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [form, setForm] = useState<StationFormInput>(emptyForm)
@@ -61,6 +76,21 @@ export function StationsManagementPage() {
   const [actionError, setActionError] = useState<string | null>(null)
 
   const isEditing = editingId !== null
+
+  function selectCity(cityId: string) {
+    const city = cityById.get(Number(cityId))
+    setForm((prev) => ({
+      ...prev,
+      cityId,
+      governorateName: city?.governorate_name?.trim() || prev.governorateName,
+    }))
+  }
+
+  function cityLabel(station: Station): string {
+    const city = cityById.get(station.city_id || station.city?.id || 0)
+    if (city) return formatCityLabel(city)
+    return formatStationCityLabel(station)
+  }
 
   function openCreate() {
     setEditingId(null)
@@ -87,8 +117,14 @@ export function StationsManagementPage() {
     event.preventDefault()
     setFormError(null)
 
-    if (!form.name.trim() || !form.governorateName.trim() || !form.latitude.trim() || !form.longitude.trim()) {
-      setFormError('Fill in name, governorate, latitude, and longitude.')
+    if (
+      !form.cityId.trim() ||
+      !form.name.trim() ||
+      !form.governorateName.trim() ||
+      !form.latitude.trim() ||
+      !form.longitude.trim()
+    ) {
+      setFormError('Fill in city, name, governorate, latitude, and longitude.')
       return
     }
 
@@ -152,6 +188,27 @@ export function StationsManagementPage() {
             </p>
           </div>
           <div className="grid gap-4 p-6">
+            <div className="grid gap-1.5">
+              <label htmlFor="station_city_id" className="text-sm font-medium text-text-secondary">
+                City
+              </label>
+              <select
+                id="station_city_id"
+                name="city_id"
+                className={selectClass}
+                value={form.cityId}
+                onChange={(e) => selectCity(e.target.value)}
+                required
+                disabled={citiesLoading}
+              >
+                <option value="">{citiesLoading ? 'Loading cities…' : 'Select a city'}</option>
+                {cities.map((city) => (
+                  <option key={city.id} value={city.id}>
+                    {formatCityLabel(city)}
+                  </option>
+                ))}
+              </select>
+            </div>
             <Input
               label="Station name"
               name="name"
@@ -281,8 +338,8 @@ export function StationsManagementPage() {
                           </span>
                         </td>
                         <td className="px-3 py-3 align-middle text-start text-text-secondary">
-                          <span className="block whitespace-nowrap" title={formatStationCityLabel(station)}>
-                            {formatStationCityLabel(station)}
+                          <span className="block truncate" title={cityLabel(station)}>
+                            {cityLabel(station)}
                           </span>
                         </td>
                         <td className="px-2 py-3 align-middle">
