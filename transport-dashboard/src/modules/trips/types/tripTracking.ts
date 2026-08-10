@@ -5,6 +5,13 @@ export type TripLocationUpdate = {
   timestamp: string
 }
 
+/** GPS freshness for the map marker (independent of WebSocket connection status). */
+export type TripLocationMode = 'live' | 'estimated' | 'stale_frozen'
+
+export type DisplayTripLocation = TripLocationUpdate & {
+  source: 'gps' | 'estimated'
+}
+
 export type TripTrackingConnectionStatus =
   | 'idle'
   | 'connecting'

@@ -74,18 +74,18 @@ export function CitiesManagementPage() {
     setFormError(null)
 
     if (!form.nameEn.trim() || !form.nameAr.trim() || !form.latitude.trim() || !form.longitude.trim()) {
-      setFormError('Fill in English name, Arabic name, latitude, and longitude.')
+      setFormError(t('admin.cities.form.required'))
       return
     }
 
     const latitude = Number(form.latitude.trim())
     const longitude = Number(form.longitude.trim())
     if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
-      setFormError('Latitude must be between -90 and 90 (e.g. 32.6189).')
+      setFormError(t('admin.cities.form.invalidLat'))
       return
     }
     if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
-      setFormError('Longitude must be between -180 and 180 (e.g. 36.1069).')
+      setFormError(t('admin.cities.form.invalidLng'))
       return
     }
 
@@ -98,19 +98,25 @@ export function CitiesManagementPage() {
       }
       closeDialog()
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Failed to save city')
+      setFormError(err instanceof Error ? err.message : t('admin.cities.form.saveFailed'))
     } finally {
       setPending(false)
     }
   }
 
   async function handleDelete(city: City) {
-    if (!window.confirm(`Delete city "${formatCityLabel(city)}"? This cannot be undone.`)) return
+    if (
+      !window.confirm(
+        t('admin.cities.confirmDelete', { name: formatCityLabel(city) }),
+      )
+    ) {
+      return
+    }
     setActionError(null)
     try {
       await deleteCity(city.id)
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Failed to delete city')
+      setActionError(err instanceof Error ? err.message : t('admin.cities.deleteFailed'))
     }
   }
 
@@ -128,7 +134,7 @@ export function CitiesManagementPage() {
         </div>
         <button type="button" className={createBtnClass} onClick={openCreate}>
           <Plus className="h-4 w-4" aria-hidden />
-          Add city
+          {t('admin.cities.add')}
         </button>
       </div>
 
@@ -142,33 +148,31 @@ export function CitiesManagementPage() {
         <form onSubmit={handleSubmit}>
           <div className="border-b border-surface-muted px-6 py-4">
             <h2 className="section-title text-lg font-semibold text-[var(--title-h2)]">
-              {isEditing ? 'Edit city' : 'Add city'}
+              {isEditing ? t('admin.cities.edit') : t('admin.cities.add')}
             </h2>
-            <p className="mt-1 text-sm text-text-muted">
-              Enter English and Arabic names with valid map coordinates.
-            </p>
+            <p className="mt-1 text-sm text-text-muted">{t('admin.cities.modalHint')}</p>
           </div>
           <div className="grid gap-4 p-6">
             <Input
-              label="Name (English)"
+              label={t('admin.cities.form.nameEn')}
               name="name_en"
               value={form.nameEn}
               onChange={(e) => setForm((prev) => ({ ...prev, nameEn: e.target.value }))}
-              placeholder="e.g. Daraa"
+              placeholder={t('admin.cities.form.nameEnPlaceholder')}
               required
             />
             <Input
-              label="Name (Arabic)"
+              label={t('admin.cities.form.nameAr')}
               name="name_ar"
               value={form.nameAr}
               onChange={(e) => setForm((prev) => ({ ...prev, nameAr: e.target.value }))}
-              placeholder="مثلاً: درعا"
+              placeholder={t('admin.cities.form.nameArPlaceholder')}
               dir="rtl"
               required
             />
             <div className="grid gap-4 sm:grid-cols-2">
               <Input
-                label="Latitude"
+                label={t('admin.geo.latitude')}
                 name="latitude"
                 type="text"
                 inputMode="decimal"
@@ -179,7 +183,7 @@ export function CitiesManagementPage() {
                 required
               />
               <Input
-                label="Longitude"
+                label={t('admin.geo.longitude')}
                 name="longitude"
                 type="text"
                 inputMode="decimal"
@@ -202,10 +206,14 @@ export function CitiesManagementPage() {
               disabled={pending}
               className="bg-[#2F3E1F] px-6 text-white hover:bg-[#243217] disabled:opacity-70"
             >
-              {pending ? 'Saving…' : isEditing ? 'Save changes' : 'Create city'}
+              {pending
+                ? t('common.saving')
+                : isEditing
+                  ? t('common.saveChanges')
+                  : t('admin.cities.create')}
             </Button>
             <Button type="button" variant="outline" onClick={closeDialog}>
-              Cancel
+              {t('common.cancel')}
             </Button>
           </div>
         </form>
@@ -222,7 +230,7 @@ export function CitiesManagementPage() {
               onClick={() => void reload()}
               className="bg-[#2F3E1F] text-white hover:bg-[#243217]"
             >
-              Retry
+              {t('common.retry')}
             </Button>
           </CardContent>
         </Card>
@@ -232,14 +240,14 @@ export function CitiesManagementPage() {
             <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#2F3E1F]/10 text-[#2F3E1F]">
               <Landmark className="h-5 w-5" aria-hidden />
             </span>
-            <CardTitle className="text-lg">All cities</CardTitle>
+            <CardTitle className="text-lg">{t('admin.cities.listTitle')}</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <p className="text-sm text-text-muted">Loading…</p>
+              <p className="text-sm text-text-muted">{t('common.loading')}</p>
             ) : cities.length === 0 ? (
               <div className="rounded-lg border border-dashed border-border px-6 py-10 text-center">
-                <p className="text-sm text-text-muted">No cities yet. Add the first city.</p>
+                <p className="text-sm text-text-muted">{t('admin.cities.empty')}</p>
               </div>
             ) : (
               <div className="overflow-x-auto rounded-lg border border-border" dir="rtl">
@@ -252,10 +260,18 @@ export function CitiesManagementPage() {
                   </colgroup>
                   <thead>
                     <tr className="border-b border-border bg-surface-muted/50 text-xs uppercase tracking-wide text-text-muted">
-                      <th className="py-3 ps-4 pe-1 text-start font-semibold">Name (EN)</th>
-                      <th className="py-3 ps-1 pe-2 text-start font-semibold">Name (AR)</th>
-                      <th className="px-3 py-3 text-start font-semibold">Coordinates</th>
-                      <th className="px-2 py-3 text-end font-semibold">Actions</th>
+                      <th className="py-3 ps-4 pe-1 text-start font-semibold">
+                        {t('admin.cities.colNameEn')}
+                      </th>
+                      <th className="py-3 ps-1 pe-2 text-start font-semibold">
+                        {t('admin.cities.colNameAr')}
+                      </th>
+                      <th className="px-3 py-3 text-start font-semibold">
+                        {t('admin.geo.colCoordinates')}
+                      </th>
+                      <th className="px-2 py-3 text-end font-semibold">
+                        {t('admin.geo.colActions')}
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -288,8 +304,10 @@ export function CitiesManagementPage() {
                             <button
                               type="button"
                               className={iconBtnClass}
-                              title="Edit"
-                              aria-label={`Edit ${formatCityLabel(city)}`}
+                              title={t('admin.geo.edit')}
+                              aria-label={t('admin.geo.editItem', {
+                                name: formatCityLabel(city),
+                              })}
                               onClick={() => openEdit(city)}
                             >
                               <Pencil className="h-4 w-4" />
@@ -297,8 +315,10 @@ export function CitiesManagementPage() {
                             <button
                               type="button"
                               className={cn(iconBtnClass, 'hover:border-red-200 hover:text-red-700')}
-                              title="Delete"
-                              aria-label={`Delete ${formatCityLabel(city)}`}
+                              title={t('admin.geo.delete')}
+                              aria-label={t('admin.geo.deleteItem', {
+                                name: formatCityLabel(city),
+                              })}
                               onClick={() => void handleDelete(city)}
                             >
                               <Trash2 className="h-4 w-4" />

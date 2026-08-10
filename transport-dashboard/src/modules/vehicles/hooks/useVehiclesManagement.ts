@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { CompanyVehicleModel } from '@/modules/vehicles/types'
 import type {
   VehicleCreateInput,
@@ -10,17 +11,19 @@ import { buildVehicleStats } from '@/modules/vehicles/services/vehiclesManagemen
 import { vehiclesService } from '@/modules/vehicles/services/vehiclesService'
 import { mapCompanyVehicleToVehicle } from '@/modules/vehicles/utils/mapCompanyVehicle'
 
+export type VehiclesManagementState = {
+  data: VehiclesManagementData
+  vehicleModels: CompanyVehicleModel[]
+}
+
+export const vehiclesManagementQueryKey = ['vehicles', 'management'] as const
+
 export function useVehiclesManagement() {
-  const [data, setData] = useState<VehiclesManagementData | null>(null)
-  const [vehicleModels, setVehicleModels] = useState<CompanyVehicleModel[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
 
-  const load = useCallback(async () => {
-    setIsLoading(true)
-    setError(null)
-
-    try {
+  const query = useQuery({
+    queryKey: vehiclesManagementQueryKey,
+    queryFn: async (): Promise<VehiclesManagementState> => {
       const rows = await vehiclesService.listVehicles()
       const vehicles = rows.map(mapCompanyVehicleToVehicle)
 
@@ -35,54 +38,57 @@ export function useVehiclesManagement() {
         }
       }
 
-      setData({
-        stats: buildVehicleStats(vehicles),
-        vehicles,
-      })
-      setVehicleModels([...modelMap.values()].sort((a, b) => a.name.localeCompare(b.name)))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load vehicles management data')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
+      return {
+        data: {
+          stats: buildVehicleStats(vehicles),
+          vehicles,
+        },
+        vehicleModels: [...modelMap.values()].sort((a, b) => a.name.localeCompare(b.name)),
+      }
+    },
+  })
 
-  useEffect(() => {
-    void load()
-  }, [load])
+  const reload = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: vehiclesManagementQueryKey })
+  }, [queryClient])
 
   const createVehicle = useCallback(
     async (input: VehicleCreateInput) => {
       const created = await vehiclesService.createVehicle(input)
-      await load()
+      await reload()
       return mapCompanyVehicleToVehicle(created)
     },
-    [load],
+    [reload],
   )
 
   const updateVehicle = useCallback(
     async (id: number, input: VehicleUpdateInput) => {
       const updated = await vehiclesService.updateVehicle(id, input)
-      await load()
+      await reload()
       return mapCompanyVehicleToVehicle(updated)
     },
-    [load],
+    [reload],
   )
 
   const deleteVehicle = useCallback(
     async (id: number) => {
       await vehiclesService.deleteVehicle(id)
-      await load()
+      await reload()
     },
-    [load],
+    [reload],
   )
 
   return {
-    data,
-    vehicleModels,
-    isLoading,
-    error,
-    reload: load,
+    data: query.data?.data ?? null,
+    vehicleModels: query.data?.vehicleModels ?? [],
+    isLoading: query.isPending,
+    isFetching: query.isFetching,
+    error: query.error
+      ? query.error instanceof Error
+        ? query.error.message
+        : 'Failed to load vehicles management data'
+      : null,
+    reload,
     createVehicle,
     updateVehicle,
     deleteVehicle,

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import type { ComplaintStatus, ComplaintsManagementData } from '@/modules/complaints/types'
 import { complaintsManagementService } from '@/modules/complaints/services/complaintsManagementService'
 import { uiStatusToApiQuery } from '@/modules/complaints/utils/mapCompanyComplaint'
@@ -14,34 +14,39 @@ export const defaultComplaintsListFilters: ComplaintsListFilters = {
   categoryId: 'all',
 }
 
-export function useComplaintsManagement(filters: ComplaintsListFilters = defaultComplaintsListFilters) {
-  const { locale } = useTranslation()
-  const [data, setData] = useState<ComplaintsManagementData | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+export const complaintsManagementQueryKey = (
+  locale: string,
+  filters: ComplaintsListFilters,
+) =>
+  ['complaints', 'management', locale, filters.status, filters.categoryId] as const
 
-  const load = useCallback(async () => {
-    setIsLoading(true)
-    setError(null)
-    try {
-      const next = await complaintsManagementService.getComplaintsManagementData(locale, {
+export function useComplaintsManagement(
+  filters: ComplaintsListFilters = defaultComplaintsListFilters,
+) {
+  const { locale } = useTranslation()
+
+  const query = useQuery({
+    queryKey: complaintsManagementQueryKey(locale, filters),
+    queryFn: (): Promise<ComplaintsManagementData> =>
+      complaintsManagementService.getComplaintsManagementData(locale, {
         status: uiStatusToApiQuery(filters.status),
         complaint_category_id:
           filters.categoryId === 'all' ? undefined : filters.categoryId,
-      })
-      setData(next)
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Failed to load complaints management data',
-      )
-    } finally {
-      setIsLoading(false)
-    }
-  }, [locale, filters.status, filters.categoryId])
+      }),
+    placeholderData: (previous) => previous,
+  })
 
-  useEffect(() => {
-    void load()
-  }, [load])
-
-  return { data, isLoading, error, reload: load }
+  return {
+    data: query.data ?? null,
+    isLoading: query.isPending,
+    isFetching: query.isFetching,
+    error: query.error
+      ? query.error instanceof Error
+        ? query.error.message
+        : 'Failed to load complaints management data'
+      : null,
+    reload: () => {
+      void query.refetch()
+    },
+  }
 }

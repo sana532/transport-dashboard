@@ -44,54 +44,80 @@ function unwrapOne(payload: unknown): CompanyTrip | null {
   return normalizeCompanyTrip(root)
 }
 
-function readPaginatorMeta(payload: unknown): { currentPage: number; lastPage: number } | null {
-  if (!payload || typeof payload !== 'object') return null
+export type CompanyTripsPage = {
+  trips: CompanyTrip[]
+  currentPage: number
+  lastPage: number
+  perPage: number
+  total: number
+  from: number
+  to: number
+}
 
-  const root = payload as Record<string, unknown>
+function pickMetaNumber(meta: Record<string, unknown>, key: string): number | null {
+  const value = Number(meta[key])
+  return Number.isFinite(value) ? value : null
+}
+
+function readTripsPage(payload: unknown, fallbackPerPage: number): CompanyTripsPage {
+  const trips = unwrapList(payload)
+  const root =
+    payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : null
   const meta =
-    root.meta && typeof root.meta === 'object'
+    root?.meta && typeof root.meta === 'object'
       ? (root.meta as Record<string, unknown>)
       : root
 
-  const currentPage = Number(meta.current_page)
-  const lastPage = Number(meta.last_page)
-  if (!Number.isFinite(currentPage) || !Number.isFinite(lastPage) || lastPage < 1) {
-    return null
-  }
+  const currentPage = (meta ? pickMetaNumber(meta, 'current_page') : null) ?? 1
+  const perPage =
+    (meta ? pickMetaNumber(meta, 'per_page') : null) ?? fallbackPerPage
+  const total = (meta ? pickMetaNumber(meta, 'total') : null) ?? trips.length
+  const lastPage =
+    (meta ? pickMetaNumber(meta, 'last_page') : null) ??
+    Math.max(1, perPage > 0 ? Math.ceil(total / perPage) : 1)
+  const from =
+    (meta ? pickMetaNumber(meta, 'from') : null) ??
+    (trips.length > 0 ? (currentPage - 1) * perPage + 1 : 0)
+  const to =
+    (meta ? pickMetaNumber(meta, 'to') : null) ??
+    (trips.length > 0 ? from + trips.length - 1 : 0)
 
-  return { currentPage, lastPage }
-}
-
-async function fetchTripsPage(page: number, perPage: number): Promise<CompanyTrip[]> {
-  const { data } = await api.get<unknown>('/company/trips', {
-    params: { page, per_page: perPage },
-  })
-  return unwrapList(data)
+  return { trips, currentPage, lastPage, perPage, total, from, to }
 }
 
 export const companyTripsService = {
+  async listTripsPage(options?: {
+    page?: number
+    perPage?: number
+  }): Promise<CompanyTripsPage> {
+    const page = Math.max(1, Math.floor(options?.page ?? 1))
+    const perPage = Math.min(20, Math.max(1, Math.floor(options?.perPage ?? 20)))
+
+    try {
+      const { data } = await api.get<unknown>('/company/trips', {
+        params: { page, per_page: perPage },
+      })
+      return readTripsPage(data, perPage)
+    } catch (error) {
+      throw new Error(getApiErrorMessage(error, 'Failed to load trips'))
+    }
+  },
+
+  /** Loads every page. Prefer `listTripsPage` for UI lists. */
   async listTrips(): Promise<CompanyTrip[]> {
     try {
-      const perPage = 200
-      const { data: firstPayload } = await api.get<unknown>('/company/trips', {
-        params: { page: 1, per_page: perPage },
-      })
-      const firstPage = unwrapList(firstPayload)
-      const pagination = readPaginatorMeta(firstPayload)
-
-      if (!pagination || pagination.lastPage <= 1) {
-        return firstPage
-      }
+      const first = await this.listTripsPage({ page: 1, perPage: 20 })
+      if (first.lastPage <= 1) return first.trips
 
       const remainingPages = Array.from(
-        { length: pagination.lastPage - 1 },
+        { length: first.lastPage - 1 },
         (_, index) => index + 2,
       )
       const rest = await Promise.all(
-        remainingPages.map((page) => fetchTripsPage(page, perPage)),
+        remainingPages.map((page) => this.listTripsPage({ page, perPage: 20 })),
       )
 
-      return firstPage.concat(...rest)
+      return first.trips.concat(...rest.map((item) => item.trips))
     } catch (error) {
       throw new Error(getApiErrorMessage(error, 'Failed to load trips'))
     }

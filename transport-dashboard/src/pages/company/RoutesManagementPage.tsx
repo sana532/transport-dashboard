@@ -166,14 +166,15 @@ export function RoutesManagementPage() {
   )
 
   useEffect(() => {
-    if (!dialogOpen) return
+    // Only auto-fill names when creating; never overwrite while editing.
+    if (!dialogOpen || isEditing) return
     setForm((prev) => {
       const next = { ...prev }
       if (!nameEnTouched && autoRouteNameEn) next.name_en = autoRouteNameEn
       if (!nameArTouched && autoRouteNameAr) next.name_ar = autoRouteNameAr
       return next
     })
-  }, [dialogOpen, nameEnTouched, nameArTouched, autoRouteNameEn, autoRouteNameAr])
+  }, [dialogOpen, isEditing, nameEnTouched, nameArTouched, autoRouteNameEn, autoRouteNameAr])
 
   const openAddDialog = () => {
     setEditingId(null)
@@ -190,25 +191,28 @@ export function RoutesManagementPage() {
     setNameArTouched(true)
     setFormError(null)
     setDialogOpen(true)
+    setForm({
+      name_en: row.name_en || row.name,
+      name_ar: row.name_ar || row.name,
+      origin_station_id: String(row.origin_station_id),
+      destination_station_id: String(row.destination_station_id),
+      estimated_duration_hhmm: row.estimated_duration_hhmm ?? '',
+      base_fare: row.base_fare != null ? String(row.base_fare) : '',
+      restAreaStops: routeRestStopsToFormRows(row.rest_areas),
+    })
 
-    const applyRoute = (route: CompanyRoute) => {
-      setForm({
-        name_en: route.name_en || route.name,
-        name_ar: route.name_ar || route.name,
-        origin_station_id: String(route.origin_station_id),
-        destination_station_id: String(route.destination_station_id),
-        estimated_duration_hhmm: route.estimated_duration_hhmm ?? '',
-        base_fare: route.base_fare != null ? String(route.base_fare) : '',
-        restAreaStops: routeRestStopsToFormRows(route.rest_areas),
-      })
-    }
-
-    applyRoute(row)
+    // Detail fetch is only for rest stops — do not overwrite names the user may edit.
     if (row.rest_areas?.length) return
 
     void routesService
       .getRoute(row.id)
-      .then(applyRoute)
+      .then((detail) => {
+        if (!detail.rest_areas?.length) return
+        setForm((prev) => ({
+          ...prev,
+          restAreaStops: routeRestStopsToFormRows(detail.rest_areas),
+        }))
+      })
       .catch(() => {
         /* keep list row data */
       })

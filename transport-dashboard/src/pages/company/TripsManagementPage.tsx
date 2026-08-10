@@ -117,7 +117,8 @@ function TripsErrorState({ message, onRetry }: { message: string; onRetry: () =>
 export function TripsManagementPage() {
   const { t, locale } = useTranslation()
   const navigate = useNavigate()
-  const { data, isLoading, error, reload } = useTripsManagement()
+  const [page, setPage] = useState(1)
+  const { data, isLoading, isFetching, error, reload } = useTripsManagement({ page })
   const [filters, setFilters] = useState<TripListFilters>(defaultTripListFilters)
   const [routes, setRoutes] = useState<CompanyRoute[]>([])
   const [statFilter, setStatFilter] = useState<TripStatFilterId>('all')
@@ -125,6 +126,21 @@ export function TripsManagementPage() {
   const [cancelTripLabel, setCancelTripLabel] = useState<string>('')
   const [showOverdueOnly, setShowOverdueOnly] = useState(false)
   const [nowMs, setNowMs] = useState(() => Date.now())
+
+  const pagination = data?.pagination
+  const visiblePages = useMemo(() => {
+    if (!pagination) return [] as number[]
+    const start = Math.max(1, Math.min(pagination.currentPage - 2, pagination.lastPage - 4))
+    const end = Math.min(pagination.lastPage, start + 4)
+    return Array.from({ length: Math.max(0, end - start + 1) }, (_, index) => start + index)
+  }, [pagination])
+
+  useEffect(() => {
+    if (!pagination) return
+    if (page > pagination.lastPage) {
+      setPage(pagination.lastPage)
+    }
+  }, [page, pagination])
 
   useEffect(() => {
     void routesService
@@ -175,6 +191,7 @@ export function TripsManagementPage() {
     setFilters(defaultTripListFilters)
     setStatFilter('all')
     setShowOverdueOnly(false)
+    setPage(1)
   }
 
   const handleStatClick = (filterId: TripStatFilterId) => {
@@ -186,6 +203,7 @@ export function TripsManagementPage() {
     if (filterId === 'scheduled' || filterId === 'active') {
       setFilters((prev) => ({ ...prev, status: 'all' }))
     }
+    setPage(1)
   }
 
   const openCancelDialog = (row: TripsRecentRow) => {
@@ -489,7 +507,14 @@ export function TripsManagementPage() {
         <CardHeader className="border-border">
           <CardTitle className="text-lg font-semibold sm:text-xl">{t('trips.recentTitle')}</CardTitle>
           <p className="mt-1 text-sm text-text-muted">
-            {t('trips.listCount', { count: tableRows.length })}
+            {pagination
+              ? t('trips.pagination.showing', {
+                  from: pagination.from,
+                  to: pagination.to,
+                  total: pagination.total,
+                })
+              : t('trips.listCount', { count: tableRows.length })}
+            {isFetching ? ' …' : null}
           </p>
         </CardHeader>
         <CardContent className="p-0">
@@ -514,7 +539,8 @@ export function TripsManagementPage() {
               </Button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            <div className={cn('overflow-x-auto', isFetching && 'opacity-70')}>
               <table className="app-table w-full min-w-[980px] text-left text-sm">
                 <thead className="border-y border-border bg-background text-text-muted">
                   <tr>
@@ -619,6 +645,59 @@ export function TripsManagementPage() {
                 </tbody>
               </table>
             </div>
+
+            {pagination && pagination.lastPage > 1 ? (
+              <div className="flex flex-col gap-3 border-t border-border px-4 py-4 text-sm sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-text-muted">
+                  {t('trips.pagination.showing', {
+                    from: pagination.from,
+                    to: pagination.to,
+                    total: pagination.total,
+                  })}
+                </p>
+                <nav
+                  className="flex flex-wrap items-center gap-1"
+                  aria-label={t('trips.pagination.label')}
+                >
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-8 px-2 text-xs"
+                    disabled={isFetching || pagination.currentPage <= 1}
+                    onClick={() => setPage((current) => Math.max(1, current - 1))}
+                  >
+                    {t('common.previous')}
+                  </Button>
+                  {visiblePages.map((pageNumber) => (
+                    <Button
+                      key={pageNumber}
+                      type="button"
+                      variant={pageNumber === pagination.currentPage ? 'primary' : 'outline'}
+                      className="h-8 min-w-8 px-2 text-xs"
+                      aria-current={
+                        pageNumber === pagination.currentPage ? 'page' : undefined
+                      }
+                      disabled={isFetching}
+                      onClick={() => setPage(pageNumber)}
+                    >
+                      {pageNumber}
+                    </Button>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-8 px-2 text-xs"
+                    disabled={isFetching || pagination.currentPage >= pagination.lastPage}
+                    onClick={() =>
+                      setPage((current) => Math.min(pagination.lastPage, current + 1))
+                    }
+                  >
+                    {t('common.next')}
+                  </Button>
+                </nav>
+              </div>
+            ) : null}
+            </>
           )}
         </CardContent>
       </Card>

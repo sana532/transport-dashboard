@@ -28,6 +28,13 @@ export function DriverCard({ driver, onView, onEdit, onDelete }: DriverCardProps
       ? driver.licenseNumber
       : t('drivers.card.noLicense')
 
+  const statusLabel =
+    driver.status === 'Available'
+      ? t('drivers.status.available')
+      : driver.status === 'On Trip'
+        ? t('drivers.status.onTrip')
+        : t('drivers.status.offDuty')
+
   const showPhoto = Boolean(photoSrc) && !photoFailed
 
   return (
@@ -54,7 +61,7 @@ export function DriverCard({ driver, onView, onEdit, onDelete }: DriverCardProps
           <div className="min-w-0 flex-1">
             <p className="truncate font-semibold text-text-primary">{driver.name}</p>
             <p className={cn('text-sm font-medium', statusTextClass(driver.status))}>
-              {driver.status}
+              {statusLabel}
             </p>
           </div>
         </div>
@@ -85,7 +92,7 @@ export function DriverCard({ driver, onView, onEdit, onDelete }: DriverCardProps
           <button
             type="button"
             className="rounded-lg border border-border bg-surface p-2 text-text-muted hover:bg-surface-muted"
-            aria-label="Edit driver"
+            aria-label={t('drivers.profile.edit')}
             onClick={() => onEdit?.(driver)}
           >
             <Pencil className="h-4 w-4" />
@@ -93,7 +100,7 @@ export function DriverCard({ driver, onView, onEdit, onDelete }: DriverCardProps
           <button
             type="button"
             className="rounded-lg border border-border bg-surface p-2 text-red-600 hover:bg-red-50"
-            aria-label="Delete driver"
+            aria-label={t('drivers.actions.delete', { name: driver.name })}
             onClick={() => onDelete?.(driver)}
           >
             <Trash2 className="h-4 w-4" />

@@ -35,9 +35,6 @@ export function CancelTripDialog({
   const [trip, setTrip] = useState<CompanyTrip | null>(null)
   const [bookings, setBookings] = useState<CompanyBooking[]>([])
   const [reason, setReason] = useState('')
-  const [notifyPassengers, setNotifyPassengers] = useState(true)
-  const [refund, setRefund] = useState(true)
-  const [acknowledged, setAcknowledged] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -46,7 +43,7 @@ export function CancelTripDialog({
   const impact = useMemo(() => summarizeTripCancelImpact(bookings), [bookings])
   const hasPaidBookings = impact.paidBookingsCount > 0
   const hasActiveBookings = impact.activeBookingsCount > 0
-  const canSubmit = !isLoading && !isSaving && (!hasActiveBookings || acknowledged)
+  const canSubmit = !isLoading && !isSaving
 
   useEffect(() => {
     if (!open || tripId == null) return
@@ -59,9 +56,6 @@ export function CancelTripDialog({
       setLoadError(null)
       setSaveError(null)
       setReason('')
-      setNotifyPassengers(true)
-      setRefund(true)
-      setAcknowledged(false)
       setTrip(null)
       setBookings([])
 
@@ -90,18 +84,14 @@ export function CancelTripDialog({
 
   async function handleConfirm() {
     if (tripId == null || !canSubmit) return
-    if (hasActiveBookings && !acknowledged) {
-      setSaveError(t('trips.cancel.ackRequired'))
-      return
-    }
 
     setIsSaving(true)
     setSaveError(null)
     try {
       const result = await companyTripsService.cancelTrip(tripId, {
         reason,
-        notify_passengers: hasActiveBookings ? notifyPassengers : false,
-        refund: hasPaidBookings ? refund : false,
+        notify_passengers: hasActiveBookings,
+        refund: hasPaidBookings,
       })
       onCancelled?.(result.trip)
       onClose()
@@ -171,61 +161,33 @@ export function CancelTripDialog({
                   <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" aria-hidden />
                 ) : null}
                 <div className="space-y-1">
-                  <p>
-                    {t('trips.cancel.bookingsSummary', {
-                      count: impact.activeBookingsCount,
-                    })}
-                  </p>
-                  {hasPaidBookings ? (
-                    <p className="font-medium">
-                      {t('trips.cancel.paidSummary', {
-                        count: impact.paidBookingsCount,
-                        amount: formatCancelMoney(impact.paidAmount, impact.currency, dateLocale),
-                      })}
-                    </p>
-                  ) : null}
                   {hasActiveBookings ? (
-                    <p className="text-xs">{t('trips.cancel.backendExpectation')}</p>
+                    <>
+                      <p>
+                        {t('trips.cancel.bookingsSummary', {
+                          count: impact.activeBookingsCount,
+                        })}
+                      </p>
+                      {hasPaidBookings ? (
+                        <p className="font-medium">
+                          {t('trips.cancel.paidSummary', {
+                            count: impact.paidBookingsCount,
+                            amount: formatCancelMoney(
+                              impact.paidAmount,
+                              impact.currency,
+                              dateLocale,
+                            ),
+                          })}
+                        </p>
+                      ) : null}
+                      <p className="text-xs">{t('trips.cancel.autoActions')}</p>
+                    </>
                   ) : (
-                    <p className="text-xs">{t('trips.cancel.noBookingsHint')}</p>
+                    <p>{t('trips.cancel.noBookingsHint')}</p>
                   )}
                 </div>
               </div>
             </div>
-
-            {hasActiveBookings ? (
-              <div className="space-y-3 rounded-lg border border-border px-4 py-3">
-                <label className="flex items-start gap-2 text-sm text-text-secondary">
-                  <input
-                    type="checkbox"
-                    className="mt-0.5 h-4 w-4 rounded border-border text-[#2F3E1F] focus:ring-[#2F3E1F]/30"
-                    checked={notifyPassengers}
-                    onChange={(e) => setNotifyPassengers(e.target.checked)}
-                  />
-                  <span>{t('trips.cancel.notifyPassengers')}</span>
-                </label>
-                {hasPaidBookings ? (
-                  <label className="flex items-start gap-2 text-sm text-text-secondary">
-                    <input
-                      type="checkbox"
-                      className="mt-0.5 h-4 w-4 rounded border-border text-[#2F3E1F] focus:ring-[#2F3E1F]/30"
-                      checked={refund}
-                      onChange={(e) => setRefund(e.target.checked)}
-                    />
-                    <span>{t('trips.cancel.refundPaid')}</span>
-                  </label>
-                ) : null}
-                <label className="flex items-start gap-2 text-sm font-medium text-text-primary">
-                  <input
-                    type="checkbox"
-                    className="mt-0.5 h-4 w-4 rounded border-border text-[#2F3E1F] focus:ring-[#2F3E1F]/30"
-                    checked={acknowledged}
-                    onChange={(e) => setAcknowledged(e.target.checked)}
-                  />
-                  <span>{t('trips.cancel.acknowledge')}</span>
-                </label>
-              </div>
-            ) : null}
 
             <div className="grid gap-1.5">
               <label htmlFor="trip-cancel-reason" className="text-sm font-medium text-text-secondary">

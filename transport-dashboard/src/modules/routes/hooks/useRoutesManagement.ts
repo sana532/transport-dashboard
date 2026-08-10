@@ -1,73 +1,85 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { restAreasService } from '@/modules/geography/services/restAreasService'
 import { stationsService } from '@/modules/geography/services/stationsService'
 import type { RestArea, Station } from '@/modules/geography/types'
 import { routesService } from '@/modules/routes/services/routesService'
 import type { CompanyRoute, RouteFormInput } from '@/modules/routes/types'
 
-export function useRoutesManagement() {
-  const [routes, setRoutes] = useState<CompanyRoute[]>([])
-  const [stations, setStations] = useState<Station[]>([])
-  const [restAreas, setRestAreas] = useState<RestArea[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+export type RoutesManagementState = {
+  routes: CompanyRoute[]
+  stations: Station[]
+  restAreas: RestArea[]
+}
 
-  const load = useCallback(async () => {
-    setIsLoading(true)
-    setError(null)
-    try {
-      const [routeList, stationList, restAreaList] = await Promise.all([
+export const routesManagementQueryKey = ['routes', 'management'] as const
+
+export function useRoutesManagement() {
+  const queryClient = useQueryClient()
+
+  const query = useQuery({
+    queryKey: routesManagementQueryKey,
+    queryFn: async (): Promise<RoutesManagementState> => {
+      const [routes, stations, restAreas] = await Promise.all([
         routesService.listRoutes(),
         stationsService.listStations(),
         restAreasService.listRestAreas(),
       ])
-      setRoutes(routeList)
-      setStations(stationList)
-      setRestAreas(restAreaList)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load routes')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
+      return { routes, stations, restAreas }
+    },
+  })
 
-  useEffect(() => {
-    void load()
-  }, [load])
+  const reload = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: routesManagementQueryKey })
+  }, [queryClient])
 
   const createRoute = useCallback(
     async (input: RouteFormInput) => {
       const created = await routesService.createRoute(input)
-      await load()
+      await reload()
       return created
     },
-    [load],
+    [reload],
   )
 
   const updateRoute = useCallback(
     async (id: number, input: RouteFormInput) => {
       const updated = await routesService.updateRoute(id, input)
-      await load()
+      queryClient.setQueryData<RoutesManagementState>(routesManagementQueryKey, (prev) => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          routes: prev.routes.map((route) =>
+            route.id === id ? { ...route, ...updated } : route,
+          ),
+        }
+      })
+      await reload()
       return updated
     },
-    [load],
+    [queryClient, reload],
   )
 
   const deleteRoute = useCallback(
     async (id: number) => {
       await routesService.deleteRoute(id)
-      await load()
+      await reload()
     },
-    [load],
+    [reload],
   )
 
   return {
-    routes,
-    stations,
-    restAreas,
-    isLoading,
-    error,
-    reload: load,
+    routes: query.data?.routes ?? [],
+    stations: query.data?.stations ?? [],
+    restAreas: query.data?.restAreas ?? [],
+    isLoading: query.isPending,
+    isFetching: query.isFetching,
+    error: query.error
+      ? query.error instanceof Error
+        ? query.error.message
+        : 'Failed to load routes'
+      : null,
+    reload,
     createRoute,
     updateRoute,
     deleteRoute,

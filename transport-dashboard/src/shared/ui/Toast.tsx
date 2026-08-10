@@ -49,7 +49,7 @@ function ToastViewport({
 
   return (
     <div
-      className="pointer-events-none fixed inset-x-0 bottom-4 z-[100] flex flex-col items-center gap-2 px-4 sm:inset-x-auto sm:end-4 sm:items-end"
+      className="pointer-events-none fixed inset-x-0 top-4 z-[100] flex flex-col items-center gap-2 px-4"
       aria-live="polite"
       aria-relevant="additions"
     >

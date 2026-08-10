@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type {
   Driver,
   DriverCreateInput,
@@ -8,37 +9,32 @@ import type {
 import { driversManagementService } from '@/modules/drivers/services/driversManagementService'
 import { driversService } from '@/modules/drivers/services/driversService'
 import { mapCompanyDriverToDriver } from '@/modules/drivers/utils/mapCompanyDriver'
+import { useTranslation } from '@/shared/i18n/useTranslation'
+
+export const driversManagementQueryKey = (locale: string) =>
+  ['drivers', 'management', locale] as const
 
 export function useDriversManagement() {
-  const [data, setData] = useState<DriversManagementData | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { t, locale } = useTranslation()
+  const queryClient = useQueryClient()
 
-  const load = useCallback(async () => {
-    setIsLoading(true)
-    setError(null)
+  const query = useQuery({
+    queryKey: driversManagementQueryKey(locale),
+    queryFn: (): Promise<DriversManagementData> =>
+      driversManagementService.getDriversManagementData(t),
+  })
 
-    try {
-      const next = await driversManagementService.getDriversManagementData()
-      setData(next)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load drivers management data')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    void load()
-  }, [load])
+  const reload = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: driversManagementQueryKey(locale) })
+  }, [queryClient, locale])
 
   const createDriver = useCallback(
     async (input: DriverCreateInput): Promise<Driver> => {
       const created = await driversService.createDriver(input)
-      await load()
+      await reload()
       return mapCompanyDriverToDriver(created)
     },
-    [load],
+    [reload],
   )
 
   const updateDriver = useCallback(
@@ -48,18 +44,18 @@ export function useDriversManagement() {
       options?: { profileId?: number },
     ): Promise<Driver> => {
       const updated = await driversService.updateDriver(id, input, options)
-      await load()
+      await reload()
       return mapCompanyDriverToDriver(updated)
     },
-    [load],
+    [reload],
   )
 
   const deleteDriver = useCallback(
     async (id: number) => {
       await driversService.deleteDriver(id)
-      await load()
+      await reload()
     },
-    [load],
+    [reload],
   )
 
   const resolveDriver = useCallback(async (driver: Driver): Promise<Driver> => {
@@ -81,10 +77,15 @@ export function useDriversManagement() {
   }, [])
 
   return {
-    data,
-    isLoading,
-    error,
-    reload: load,
+    data: query.data ?? null,
+    isLoading: query.isPending,
+    isFetching: query.isFetching,
+    error: query.error
+      ? query.error instanceof Error
+        ? query.error.message
+        : 'Failed to load drivers management data'
+      : null,
+    reload,
     resolveDriver,
     createDriver,
     updateDriver,

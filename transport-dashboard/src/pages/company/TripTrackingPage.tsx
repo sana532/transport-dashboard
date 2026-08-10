@@ -2,9 +2,13 @@ import { useMemo } from 'react'
 import { ArrowLeft, MapPin, Radio, Wifi, WifiOff } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import { TripTrackingMap } from '@/modules/trips/components/TripTrackingMap'
+import { usePredictedTripLocation } from '@/modules/trips/hooks/usePredictedTripLocation'
 import { useTripDetails } from '@/modules/trips/hooks/useTripDetails'
 import { useTripLocationTracking } from '@/modules/trips/hooks/useTripLocationTracking'
-import type { TripLocationUpdate } from '@/modules/trips/types/tripTracking'
+import type {
+  TripLocationMode,
+  TripLocationUpdate,
+} from '@/modules/trips/types/tripTracking'
 import { formatTripRouteLabel } from '@/modules/trips/utils/mapCompanyTrip'
 import { paths } from '@/routes/paths'
 import { Button } from '@/shared/ui/Button'
@@ -19,6 +23,13 @@ function connectionBadgeClass(
   if (status === 'connecting') return 'bg-amber-100 text-amber-800'
   if (status === 'disconnected') return 'bg-red-100 text-red-700'
   if (status === 'error' || status === 'unconfigured') return 'bg-red-100 text-red-700'
+  return 'bg-surface-muted text-text-muted'
+}
+
+function freshnessBadgeClass(mode: TripLocationMode | null): string {
+  if (mode === 'live') return 'bg-green-100 text-green-700'
+  if (mode === 'estimated') return 'bg-amber-100 text-amber-800'
+  if (mode === 'stale_frozen') return 'bg-orange-100 text-orange-800'
   return 'bg-surface-muted text-text-muted'
 }
 
@@ -67,12 +78,17 @@ export function TripTrackingPage() {
     )
   }, [trip])
 
-  const displayLocation = liveLocation ?? savedLocation
-  const isLiveLocation = liveLocation != null
+  const realLocation = liveLocation ?? savedLocation
+  const { displayLocation, locationMode, lastRealLocation } =
+    usePredictedTripLocation(realLocation)
+
+  const isLiveGps = locationMode === 'live' && liveLocation != null
+  const isEstimated = locationMode === 'estimated'
+  const isFrozen = locationMode === 'stale_frozen'
 
   const lastUpdateLabel =
-    displayLocation?.timestamp != null
-      ? new Date(displayLocation.timestamp).toLocaleString(dateLocale, {
+    lastRealLocation?.timestamp != null
+      ? new Date(lastRealLocation.timestamp).toLocaleString(dateLocale, {
           dateStyle: 'medium',
           timeStyle: 'medium',
         })
@@ -105,15 +121,27 @@ export function TripTrackingPage() {
             <MapPin className="h-5 w-5 text-brand-primary" aria-hidden />
             {t('tripTracking.mapTitle')}
           </CardTitle>
-          <div
-            className={cn(
-              'inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium',
-              connectionBadgeClass(connectionStatus),
-            )}
-          >
-            <ConnectionIcon status={connectionStatus} />
-            <Radio className="h-3.5 w-3.5" aria-hidden />
-            {t(`tripTracking.connection.${connectionStatus}`)}
+          <div className="flex flex-wrap items-center gap-2">
+            <div
+              className={cn(
+                'inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium',
+                connectionBadgeClass(connectionStatus),
+              )}
+            >
+              <ConnectionIcon status={connectionStatus} />
+              <Radio className="h-3.5 w-3.5" aria-hidden />
+              {t(`tripTracking.connection.${connectionStatus}`)}
+            </div>
+            {locationMode ? (
+              <div
+                className={cn(
+                  'inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium',
+                  freshnessBadgeClass(locationMode),
+                )}
+              >
+                {t(`tripTracking.freshness.${locationMode}`)}
+              </div>
+            ) : null}
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -127,7 +155,10 @@ export function TripTrackingPage() {
             <div className="h-[min(70vh,520px)] animate-pulse rounded-lg bg-surface-muted" />
           ) : (
             <>
-              <TripTrackingMap location={displayLocation} />
+              <TripTrackingMap
+                location={displayLocation}
+                isEstimated={isEstimated || isFrozen}
+              />
               <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-text-muted">
                 <p>
                   {displayLocation
@@ -139,13 +170,19 @@ export function TripTrackingPage() {
                 </p>
                 {lastUpdateLabel ? (
                   <p>
-                    {isLiveLocation
+                    {isLiveGps
                       ? t('tripTracking.lastUpdate', { time: lastUpdateLabel })
                       : t('tripTracking.lastKnownUpdate', { time: lastUpdateLabel })}
                   </p>
                 ) : null}
               </div>
-              {!isLiveLocation && savedLocation && connectionStatus !== 'connected' ? (
+              {isEstimated ? (
+                <p className="text-xs text-amber-800">{t('tripTracking.estimatedHint')}</p>
+              ) : null}
+              {isFrozen ? (
+                <p className="text-xs text-amber-800">{t('tripTracking.frozenHint')}</p>
+              ) : null}
+              {!liveLocation && savedLocation && connectionStatus !== 'connected' && locationMode === 'live' ? (
                 <p className="text-xs text-amber-800">{t('tripTracking.savedLocationHint')}</p>
               ) : null}
             </>

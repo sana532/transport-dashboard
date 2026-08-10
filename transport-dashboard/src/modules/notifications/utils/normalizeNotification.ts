@@ -35,9 +35,9 @@ export function normalizeNotification(raw: unknown): AppNotification | null {
   const nested = readNestedData(record)
 
   const id =
-    readString(record.id) ??
-    readString(record.uuid) ??
-    readString(record.notification_id)
+    readId(record.id) ??
+    readId(record.uuid) ??
+    readId(record.notification_id)
   if (!id) return null
 
   const title =

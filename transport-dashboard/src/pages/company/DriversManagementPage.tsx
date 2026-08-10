@@ -412,7 +412,7 @@ export function DriversManagementPage() {
               </span>
             ) : null}
           </CardTitle>
-          <Button type="button" variant="ghost" className="shrink-0 text-text-muted" aria-label="Overview">
+          <Button type="button" variant="ghost" className="shrink-0 text-text-muted" aria-label={t('drivers.listTitle')}>
             <CircleGauge className="h-4 w-4" />
           </Button>
         </CardHeader>

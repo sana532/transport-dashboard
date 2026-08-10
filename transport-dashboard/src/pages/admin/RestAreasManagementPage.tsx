@@ -99,7 +99,7 @@ export function RestAreasManagementPage() {
       !form.latitude.trim() ||
       !form.longitude.trim()
     ) {
-      setFormError('Fill in city, name, latitude, and longitude.')
+      setFormError(t('admin.restAreas.form.required'))
       return
     }
 
@@ -112,19 +112,19 @@ export function RestAreasManagementPage() {
       }
       closeDialog()
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Failed to save rest area')
+      setFormError(err instanceof Error ? err.message : t('admin.restAreas.form.saveFailed'))
     } finally {
       setPending(false)
     }
   }
 
   async function handleDelete(area: RestArea) {
-    if (!window.confirm(`Delete rest area "${area.name}"? This cannot be undone.`)) return
+    if (!window.confirm(t('admin.restAreas.confirmDelete', { name: area.name }))) return
     setActionError(null)
     try {
       await deleteRestArea(area.id)
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Failed to delete rest area')
+      setActionError(err instanceof Error ? err.message : t('admin.restAreas.deleteFailed'))
     }
   }
 
@@ -142,7 +142,7 @@ export function RestAreasManagementPage() {
         </div>
         <button type="button" className={createBtnClass} onClick={openCreate}>
           <Plus className="h-4 w-4" aria-hidden />
-          Add rest area
+          {t('admin.restAreas.add')}
         </button>
       </div>
 
@@ -156,16 +156,14 @@ export function RestAreasManagementPage() {
         <form onSubmit={handleSubmit}>
           <div className="border-b border-surface-muted px-6 py-4">
             <h2 className="section-title text-lg font-semibold text-[var(--title-h2)]">
-              {isEditing ? 'Edit rest area' : 'Add rest area'}
+              {isEditing ? t('admin.restAreas.edit') : t('admin.restAreas.add')}
             </h2>
-            <p className="mt-1 text-sm text-text-muted">
-              Link a highway stop to a city with map coordinates.
-            </p>
+            <p className="mt-1 text-sm text-text-muted">{t('admin.restAreas.modalHint')}</p>
           </div>
           <div className="grid gap-4 p-6">
             <div className="grid gap-1.5">
               <label htmlFor="rest_area_city_id" className="text-sm font-medium text-text-secondary">
-                City
+                {t('admin.geo.city')}
               </label>
               <select
                 id="rest_area_city_id"
@@ -176,7 +174,9 @@ export function RestAreasManagementPage() {
                 required
                 disabled={citiesLoading}
               >
-                <option value="">{citiesLoading ? 'Loading cities…' : 'Select a city'}</option>
+                <option value="">
+                  {citiesLoading ? t('admin.geo.loadingCities') : t('admin.geo.selectCity')}
+                </option>
                 {cities.map((city) => (
                   <option key={city.id} value={city.id}>
                     {formatCityLabel(city)}
@@ -185,16 +185,16 @@ export function RestAreasManagementPage() {
               </select>
             </div>
             <Input
-              label="Name"
+              label={t('admin.restAreas.form.name')}
               name="name"
               value={form.name}
               onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-              placeholder="e.g. Highway Rest Area 1"
+              placeholder={t('admin.restAreas.form.namePlaceholder')}
               required
             />
             <div className="grid gap-1.5">
               <label htmlFor="rest_area_description" className="text-sm font-medium text-text-secondary">
-                Description
+                {t('admin.restAreas.form.description')}
               </label>
               <textarea
                 id="rest_area_description"
@@ -203,12 +203,12 @@ export function RestAreasManagementPage() {
                 className={cn(selectClass, 'resize-y')}
                 value={form.description}
                 onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-                placeholder="e.g. Open 24/7"
+                placeholder={t('admin.restAreas.form.descriptionPlaceholder')}
               />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <Input
-                label="Latitude"
+                label={t('admin.geo.latitude')}
                 name="latitude"
                 type="text"
                 inputMode="decimal"
@@ -219,7 +219,7 @@ export function RestAreasManagementPage() {
                 required
               />
               <Input
-                label="Longitude"
+                label={t('admin.geo.longitude')}
                 name="longitude"
                 type="text"
                 inputMode="decimal"
@@ -237,7 +237,7 @@ export function RestAreasManagementPage() {
                 onChange={(e) => setForm((prev) => ({ ...prev, isActive: e.target.checked }))}
                 className="h-4 w-4 rounded border-border text-[#2F3E1F] focus:ring-[#2F3E1F]/30"
               />
-              Active
+              {t('admin.restAreas.form.active')}
             </label>
             {formError ? (
               <p className="text-sm text-red-700" role="alert">
@@ -251,10 +251,14 @@ export function RestAreasManagementPage() {
               disabled={pending}
               className="bg-[#2F3E1F] px-6 text-white hover:bg-[#243217] disabled:opacity-70"
             >
-              {pending ? 'Saving…' : isEditing ? 'Save changes' : 'Create rest area'}
+              {pending
+                ? t('common.saving')
+                : isEditing
+                  ? t('common.saveChanges')
+                  : t('admin.restAreas.create')}
             </Button>
             <Button type="button" variant="outline" onClick={closeDialog}>
-              Cancel
+              {t('common.cancel')}
             </Button>
           </div>
         </form>
@@ -271,7 +275,7 @@ export function RestAreasManagementPage() {
               onClick={() => void reload()}
               className="bg-[#2F3E1F] text-white hover:bg-[#243217]"
             >
-              Retry
+              {t('common.retry')}
             </Button>
           </CardContent>
         </Card>
@@ -281,14 +285,14 @@ export function RestAreasManagementPage() {
             <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#2F3E1F]/10 text-[#2F3E1F]">
               <Coffee className="h-5 w-5" aria-hidden />
             </span>
-            <CardTitle className="text-lg">All rest areas</CardTitle>
+            <CardTitle className="text-lg">{t('admin.restAreas.listTitle')}</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <p className="text-sm text-text-muted">Loading…</p>
+              <p className="text-sm text-text-muted">{t('common.loading')}</p>
             ) : restAreas.length === 0 ? (
               <div className="rounded-lg border border-dashed border-border px-6 py-10 text-center">
-                <p className="text-sm text-text-muted">No rest areas yet. Add the first one.</p>
+                <p className="text-sm text-text-muted">{t('admin.restAreas.empty')}</p>
               </div>
             ) : (
               <div className="overflow-x-auto rounded-lg border border-border" dir="rtl">
@@ -303,12 +307,16 @@ export function RestAreasManagementPage() {
                   </colgroup>
                   <thead>
                     <tr className="border-b border-border bg-surface-muted/50 text-xs uppercase tracking-wide text-text-muted">
-                      <th className="py-3 ps-4 pe-1 text-start font-semibold">Name</th>
-                      <th className="py-3 ps-1 pe-2 text-start font-semibold">City</th>
-                      <th className="px-3 py-3 text-start font-semibold">Coordinates</th>
-                      <th className="px-3 py-3 text-start font-semibold">Description</th>
-                      <th className="px-2 py-3 text-start font-semibold">Status</th>
-                      <th className="px-2 py-3 text-end font-semibold">Actions</th>
+                      <th className="py-3 ps-4 pe-1 text-start font-semibold">{t('admin.geo.colName')}</th>
+                      <th className="py-3 ps-1 pe-2 text-start font-semibold">{t('admin.geo.colCity')}</th>
+                      <th className="px-3 py-3 text-start font-semibold">
+                        {t('admin.geo.colCoordinates')}
+                      </th>
+                      <th className="px-3 py-3 text-start font-semibold">
+                        {t('admin.restAreas.colDescription')}
+                      </th>
+                      <th className="px-2 py-3 text-start font-semibold">{t('admin.geo.colStatus')}</th>
+                      <th className="px-2 py-3 text-end font-semibold">{t('admin.geo.colActions')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -350,7 +358,7 @@ export function RestAreasManagementPage() {
                                 : 'bg-green-100 text-green-800',
                             )}
                           >
-                            {area.is_active === false ? 'inactive' : 'active'}
+                            {area.is_active === false ? t('common.inactive') : t('common.active')}
                           </span>
                         </td>
                         <td className="px-2 py-3 align-middle">
@@ -358,8 +366,8 @@ export function RestAreasManagementPage() {
                             <button
                               type="button"
                               className={iconBtnClass}
-                              title="Edit"
-                              aria-label={`Edit ${area.name}`}
+                              title={t('admin.geo.edit')}
+                              aria-label={t('admin.geo.editItem', { name: area.name })}
                               onClick={() => openEdit(area)}
                             >
                               <Pencil className="h-4 w-4" />
@@ -367,8 +375,8 @@ export function RestAreasManagementPage() {
                             <button
                               type="button"
                               className={cn(iconBtnClass, 'hover:border-red-200 hover:text-red-700')}
-                              title="Delete"
-                              aria-label={`Delete ${area.name}`}
+                              title={t('admin.geo.delete')}
+                              aria-label={t('admin.geo.deleteItem', { name: area.name })}
                               onClick={() => void handleDelete(area)}
                             >
                               <Trash2 className="h-4 w-4" />

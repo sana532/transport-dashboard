@@ -131,6 +131,24 @@ async function enrichRoutesWithRestAreas(routes: CompanyRoute[]): Promise<Compan
   })
 }
 
+function buildRouteWritePayload(input: RouteFormInput): Record<string, unknown> {
+  const name_en = input.name_en.trim()
+  const name_ar = input.name_ar.trim()
+  const payload: Record<string, unknown> = {
+    name_en,
+    name_ar,
+    name: name_en,
+    origin_station_id: input.origin_station_id,
+    destination_station_id: input.destination_station_id,
+  }
+  if (input.estimated_duration_hhmm?.trim()) {
+    payload.estimated_duration_hhmm = input.estimated_duration_hhmm.trim()
+  }
+  if (input.base_fare != null) payload.base_fare = input.base_fare
+  if (input.rest_areas?.length) payload.rest_areas = input.rest_areas
+  return payload
+}
+
 export const routesService = {
   async listRoutes(): Promise<CompanyRoute[]> {
     try {
@@ -155,7 +173,7 @@ export const routesService = {
 
   async createRoute(input: RouteFormInput): Promise<CompanyRoute> {
     try {
-      const { data } = await api.post<unknown>('/company/routes', input)
+      const { data } = await api.post<unknown>('/company/routes', buildRouteWritePayload(input))
       const created = unwrapOne(data)
       if (!created) throw new Error('Invalid response when creating route')
       return created
@@ -166,7 +184,10 @@ export const routesService = {
 
   async updateRoute(id: number, input: RouteFormInput): Promise<CompanyRoute> {
     try {
-      const { data } = await api.patch<unknown>(`/company/routes/${id}`, input)
+      const { data } = await api.patch<unknown>(
+        `/company/routes/${id}`,
+        buildRouteWritePayload(input),
+      )
       const updated = unwrapOne(data)
       if (!updated) throw new Error('Invalid response when updating route')
       return updated

@@ -1,38 +1,27 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import type { BookingsManagementData } from '@/modules/bookings/types'
 import { bookingsService } from '@/modules/bookings/services/bookingsService'
 
+export const bookingsManagementQueryKey = ['bookings', 'management'] as const
+
 export function useBookingsManagement() {
-  const [data, setData] = useState<BookingsManagementData | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const requestIdRef = useRef(0)
+  const query = useQuery({
+    queryKey: bookingsManagementQueryKey,
+    queryFn: (): Promise<BookingsManagementData> =>
+      bookingsService.getBookingsManagementData(),
+  })
 
-  const load = useCallback(async () => {
-    const requestId = ++requestIdRef.current
-    setIsLoading(true)
-    setError(null)
-    try {
-      const next = await bookingsService.getBookingsManagementData()
-      if (requestId !== requestIdRef.current) return
-      setData(next)
-    } catch (err) {
-      if (requestId !== requestIdRef.current) return
-      setError(err instanceof Error ? err.message : 'Failed to load bookings')
-      setData(null)
-    } finally {
-      if (requestId === requestIdRef.current) {
-        setIsLoading(false)
-      }
-    }
-  }, [])
-
-  useEffect(() => {
-    void load()
-    return () => {
-      requestIdRef.current += 1
-    }
-  }, [load])
-
-  return { data, isLoading, error, reload: load }
+  return {
+    data: query.data ?? null,
+    isLoading: query.isPending,
+    isFetching: query.isFetching,
+    error: query.error
+      ? query.error instanceof Error
+        ? query.error.message
+        : 'Failed to load bookings'
+      : null,
+    reload: () => {
+      void query.refetch()
+    },
+  }
 }

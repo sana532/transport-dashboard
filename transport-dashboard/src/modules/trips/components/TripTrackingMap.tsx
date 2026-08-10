@@ -20,6 +20,8 @@ const busIcon = createBusLeafletIcon()
 
 type TripTrackingMapProps = {
   location: TripLocationUpdate | null
+  /** Soften marker/trail when showing estimated or frozen stale position. */
+  isEstimated?: boolean
   fallbackCenter?: L.LatLngExpression | null
   className?: string
 }
@@ -123,6 +125,7 @@ function MapControlButton({
 
 export const TripTrackingMap = memo(function TripTrackingMap({
   location,
+  isEstimated = false,
   fallbackCenter,
   className,
 }: TripTrackingMapProps) {
@@ -206,8 +209,8 @@ export const TripTrackingMap = memo(function TripTrackingMap({
             pathOptions={{
               color: BUS_BRAND_GREEN,
               weight: 4,
-              opacity: 0.85,
-              dashArray: '10 14',
+              opacity: isEstimated ? 0.45 : 0.85,
+              dashArray: isEstimated ? '4 10' : '10 14',
               lineCap: 'round',
               lineJoin: 'round',
             }}

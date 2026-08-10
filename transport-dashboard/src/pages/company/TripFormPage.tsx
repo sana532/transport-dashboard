@@ -31,6 +31,7 @@ import {
   type TripFormState,
 } from '@/modules/trips/utils/buildTripFormPayload'
 import { isArchivedTrip } from '@/modules/trips/services/tripsManagementService'
+import { CancelTripDialog } from '@/modules/trips/components/CancelTripDialog'
 import { paths } from '@/routes/paths'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/Card'
@@ -86,6 +87,7 @@ export function TripFormPage() {
   const [bookedCount, setBookedCount] = useState(0)
   const [lockedRouteId, setLockedRouteId] = useState<string | null>(null)
   const [lockedBaseFare, setLockedBaseFare] = useState<string | null>(null)
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
 
   const hasBookings = isEdit && bookedCount > 0
 
@@ -248,11 +250,6 @@ export function TripFormPage() {
       return
     }
 
-    if (hasBookings && form.status === 'cancelled') {
-      setSaveError(t('tripForm.error.cancelViaList'))
-      return
-    }
-
     const payload = buildTripMutationPayload(form)
     if (!payload) {
       setSaveError(t('tripForm.error.validation'))
@@ -290,6 +287,21 @@ export function TripFormPage() {
     } finally {
       setIsSaving(false)
     }
+  }
+
+  function handleStatusChange(next: CompanyTripStatus) {
+    if (next === 'cancelled' && isEdit && Number.isFinite(editNumericId)) {
+      setCancelDialogOpen(true)
+      return
+    }
+    setForm((prev) => ({ ...prev, status: next }))
+  }
+
+  function handleTripCancelled() {
+    setCancelDialogOpen(false)
+    navigate(paths.company.tripArchive, {
+      state: { archivedTripId: editNumericId, status: 'cancelled' as const },
+    })
   }
 
   if (isLoading) return <TripFormLoading />
@@ -449,25 +461,18 @@ export function TripFormPage() {
                 <select
                   className={selectClass}
                   value={form.status}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      status: e.target.value as CompanyTripStatus,
-                    }))
-                  }
+                  onChange={(e) => handleStatusChange(e.target.value as CompanyTripStatus)}
                   required
                 >
                   <option value="scheduled">{t('tripForm.statusScheduled')}</option>
                   <option value="active">{t('tripForm.statusActive')}</option>
                   <option value="completed">{t('tripForm.statusCompleted')}</option>
-                  <option value="cancelled" disabled={hasBookings}>
-                    {t('tripForm.statusCancelled')}
-                  </option>
+                  {isEdit ? (
+                    <option value="cancelled">{t('tripForm.statusCancelled')}</option>
+                  ) : null}
                 </select>
                 {errors.status ? <p className="text-xs text-red-600">{errors.status}</p> : null}
-                {hasBookings ? (
-                  <p className="text-xs text-amber-800">{t('tripForm.cancelViaListHint')}</p>
-                ) : isEdit ? (
+                {isEdit ? (
                   <p className="text-xs text-text-muted">{t('tripForm.statusSaveHint')}</p>
                 ) : null}
               </div>
@@ -536,8 +541,8 @@ export function TripFormPage() {
         <div className="grid h-full gap-4 xl:[grid-template-rows:1.5fr_1fr]">
           <Card className="h-full border-none bg-gradient-to-r from-[#2F3E1F] to-[#243217] text-white">
             <CardHeader className="border-none pb-2">
-              <CardTitle className="flex items-center gap-2 text-[22px] text-white">
-                <Sparkles className="h-5 w-5" />
+              <CardTitle className="flex items-center gap-2 text-[22px] !text-white">
+                <Sparkles className="h-5 w-5 text-white" />
                 {t('tripForm.autoSummary')}
               </CardTitle>
             </CardHeader>
@@ -595,6 +600,20 @@ export function TripFormPage() {
           </Card>
         </div>
       </div>
+
+      {isEdit && Number.isFinite(editNumericId) ? (
+        <CancelTripDialog
+          open={cancelDialogOpen}
+          tripId={editNumericId}
+          tripLabel={
+            selectedRoute
+              ? `${routeDisplayName(selectedRoute, locale)} · #${editNumericId}`
+              : `#${editNumericId}`
+          }
+          onClose={() => setCancelDialogOpen(false)}
+          onCancelled={handleTripCancelled}
+        />
+      ) : null}
     </div>
   )
 }

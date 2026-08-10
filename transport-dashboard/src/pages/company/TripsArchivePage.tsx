@@ -31,7 +31,7 @@ export function TripsArchivePage() {
   const navigate = useNavigate()
   const location = useLocation()
   const redirectState = (location.state as ArchiveRedirectState | null) ?? null
-  const { data, isLoading, error, reload } = useTripsManagement()
+  const { data, isLoading, error, reload } = useTripsManagement({ mode: 'all' })
   const rows = data?.archivedTrips ?? []
   const [cloneTripId, setCloneTripId] = useState<number | null>(null)
 

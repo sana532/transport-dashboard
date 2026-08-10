@@ -20,6 +20,12 @@ export function pickRouteNameFields(record: Record<string, unknown>): {
 }
 
 export function routeDisplayName(route: CompanyRoute, locale: string): string {
+  const customName = locale.startsWith('ar')
+    ? route.name_ar?.trim() || route.name_en?.trim() || route.name?.trim() || ''
+    : route.name_en?.trim() || route.name?.trim() || route.name_ar?.trim() || ''
+
+  if (customName) return customName
+
   const label = formatRouteLabel(
     {
       route,
@@ -31,10 +37,5 @@ export function routeDisplayName(route: CompanyRoute, locale: string): string {
     },
     locale,
   )
-  if (label !== '—') return label
-
-  if (locale.startsWith('ar')) {
-    return route.name_ar?.trim() || route.name_en?.trim() || route.name?.trim() || ''
-  }
-  return route.name_en?.trim() || route.name?.trim() || route.name_ar?.trim() || ''
+  return label === '—' ? '' : label
 }

@@ -13,6 +13,10 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging()
 
+function readString(value) {
+  return typeof value === 'string' && value.trim() ? value.trim() : null
+}
+
 function resolveNotificationPath(referenceType, referenceId, directUrl) {
   if (typeof directUrl === 'string' && directUrl.startsWith('/')) return directUrl
 
@@ -34,15 +38,30 @@ function resolveNotificationPath(referenceType, referenceId, directUrl) {
   return null
 }
 
-messaging.onBackgroundMessage((payload) => {
+function resolveContent(payload) {
   const data = payload.data ?? {}
-  const title = payload.notification?.title ?? data.title ?? 'Notification'
-  const body = payload.notification?.body ?? data.body ?? ''
+  const title =
+    payload.notification?.title ||
+    readString(data.title) ||
+    readString(data.notification_title) ||
+    'Notification'
+  const body =
+    payload.notification?.body ||
+    readString(data.body) ||
+    readString(data.message) ||
+    readString(data.notification_body) ||
+    ''
+  return { title, body, data }
+}
 
-  self.registration.showNotification(title, {
+messaging.onBackgroundMessage((payload) => {
+  const { title, body, data } = resolveContent(payload)
+
+  return self.registration.showNotification(title, {
     body,
     icon: '/favicon.svg',
     data,
+    tag: readString(data.id) || readString(data.notification_id) || undefined,
   })
 })
 

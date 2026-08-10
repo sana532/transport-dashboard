@@ -54,7 +54,7 @@ export const DEFAULT_LAYOUT_CONFIG_JSON = `{
       "type": "aisle",
       "column": 3,
       "row_start": 1,
-      "row_end": 5,
+      "row_end": 6,
       "label": ""
     }
   ]

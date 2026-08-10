@@ -1,5 +1,6 @@
 const LIST_KEYS = [
   'data',
+  'notifications',
   'drivers',
   'vehicles',
   'trips',

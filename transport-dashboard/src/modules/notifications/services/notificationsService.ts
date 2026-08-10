@@ -21,7 +21,11 @@ export const notificationsService = {
 
   async listNotifications(filter?: NotificationListFilter): Promise<AppNotification[]> {
     try {
-      const params: Record<string, string | number> = {}
+      const params: Record<string, string | number> = {
+        // API defaults to a tiny page (e.g. 8); request enough for the bell + page.
+        per_page: filter?.per_page ?? 50,
+      }
+      if (filter?.page != null && filter.page > 0) params.page = filter.page
       if (filter?.read === true) params.read = 1
       if (filter?.read === false) params.read = 0
 

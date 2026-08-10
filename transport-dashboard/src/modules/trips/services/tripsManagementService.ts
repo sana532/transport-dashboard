@@ -12,6 +12,15 @@ import { vehiclesService } from '@/modules/vehicles/services/vehiclesService'
 
 export { isArchivedTrip } from '@/modules/trips/utils/tripStatus'
 
+export type TripsListPagination = {
+  currentPage: number
+  lastPage: number
+  perPage: number
+  total: number
+  from: number
+  to: number
+}
+
 export function mapTripToRecentRow(trip: CompanyTrip, locale: string): TripsRecentRow {
   return {
     id: `#${trip.id}`,
@@ -25,45 +34,81 @@ export function mapTripToRecentRow(trip: CompanyTrip, locale: string): TripsRece
   }
 }
 
+async function enrichTrips(rows: CompanyTrip[]): Promise<CompanyTrip[]> {
+  const needsDriverEnrichment = rows.some(
+    (trip) => trip.driver_id != null && !trip.driver?.name,
+  )
+  const needsVehicleEnrichment = rows.some(
+    (trip) =>
+      trip.vehicle_id != null &&
+      !trip.vehicle?.plate_number &&
+      !trip.vehicle?.name,
+  )
+
+  const [drivers, vehicles] = await Promise.all([
+    needsDriverEnrichment ? driversService.listDrivers() : Promise.resolve([]),
+    needsVehicleEnrichment ? vehiclesService.listVehicles() : Promise.resolve([]),
+  ])
+
+  return enrichCompanyTrips(rows, drivers, vehicles)
+}
+
+function toManagementPayload(
+  trips: CompanyTrip[],
+  locale: string,
+): Omit<TripsManagementData, 'stats'> & { trips: CompanyTrip[] } {
+  const recentTrips = trips
+    .filter((trip) => !isArchivedTrip(trip.status))
+    .map((trip) => mapTripToRecentRow(trip, locale))
+  const archivedTrips = trips
+    .filter((trip) => isArchivedTrip(trip.status))
+    .map((trip) => mapTripToRecentRow(trip, locale))
+
+  return {
+    trips,
+    recentTrips,
+    archivedTrips,
+    defaultFilters: {
+      search: '',
+      dateRange: '',
+      route: '',
+      status: 'all',
+    },
+  }
+}
+
 export const tripsManagementService = {
+  async getTripsManagementPage(
+    locale: string,
+    options?: { page?: number; perPage?: number },
+  ): Promise<
+    Omit<TripsManagementData, 'stats'> & {
+      trips: CompanyTrip[]
+      pagination: TripsListPagination
+    }
+  > {
+    const pageResult = await companyTripsService.listTripsPage(options)
+    const trips = await enrichTrips(pageResult.trips)
+
+    return {
+      ...toManagementPayload(trips, locale),
+      pagination: {
+        currentPage: pageResult.currentPage,
+        lastPage: pageResult.lastPage,
+        perPage: pageResult.perPage,
+        total: pageResult.total,
+        from: pageResult.from,
+        to: pageResult.to,
+      },
+    }
+  },
+
+  /** Full list for archive / legacy consumers. Prefer `getTripsManagementPage`. */
   async getTripsManagementData(
     locale: string,
   ): Promise<Omit<TripsManagementData, 'stats'> & { trips: CompanyTrip[] }> {
     const rows = await companyTripsService.listTrips()
-
-    const needsDriverEnrichment = rows.some(
-      (trip) => trip.driver_id != null && !trip.driver?.name,
-    )
-    const needsVehicleEnrichment = rows.some(
-      (trip) =>
-        trip.vehicle_id != null &&
-        !trip.vehicle?.plate_number &&
-        !trip.vehicle?.name,
-    )
-
-    const [drivers, vehicles] = await Promise.all([
-      needsDriverEnrichment ? driversService.listDrivers() : Promise.resolve([]),
-      needsVehicleEnrichment ? vehiclesService.listVehicles() : Promise.resolve([]),
-    ])
-
-    const trips = enrichCompanyTrips(rows, drivers, vehicles)
-    const recentTrips = trips
-      .filter((trip) => !isArchivedTrip(trip.status))
-      .map((trip) => mapTripToRecentRow(trip, locale))
-    const archivedTrips = trips
-      .filter((trip) => isArchivedTrip(trip.status))
-      .map((trip) => mapTripToRecentRow(trip, locale))
-
-    return {
-      trips,
-      recentTrips,
-      archivedTrips,
-      defaultFilters: {
-        search: '',
-        dateRange: '',
-        route: '',
-        status: 'all',
-      },
-    }
+    const trips = await enrichTrips(rows)
+    return toManagementPayload(trips, locale)
   },
 }

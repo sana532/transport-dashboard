@@ -3,6 +3,14 @@ import { Bus, LayoutGrid } from 'lucide-react'
 import { SeatLayoutPreview } from '@/modules/vehicle-models/components/SeatLayoutPreview'
 import { DEFAULT_LAYOUT_CONFIG_JSON } from '@/modules/vehicle-models/types'
 import type { VehicleModelFormInput } from '@/modules/vehicle-models/types'
+import {
+  buildLayoutConfigJson,
+  defaultLayoutFormOptions,
+  extractLayoutFormOptions,
+  validateLayoutFormOptions,
+  type LayoutFormOptions,
+} from '@/modules/vehicle-models/utils/buildLayoutConfig'
+import { parseLayoutConfig } from '@/modules/vehicle-models/utils/parseLayoutConfig'
 import { useTranslation } from '@/shared/i18n/useTranslation'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/Card'
@@ -18,6 +26,8 @@ const monoClass = cn(
   'font-mono text-start text-xs leading-relaxed',
   'dir-ltr unicode-bidi-plaintext',
 )
+
+const defaultOptions = defaultLayoutFormOptions()
 
 export type VehicleModelFormInitial = {
   nameEn: string
@@ -58,6 +68,9 @@ export function VehicleModelForm({
   const [descriptionEn, setDescriptionEn] = useState('')
   const [descriptionAr, setDescriptionAr] = useState('')
   const [layoutConfigJson, setLayoutConfigJson] = useState(DEFAULT_LAYOUT_CONFIG_JSON)
+  const [seatCount, setSeatCount] = useState(defaultOptions.seatCount)
+  const [rows, setRows] = useState(defaultOptions.rows)
+  const [hasAisle, setHasAisle] = useState(defaultOptions.hasAisle)
   const [isActive, setIsActive] = useState(true)
   const [images, setImages] = useState<File[]>([])
   const [existingImageUrls, setExistingImageUrls] = useState<string[]>([])
@@ -72,7 +85,31 @@ export function VehicleModelForm({
     setIsActive(initial.isActive)
     setExistingImageUrls(initial.existingImageUrls ?? [])
     setImages([])
+
+    const options = extractLayoutFormOptions(initial.layoutConfigJson)
+    if (options) {
+      setSeatCount(options.seatCount)
+      setRows(options.rows)
+      setHasAisle(options.hasAisle)
+    }
   }, [initial])
+
+  const layoutOptions: LayoutFormOptions = { seatCount, rows, hasAisle }
+  const layoutOptionsError = validateLayoutFormOptions(layoutOptions)
+  const layoutJsonOk = parseLayoutConfig(layoutConfigJson).ok
+  const seatsPerRow =
+    Number.isInteger(rows) && rows > 0 && seatCount % rows === 0
+      ? seatCount / rows
+      : null
+
+  function applyLayoutOptions(next: LayoutFormOptions) {
+    setSeatCount(next.seatCount)
+    setRows(next.rows)
+    setHasAisle(next.hasAisle)
+    if (validateLayoutFormOptions(next) === null) {
+      setLayoutConfigJson(buildLayoutConfigJson(next))
+    }
+  }
 
   function onImagesChange(event: ChangeEvent<HTMLInputElement>) {
     const files = event.target.files
@@ -80,8 +117,32 @@ export function VehicleModelForm({
     setImages(Array.from(files))
   }
 
+  function onAdvancedJsonChange(value: string) {
+    setLayoutConfigJson(value)
+    const options = extractLayoutFormOptions(value)
+    if (!options) return
+    setSeatCount(options.seatCount)
+    setRows(options.rows)
+    setHasAisle(options.hasAisle)
+  }
+
+  function layoutOptionsErrorMessage(): string | null {
+    if (!layoutOptionsError) return null
+    if (layoutOptionsError === 'notDivisible') {
+      return t('admin.vehicleModels.form.seatCountNotDivisible')
+    }
+    if (layoutOptionsError === 'rows') {
+      return t('admin.vehicleModels.form.rowsInvalid')
+    }
+    if (layoutOptionsError === 'columns') {
+      return t('admin.vehicleModels.form.columnsInvalid')
+    }
+    return t('admin.vehicleModels.form.seatCountInvalid')
+  }
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
+    if (!layoutJsonOk) return
     await onSubmit({
       nameEn,
       nameAr,
@@ -222,12 +283,108 @@ export function VehicleModelForm({
         </CardHeader>
         <CardContent className="space-y-4 p-4">
           <p className="text-xs text-text-muted">{t('admin.vehicleModels.form.seatLayoutHint')}</p>
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Input
+              label={t('admin.vehicleModels.form.seatCount')}
+              name="seat_count"
+              type="number"
+              min={1}
+              step={1}
+              value={Number.isFinite(seatCount) ? seatCount : ''}
+              onChange={(e) => {
+                const nextSeatCount = Number(e.target.value)
+                applyLayoutOptions({
+                  seatCount: nextSeatCount,
+                  rows,
+                  hasAisle,
+                })
+              }}
+              error={
+                layoutOptionsError === 'seatCount' || layoutOptionsError === 'notDivisible'
+                  ? layoutOptionsErrorMessage() ?? undefined
+                  : undefined
+              }
+              required
+            />
+            <Input
+              label={t('admin.vehicleModels.form.rows')}
+              name="layout_rows"
+              type="number"
+              min={1}
+              max={30}
+              step={1}
+              value={Number.isFinite(rows) ? rows : ''}
+              onChange={(e) => {
+                const nextRows = Number(e.target.value)
+                const seatsPerCurrentRow =
+                  Number.isInteger(rows) && rows > 0 && seatCount % rows === 0
+                    ? seatCount / rows
+                    : Math.max(1, Math.round(seatCount / Math.max(rows, 1)))
+                const nextSeatCount =
+                  Number.isInteger(nextRows) && nextRows > 0
+                    ? seatsPerCurrentRow * nextRows
+                    : seatCount
+                applyLayoutOptions({
+                  seatCount: nextSeatCount,
+                  rows: nextRows,
+                  hasAisle,
+                })
+              }}
+              error={
+                layoutOptionsError === 'rows' || layoutOptionsError === 'columns'
+                  ? layoutOptionsErrorMessage() ?? undefined
+                  : undefined
+              }
+              required
+            />
+            <div className="flex flex-col gap-1.5">
+              <span className="text-sm font-medium text-text-secondary">
+                {t('admin.vehicleModels.form.hasAisle')}
+              </span>
+              <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2.5">
+                <input
+                  type="checkbox"
+                  name="has_aisle"
+                  checked={hasAisle}
+                  onChange={(e) =>
+                    applyLayoutOptions({
+                      seatCount,
+                      rows,
+                      hasAisle: e.target.checked,
+                    })
+                  }
+                  className="h-4 w-4 rounded border-border text-brand-primary focus-visible:ring-ring"
+                />
+                <span className="text-sm text-text-primary">
+                  {t('admin.vehicleModels.form.hasAisleLabel')}
+                </span>
+              </label>
+            </div>
+          </div>
+
+          {seatsPerRow != null && !layoutOptionsError ? (
+            <p className="text-xs text-text-muted">
+              {t('admin.vehicleModels.form.seatsPerRow', { count: seatsPerRow })}
+            </p>
+          ) : null}
+
+          {layoutOptionsError === 'columns' ? (
+            <p className="text-xs text-red-600" role="alert">
+              {layoutOptionsErrorMessage()}
+            </p>
+          ) : null}
+
           <SeatLayoutPreview layoutConfigJson={layoutConfigJson} />
+
           <details className="rounded-lg border border-border bg-surface">
             <summary className="cursor-pointer px-4 py-2.5 text-sm font-medium text-text-secondary">
               {t('admin.vehicleModels.form.advancedJson')}
             </summary>
             <div className="border-t border-border p-4">
+              <p className="mb-3 text-xs text-text-muted">
+                {t('admin.vehicleModels.form.advancedJsonHint')}
+              </p>
               <textarea
                 id="layout_config"
                 name="layout_config"
@@ -235,7 +392,7 @@ export function VehicleModelForm({
                 rows={12}
                 className={monoClass}
                 value={layoutConfigJson}
-                onChange={(e) => setLayoutConfigJson(e.target.value)}
+                onChange={(e) => onAdvancedJsonChange(e.target.value)}
                 required
               />
             </div>
@@ -244,7 +401,7 @@ export function VehicleModelForm({
           <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
             <button
               type="submit"
-              disabled={pending}
+              disabled={pending || !layoutJsonOk}
               className="inline-flex items-center justify-center rounded-lg bg-[#2F3E1F] px-4 py-2 text-sm font-medium text-white hover:bg-[#243217] disabled:pointer-events-none disabled:opacity-50"
             >
               {pending ? pendingLabel : submitLabel}

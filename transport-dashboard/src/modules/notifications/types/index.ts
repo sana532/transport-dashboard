@@ -12,6 +12,9 @@ export type AppNotification = {
 
 export type NotificationListFilter = {
   read?: boolean
+  /** Laravel paginator page size (API default is often very small). */
+  per_page?: number
+  page?: number
 }
 
 export type RegisterFcmTokenInput = {

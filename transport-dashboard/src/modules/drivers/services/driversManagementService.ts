@@ -7,7 +7,9 @@ import {
 import { driversService } from '@/modules/drivers/services/driversService'
 import { mapCompanyDriverToDriver } from '@/modules/drivers/utils/mapCompanyDriver'
 
-function buildStats(drivers: Driver[]): DriversStatCard[] {
+type Translate = (key: string, params?: Record<string, string | number>) => string
+
+function buildStats(drivers: Driver[], t: Translate): DriversStatCard[] {
   const total = drivers.length
   const available = drivers.filter((d) => d.status === 'Available').length
   const onTrip = drivers.filter((d) => d.status === 'On Trip').length
@@ -15,33 +17,33 @@ function buildStats(drivers: Driver[]): DriversStatCard[] {
 
   return [
     {
-      title: 'Total Drivers',
+      title: t('drivers.stats.total'),
       value: String(total),
-      note: 'Registered accounts',
+      note: t('drivers.stats.totalNote'),
       trend: '',
       Icon: DriversIcons.Total,
       variant: 'primary',
     },
     {
-      title: 'Available',
+      title: t('drivers.stats.available'),
       value: String(available),
-      note: 'Active profile',
+      note: t('drivers.stats.availableNote'),
       trend: '',
       Icon: DriversIcons.Available,
       variant: 'success',
     },
     {
-      title: 'On Trip',
+      title: t('drivers.stats.onTrip'),
       value: String(onTrip),
-      note: 'Currently driving',
+      note: t('drivers.stats.onTripNote'),
       trend: '',
       Icon: DriversIcons.OnTrip,
       variant: 'info',
     },
     {
-      title: 'Off Duty',
+      title: t('drivers.stats.offDuty'),
       value: String(offDuty),
-      note: 'Inactive profile',
+      note: t('drivers.stats.offDutyNote'),
       trend: '',
       Icon: DriversIcons.OffDuty,
       variant: 'neutral',
@@ -50,12 +52,12 @@ function buildStats(drivers: Driver[]): DriversStatCard[] {
 }
 
 export const driversManagementService = {
-  async getDriversManagementData(): Promise<DriversManagementData> {
+  async getDriversManagementData(t: Translate): Promise<DriversManagementData> {
     const rows = await driversService.listDrivers()
     const drivers = rows.map(mapCompanyDriverToDriver)
 
     return {
-      stats: buildStats(drivers),
+      stats: buildStats(drivers, t),
       drivers,
       defaultFilters: {
         search: '',
