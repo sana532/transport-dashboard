@@ -7,7 +7,7 @@ import {
   buildLayoutConfigJson,
   defaultLayoutFormOptions,
   extractLayoutFormOptions,
-  validateLayoutFormOptions,
+  normalizeLayoutFormOptions,
   type LayoutFormOptions,
 } from '@/modules/vehicle-models/utils/buildLayoutConfig'
 import { parseLayoutConfig } from '@/modules/vehicle-models/utils/parseLayoutConfig'
@@ -69,6 +69,7 @@ export function VehicleModelForm({
   const [descriptionAr, setDescriptionAr] = useState('')
   const [layoutConfigJson, setLayoutConfigJson] = useState(DEFAULT_LAYOUT_CONFIG_JSON)
   const [seatCount, setSeatCount] = useState(defaultOptions.seatCount)
+  const [seatCountDraft, setSeatCountDraft] = useState(String(defaultOptions.seatCount))
   const [rows, setRows] = useState(defaultOptions.rows)
   const [hasAisle, setHasAisle] = useState(defaultOptions.hasAisle)
   const [isActive, setIsActive] = useState(true)
@@ -89,26 +90,31 @@ export function VehicleModelForm({
     const options = extractLayoutFormOptions(initial.layoutConfigJson)
     if (options) {
       setSeatCount(options.seatCount)
+      setSeatCountDraft(String(options.seatCount))
       setRows(options.rows)
       setHasAisle(options.hasAisle)
     }
   }, [initial])
 
-  const layoutOptions: LayoutFormOptions = { seatCount, rows, hasAisle }
-  const layoutOptionsError = validateLayoutFormOptions(layoutOptions)
   const layoutJsonOk = parseLayoutConfig(layoutConfigJson).ok
   const seatsPerRow =
-    Number.isInteger(rows) && rows > 0 && seatCount % rows === 0
-      ? seatCount / rows
-      : null
+    Number.isInteger(rows) && rows > 0 ? Math.round(seatCount / rows) : null
 
   function applyLayoutOptions(next: LayoutFormOptions) {
-    setSeatCount(next.seatCount)
-    setRows(next.rows)
-    setHasAisle(next.hasAisle)
-    if (validateLayoutFormOptions(next) === null) {
-      setLayoutConfigJson(buildLayoutConfigJson(next))
-    }
+    const normalized = normalizeLayoutFormOptions(next)
+    setSeatCount(normalized.seatCount)
+    setSeatCountDraft(String(normalized.seatCount))
+    setRows(normalized.rows)
+    setHasAisle(normalized.hasAisle)
+    setLayoutConfigJson(buildLayoutConfigJson(normalized))
+  }
+
+  function commitSeatCountDraft() {
+    applyLayoutOptions({
+      seatCount: Number(seatCountDraft),
+      rows,
+      hasAisle,
+    })
   }
 
   function onImagesChange(event: ChangeEvent<HTMLInputElement>) {
@@ -122,33 +128,31 @@ export function VehicleModelForm({
     const options = extractLayoutFormOptions(value)
     if (!options) return
     setSeatCount(options.seatCount)
+    setSeatCountDraft(String(options.seatCount))
     setRows(options.rows)
     setHasAisle(options.hasAisle)
   }
 
-  function layoutOptionsErrorMessage(): string | null {
-    if (!layoutOptionsError) return null
-    if (layoutOptionsError === 'notDivisible') {
-      return t('admin.vehicleModels.form.seatCountNotDivisible')
-    }
-    if (layoutOptionsError === 'rows') {
-      return t('admin.vehicleModels.form.rowsInvalid')
-    }
-    if (layoutOptionsError === 'columns') {
-      return t('admin.vehicleModels.form.columnsInvalid')
-    }
-    return t('admin.vehicleModels.form.seatCountInvalid')
-  }
-
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    if (!layoutJsonOk) return
+    const normalized = normalizeLayoutFormOptions({
+      seatCount: Number(seatCountDraft),
+      rows,
+      hasAisle,
+    })
+    const nextJson = buildLayoutConfigJson(normalized)
+    setSeatCount(normalized.seatCount)
+    setSeatCountDraft(String(normalized.seatCount))
+    setRows(normalized.rows)
+    setHasAisle(normalized.hasAisle)
+    setLayoutConfigJson(nextJson)
+    if (!parseLayoutConfig(nextJson).ok) return
     await onSubmit({
       nameEn,
       nameAr,
       descriptionEn,
       descriptionAr,
-      layoutConfigJson,
+      layoutConfigJson: nextJson,
       isActive,
       images,
     })
@@ -291,20 +295,9 @@ export function VehicleModelForm({
               type="number"
               min={1}
               step={1}
-              value={Number.isFinite(seatCount) ? seatCount : ''}
-              onChange={(e) => {
-                const nextSeatCount = Number(e.target.value)
-                applyLayoutOptions({
-                  seatCount: nextSeatCount,
-                  rows,
-                  hasAisle,
-                })
-              }}
-              error={
-                layoutOptionsError === 'seatCount' || layoutOptionsError === 'notDivisible'
-                  ? layoutOptionsErrorMessage() ?? undefined
-                  : undefined
-              }
+              value={seatCountDraft}
+              onChange={(e) => setSeatCountDraft(e.target.value)}
+              onBlur={commitSeatCountDraft}
               required
             />
             <Input
@@ -314,28 +307,19 @@ export function VehicleModelForm({
               min={1}
               max={30}
               step={1}
-              value={Number.isFinite(rows) ? rows : ''}
+              value={rows}
               onChange={(e) => {
                 const nextRows = Number(e.target.value)
-                const seatsPerCurrentRow =
-                  Number.isInteger(rows) && rows > 0 && seatCount % rows === 0
-                    ? seatCount / rows
-                    : Math.max(1, Math.round(seatCount / Math.max(rows, 1)))
-                const nextSeatCount =
-                  Number.isInteger(nextRows) && nextRows > 0
-                    ? seatsPerCurrentRow * nextRows
-                    : seatCount
+                const seatsPerCurrentRow = Math.max(
+                  1,
+                  Math.round(seatCount / Math.max(rows, 1)),
+                )
                 applyLayoutOptions({
-                  seatCount: nextSeatCount,
+                  seatCount: seatsPerCurrentRow * (Number.isFinite(nextRows) ? nextRows : rows),
                   rows: nextRows,
                   hasAisle,
                 })
               }}
-              error={
-                layoutOptionsError === 'rows' || layoutOptionsError === 'columns'
-                  ? layoutOptionsErrorMessage() ?? undefined
-                  : undefined
-              }
               required
             />
             <div className="flex flex-col gap-1.5">
@@ -363,15 +347,9 @@ export function VehicleModelForm({
             </div>
           </div>
 
-          {seatsPerRow != null && !layoutOptionsError ? (
+          {seatsPerRow != null && seatsPerRow > 0 ? (
             <p className="text-xs text-text-muted">
               {t('admin.vehicleModels.form.seatsPerRow', { count: seatsPerRow })}
-            </p>
-          ) : null}
-
-          {layoutOptionsError === 'columns' ? (
-            <p className="text-xs text-red-600" role="alert">
-              {layoutOptionsErrorMessage()}
             </p>
           ) : null}
 

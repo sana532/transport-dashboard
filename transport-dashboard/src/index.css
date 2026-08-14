@@ -246,6 +246,31 @@ code {
   box-shadow: 0 4px 14px rgba(47, 62, 31, 0.45);
 }
 
+.leaflet-div-icon.trip-rest-stop-leaflet-icon {
+  background: transparent !important;
+  border: none !important;
+}
+
+.trip-rest-stop-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+}
+
+.trip-rest-stop-marker__pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: #b45309;
+  box-shadow: 0 3px 10px rgba(180, 83, 9, 0.4);
+  border: 2px solid #fff;
+}
+
 /* Login page — light entrance motion */
 @keyframes login-fade-up {
   from {

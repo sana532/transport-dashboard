@@ -2,6 +2,7 @@ import L from 'leaflet'
 import { cn } from '@/shared/utils/cn'
 
 export const BUS_BRAND_GREEN = '#2F3E1F'
+export const BUS_BRAND_GREY = '#6B7280'
 export const BUS_MARKER_BADGE_SIZE = 44
 
 /** Side-view minibus outline — matches the mobile app control icon. */
@@ -35,7 +36,9 @@ function busGlyphSvgMarkup(strokeColor: string): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="${strokeColor}" stroke-width="${BUS_STROKE}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${BUS_BODY_PATH}"/><path d="${BUS_FLOOR_PATH}"/>${windows}${wheels}</svg>`
 }
 
-const busMarkerBadgeHtml = `<div class="trip-bus-marker-badge">${busGlyphSvgMarkup('#ffffff')}</div>`
+function busMarkerBadgeHtml(backgroundColor: string): string {
+  return `<div class="trip-bus-marker-badge" style="background:${backgroundColor}">${busGlyphSvgMarkup('#ffffff')}</div>`
+}
 
 export function BusMapGlyph({ className }: { className?: string }) {
   return (
@@ -77,10 +80,11 @@ export function BusMapBadge({ className }: { className?: string }) {
   )
 }
 
-export function createBusLeafletIcon(): L.DivIcon {
+export function createBusLeafletIcon(options?: { muted?: boolean }): L.DivIcon {
+  const background = options?.muted ? BUS_BRAND_GREY : BUS_BRAND_GREEN
   return L.divIcon({
     className: 'trip-bus-leaflet-icon',
-    html: busMarkerBadgeHtml,
+    html: busMarkerBadgeHtml(background),
     iconSize: [BUS_MARKER_BADGE_SIZE, BUS_MARKER_BADGE_SIZE],
     iconAnchor: [BUS_MARKER_BADGE_SIZE / 2, BUS_MARKER_BADGE_SIZE / 2],
   })

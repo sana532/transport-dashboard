@@ -350,12 +350,6 @@ export const messages: Record<AppLocale, Record<string, string>> = {
     'admin.vehicleModels.form.hasAisle': 'Aisle',
     'admin.vehicleModels.form.hasAisleLabel': 'Include a center aisle',
     'admin.vehicleModels.form.seatsPerRow': 'Seats per row: {{count}}',
-    'admin.vehicleModels.form.seatCountNotDivisible':
-      'Seat count must divide evenly by the number of rows.',
-    'admin.vehicleModels.form.seatCountInvalid': 'Enter a valid seat count (1 or more).',
-    'admin.vehicleModels.form.rowsInvalid': 'Rows must be between 1 and 30.',
-    'admin.vehicleModels.form.columnsInvalid':
-      'Too many seats per row for this layout (max 20 columns including aisle).',
     'admin.vehicleModels.form.advancedJson': 'Advanced: edit layout JSON',
     'admin.vehicleModels.form.advancedJsonHint':
       'Optional. Prefer the fields above — editing JSON is only for custom layouts.',
@@ -1283,12 +1277,16 @@ export const messages: Record<AppLocale, Record<string, string>> = {
     'tripTracking.savedLocationHint':
       'Showing the last saved position from the server. Live updates will appear once the WebSocket connection succeeds.',
     'tripTracking.estimatedHint':
-      'No GPS update for over 2 minutes. Showing an estimated position based on the last known speed and direction.',
+      'No GPS update for over 45 seconds. Showing an estimated position along the route from the last known speed.',
     'tripTracking.frozenHint':
-      'No GPS update for over 2 minutes. The bus appears stopped, so the last known position is frozen.',
+      'No GPS update for over 45 seconds. The bus appears stopped, so the last known position is frozen.',
     'tripTracking.freshness.live': 'GPS live',
     'tripTracking.freshness.estimated': 'Estimated',
     'tripTracking.freshness.stale_frozen': 'Last known',
+    'tripTracking.fullscreen': 'Fullscreen map',
+    'tripTracking.exitFullscreen': 'Exit fullscreen',
+    'tripTracking.centerOnBus': 'Center on bus',
+    'tripTracking.restStopTitle': 'Rest stop: {{name}} ({{minutes}} min)',
     'tripTracking.connection.idle': 'Idle',
     'tripTracking.connection.connecting': 'Connecting…',
     'tripTracking.connection.connected': 'Live',
@@ -1647,12 +1645,6 @@ export const messages: Record<AppLocale, Record<string, string>> = {
     'admin.vehicleModels.form.hasAisle': 'الممر',
     'admin.vehicleModels.form.hasAisleLabel': 'تضمين ممر في الوسط',
     'admin.vehicleModels.form.seatsPerRow': 'المقاعد في الصف: {{count}}',
-    'admin.vehicleModels.form.seatCountNotDivisible':
-      'يجب أن يقبل عدد المقاعد القسمة على عدد الصفوف بدون باقٍ.',
-    'admin.vehicleModels.form.seatCountInvalid': 'أدخل عدد مقاعد صالحاً (1 أو أكثر).',
-    'admin.vehicleModels.form.rowsInvalid': 'عدد الصفوف يجب أن يكون بين 1 و 30.',
-    'admin.vehicleModels.form.columnsInvalid':
-      'عدد المقاعد في الصف كبير جداً لهذا المخطط (الحد الأقصى 20 عموداً مع الممر).',
     'admin.vehicleModels.form.advancedJson': 'متقدم: تعديل JSON للمخطط',
     'admin.vehicleModels.form.advancedJsonHint':
       'اختياري. يُفضّل استخدام الحقول أعلاه — تعديل JSON للمخططات المخصصة فقط.',
@@ -2582,12 +2574,16 @@ export const messages: Record<AppLocale, Record<string, string>> = {
     'tripTracking.savedLocationHint':
       'عم نعرض آخر موقع محفوظ من السيرفر. التحديث المباشر رح يظهر لما ينجح اتصال WebSocket.',
     'tripTracking.estimatedHint':
-      'ما وصل تحديث GPS من أكثر من دقيقتين. عم نعرض موقع تقديري حسب آخر سرعة واتجاه معروفين.',
+      'ما وصل تحديث GPS من أكثر من 45 ثانية. عم نعرض موقع تقديري على مسار الرحلة حسب آخر سرعة معروفة.',
     'tripTracking.frozenHint':
-      'ما وصل تحديث GPS من أكثر من دقيقتين. يبدو إن الباص واقف، لذلك ثبتنا آخر موقع معروف.',
+      'ما وصل تحديث GPS من أكثر من 45 ثانية. يبدو إن الباص واقف، لذلك ثبتنا آخر موقع معروف.',
     'tripTracking.freshness.live': 'GPS مباشر',
     'tripTracking.freshness.estimated': 'تقديري',
     'tripTracking.freshness.stale_frozen': 'آخر موقع',
+    'tripTracking.fullscreen': 'عرض الخريطة بملء الشاشة',
+    'tripTracking.exitFullscreen': 'الخروج من ملء الشاشة',
+    'tripTracking.centerOnBus': 'توسيط الخريطة على الباص',
+    'tripTracking.restStopTitle': 'استراحة: {{name}} ({{minutes}} د)',
     'tripTracking.connection.idle': 'خامل',
     'tripTracking.connection.connecting': 'جاري الاتصال…',
     'tripTracking.connection.connected': 'مباشر',

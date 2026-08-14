@@ -52,7 +52,9 @@ export function normalizeRouteRestAreaStop(
 
   if (!Number.isFinite(id)) return null
 
-  const rest_area = nested ? normalizeRestArea(nested) : null
+  const rest_area = nested
+    ? normalizeRestArea(nested)
+    : normalizeRestArea(record)
 
   return {
     id,

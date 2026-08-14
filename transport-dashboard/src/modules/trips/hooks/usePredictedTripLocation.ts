@@ -13,16 +13,13 @@ import {
 import type { Feature, LineString } from 'geojson'
 
 /** No real GPS update for this long → start estimation / freeze. */
-export const STALE_AFTER_MS = 120_000
+export const STALE_AFTER_MS = 45_000
 
 const ESTIMATE_TICK_MS = 1_000
 
 export type UsePredictedTripLocationOptions = {
   staleAfterMs?: number
-  /**
-   * Phase C: optional route geometry. Forwarded to `estimateNextPosition`
-   * so along-route prediction can plug in without changing this hook's API.
-   */
+  /** Planned route — enables along-route prediction while GPS is silent. */
   routeLine?: Feature<LineString> | null
 }
 
@@ -41,12 +38,12 @@ function toDisplay(
 
 function locationKey(location: TripLocationUpdate | null): string | null {
   if (!location) return null
-  return `${location.trip_id}:${location.lat}:${location.lng}:${location.timestamp}`
+  return `${location.trip_id}:${location.lat}:${location.lng}:${location.timestamp}:${location.speed ?? ''}:${location.heading ?? ''}`
 }
 
 /**
  * Wraps a real GPS location (live WS or REST fallback) with stale detection
- * and Phase B dead-reckoning while GPS is silent.
+ * and along-route / free dead-reckoning while GPS is silent.
  */
 export function usePredictedTripLocation(
   realLocation: TripLocationUpdate | null,
@@ -170,8 +167,9 @@ export function usePredictedTripLocation(
           trip_id: realLocation.trip_id,
           lat: estimatedCoords.lat,
           lng: estimatedCoords.lng,
-          // Keep last real GPS time so "last update" stays honest.
           timestamp: realLocation.timestamp,
+          speed: realLocation.speed,
+          heading: realLocation.heading,
         },
         locationMode === 'estimated' ? 'estimated' : 'gps',
       )

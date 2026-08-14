@@ -1,4 +1,4 @@
-import type { CityRef } from '@/modules/geography/types'
+import type { CityRef, RouteRestAreaStop } from '@/modules/geography/types'
 
 export type CompanyTripStatus = 'scheduled' | 'active' | 'completed' | 'cancelled'
 
@@ -12,7 +12,11 @@ export type TripRouteRef = {
   name: string
   name_en?: string
   name_ar?: string
-  rest_areas?: unknown[]
+  /** Google encoded polyline for the planned route path. */
+  route_polyline?: string | null
+  route_distance_meters?: number | null
+  route_duration_seconds?: number | null
+  rest_areas?: RouteRestAreaStop[]
 }
 
 export type TripVehicleRef = {
@@ -91,6 +95,10 @@ export type CompanyTrip = {
   stats?: TripSeatStats | null
   current_location?: TripCurrentLocation | null
   last_location_updated_at?: string | null
+  /** Last known speed from driver ping (m/s). */
+  last_speed?: number | null
+  /** Last known heading from driver ping (degrees). */
+  last_heading?: number | null
   created_at?: string
   updated_at?: string
 }

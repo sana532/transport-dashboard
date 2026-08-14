@@ -7,46 +7,32 @@ export type LayoutFormOptions = {
   hasAisle: boolean
 }
 
-export type LayoutFormOptionsError =
-  | 'rows'
-  | 'seatCount'
-  | 'notDivisible'
-  | 'columns'
+function clampInt(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) return min
+  return Math.min(max, Math.max(min, Math.round(value)))
+}
 
-export function validateLayoutFormOptions(
+/** Builds a uniform grid: total seats = rows × seats-per-row. */
+export function normalizeLayoutFormOptions(
   options: LayoutFormOptions,
-): LayoutFormOptionsError | null {
-  const { seatCount, rows, hasAisle } = options
+): LayoutFormOptions {
+  const rows = clampInt(options.rows, 1, 30)
+  const maxSeatsPerRow = options.hasAisle ? 19 : 20
+  const rawSeatsPerRow =
+    rows > 0 && Number.isFinite(options.seatCount)
+      ? Math.round(options.seatCount / rows)
+      : 1
+  const seatsPerRow = clampInt(rawSeatsPerRow, 1, maxSeatsPerRow)
 
-  if (!Number.isInteger(rows) || rows < 1 || rows > 30) {
-    return 'rows'
+  return {
+    seatCount: seatsPerRow * rows,
+    rows,
+    hasAisle: options.hasAisle,
   }
-  if (!Number.isInteger(seatCount) || seatCount < 1) {
-    return 'seatCount'
-  }
-  if (seatCount % rows !== 0) {
-    return 'notDivisible'
-  }
-
-  const seatsPerRow = seatCount / rows
-  const columns = hasAisle ? seatsPerRow + 1 : seatsPerRow
-  if (!Number.isInteger(columns) || columns < 1 || columns > 20) {
-    return 'columns'
-  }
-  if (hasAisle && seatsPerRow < 1) {
-    return 'seatCount'
-  }
-
-  return null
 }
 
 export function buildLayoutConfigJson(options: LayoutFormOptions): string {
-  const error = validateLayoutFormOptions(options)
-  if (error) {
-    throw new Error(`Invalid layout options: ${error}`)
-  }
-
-  const { seatCount, rows, hasAisle } = options
+  const { seatCount, rows, hasAisle } = normalizeLayoutFormOptions(options)
   const seatsPerRow = seatCount / rows
   const columns = hasAisle ? seatsPerRow + 1 : seatsPerRow
   const left = Math.floor(seatsPerRow / 2)

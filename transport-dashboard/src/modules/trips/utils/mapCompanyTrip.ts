@@ -1,4 +1,5 @@
 import { pickRouteNameFields } from '@/modules/routes/utils/routeDisplay'
+import { parseRestAreasFromRecord } from '@/modules/routes/utils/routeRestAreas'
 import { formatRouteLabel } from '@/modules/trips/utils/formatRouteLabel'
 import { formatScheduleDateTime } from '@/shared/utils/formatDateTime'
 import type {
@@ -165,12 +166,42 @@ export function normalizeCompanyTrip(raw: unknown): CompanyTrip | null {
     const routeId = typeof r.id === 'number' ? r.id : Number(r.id)
     const { name_en, name_ar, name } = pickRouteNameFields(r)
     if (Number.isFinite(routeId) && (name_en || name)) {
+      const polylineRaw = r.route_polyline ?? r.polyline ?? r.encoded_polyline
+      const distanceRaw = r.route_distance_meters ?? r.distance_meters
+      const durationRaw = r.route_duration_seconds ?? r.duration_seconds
+
+      const route_polyline =
+        typeof polylineRaw === 'string' && polylineRaw.trim()
+          ? polylineRaw.trim()
+          : null
+      const route_distance_meters =
+        typeof distanceRaw === 'number'
+          ? distanceRaw
+          : typeof distanceRaw === 'string'
+            ? Number(distanceRaw)
+            : null
+      const route_duration_seconds =
+        typeof durationRaw === 'number'
+          ? durationRaw
+          : typeof durationRaw === 'string'
+            ? Number(durationRaw)
+            : null
+
       route = {
         id: routeId,
         name: name || name_en,
         name_en: name_en || name,
         name_ar,
-        rest_areas: Array.isArray(r.rest_areas) ? r.rest_areas : [],
+        route_polyline,
+        route_distance_meters:
+          route_distance_meters != null && Number.isFinite(route_distance_meters)
+            ? route_distance_meters
+            : null,
+        route_duration_seconds:
+          route_duration_seconds != null && Number.isFinite(route_duration_seconds)
+            ? route_duration_seconds
+            : null,
+        rest_areas: parseRestAreasFromRecord(r) ?? [],
       }
     }
   }
@@ -237,6 +268,18 @@ export function normalizeCompanyTrip(raw: unknown): CompanyTrip | null {
       typeof record.last_location_updated_at === 'string'
         ? record.last_location_updated_at
         : null,
+    last_speed: (() => {
+      const raw = record.last_speed
+      const value =
+        typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : null
+      return value != null && Number.isFinite(value) ? value : null
+    })(),
+    last_heading: (() => {
+      const raw = record.last_heading
+      const value =
+        typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : null
+      return value != null && Number.isFinite(value) ? value : null
+    })(),
     created_at: typeof record.created_at === 'string' ? record.created_at : undefined,
     updated_at: typeof record.updated_at === 'string' ? record.updated_at : undefined,
   }

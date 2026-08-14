@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { ArrowLeft, MapPin, Radio, Wifi, WifiOff } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
+import { useRestAreas } from '@/modules/geography/hooks/useRestAreas'
 import { TripTrackingMap } from '@/modules/trips/components/TripTrackingMap'
 import { usePredictedTripLocation } from '@/modules/trips/hooks/usePredictedTripLocation'
 import { useTripDetails } from '@/modules/trips/hooks/useTripDetails'
@@ -9,7 +10,12 @@ import type {
   TripLocationMode,
   TripLocationUpdate,
 } from '@/modules/trips/types/tripTracking'
+import {
+  decodeRoutePolyline,
+  routePolylineToLineString,
+} from '@/modules/trips/utils/decodeRoutePolyline'
 import { formatTripRouteLabel } from '@/modules/trips/utils/mapCompanyTrip'
+import { resolveTripMapRestStops } from '@/modules/trips/utils/resolveTripMapRestStops'
 import { paths } from '@/routes/paths'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/Card'
@@ -49,12 +55,16 @@ function buildInitialLocation(
   latitude: number,
   longitude: number,
   timestamp?: string | null,
+  speed?: number | null,
+  heading?: number | null,
 ): TripLocationUpdate {
   return {
     trip_id: tripId,
     lat: latitude,
     lng: longitude,
     timestamp: timestamp ?? new Date().toISOString(),
+    speed: speed ?? null,
+    heading: heading ?? null,
   }
 }
 
@@ -64,9 +74,30 @@ export function TripTrackingPage() {
   const { trip, isLoading, error: tripError } = useTripDetails(tripId)
   const { location: liveLocation, connectionStatus, error: trackingError } =
     useTripLocationTracking(tripId)
+  const { restAreas: restAreasCatalog } = useRestAreas()
 
   const dateLocale = locale === 'ar' ? 'ar-SY' : 'en-US'
   const routeLabel = trip ? formatTripRouteLabel(trip, locale) : '—'
+
+  const routePositions = useMemo(
+    () => decodeRoutePolyline(trip?.route?.route_polyline),
+    [trip?.route?.route_polyline],
+  )
+
+  const routeLine = useMemo(
+    () => routePolylineToLineString(trip?.route?.route_polyline),
+    [trip?.route?.route_polyline],
+  )
+
+  const restStops = useMemo(
+    () =>
+      resolveTripMapRestStops({
+        routeStops: trip?.route?.rest_areas,
+        catalog: restAreasCatalog,
+        routeLine,
+      }),
+    [trip?.route?.rest_areas, restAreasCatalog, routeLine],
+  )
 
   const savedLocation = useMemo(() => {
     if (!trip?.current_location) return null
@@ -75,12 +106,16 @@ export function TripTrackingPage() {
       trip.current_location.latitude,
       trip.current_location.longitude,
       trip.last_location_updated_at ?? trip.updated_at,
+      trip.last_speed,
+      trip.last_heading,
     )
   }, [trip])
 
   const realLocation = liveLocation ?? savedLocation
-  const { displayLocation, locationMode, lastRealLocation } =
-    usePredictedTripLocation(realLocation)
+  const { displayLocation, locationMode, lastRealLocation } = usePredictedTripLocation(
+    realLocation,
+    { routeLine },
+  )
 
   const isLiveGps = locationMode === 'live' && liveLocation != null
   const isEstimated = locationMode === 'estimated'
@@ -92,6 +127,11 @@ export function TripTrackingPage() {
           dateStyle: 'medium',
           timeStyle: 'medium',
         })
+      : null
+
+  const fallbackCenter =
+    routePositions.length > 0
+      ? (routePositions[Math.floor(routePositions.length / 2)] as [number, number])
       : null
 
   return (
@@ -158,6 +198,9 @@ export function TripTrackingPage() {
               <TripTrackingMap
                 location={displayLocation}
                 isEstimated={isEstimated || isFrozen}
+                routePositions={routePositions}
+                restStops={restStops}
+                fallbackCenter={fallbackCenter}
               />
               <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-text-muted">
                 <p>
@@ -182,7 +225,10 @@ export function TripTrackingPage() {
               {isFrozen ? (
                 <p className="text-xs text-amber-800">{t('tripTracking.frozenHint')}</p>
               ) : null}
-              {!liveLocation && savedLocation && connectionStatus !== 'connected' && locationMode === 'live' ? (
+              {!liveLocation &&
+              savedLocation &&
+              connectionStatus !== 'connected' &&
+              locationMode === 'live' ? (
                 <p className="text-xs text-amber-800">{t('tripTracking.savedLocationHint')}</p>
               ) : null}
             </>

@@ -3,6 +3,10 @@ export type TripLocationUpdate = {
   lat: number
   lng: number
   timestamp: string
+  /** Speed in m/s when provided by backend ping / trip payload. */
+  speed?: number | null
+  /** Heading in degrees when provided by backend ping / trip payload. */
+  heading?: number | null
 }
 
 /** GPS freshness for the map marker (independent of WebSocket connection status). */
@@ -111,7 +115,30 @@ export function parseTripLocationPayload(
     return null
   }
 
-  return { trip_id, lat, lng, timestamp }
+  const speedRaw = nested.speed ?? nested.last_speed
+  const headingRaw = nested.heading ?? nested.last_heading ?? nested.bearing
+
+  const speed =
+    typeof speedRaw === 'number'
+      ? speedRaw
+      : typeof speedRaw === 'string'
+        ? Number(speedRaw)
+        : null
+  const heading =
+    typeof headingRaw === 'number'
+      ? headingRaw
+      : typeof headingRaw === 'string'
+        ? Number(headingRaw)
+        : null
+
+  return {
+    trip_id,
+    lat,
+    lng,
+    timestamp,
+    speed: speed != null && Number.isFinite(speed) ? speed : null,
+    heading: heading != null && Number.isFinite(heading) ? heading : null,
+  }
 }
 
 export type PusherConnectionErrorInfo = {
