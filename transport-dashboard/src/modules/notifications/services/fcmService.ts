@@ -22,7 +22,7 @@ export async function isFcmSupported(): Promise<boolean> {
 
 const SW_PATH = '/firebase-messaging-sw.js'
 /** Bump when SW behavior changes so stale workers are unregistered once. */
-const SW_BUILD = '5'
+const SW_BUILD = '6'
 const SW_BUILD_STORAGE_KEY = 'fcm_sw_build_v'
 
 async function ensureServiceWorker(): Promise<ServiceWorkerRegistration | null> {

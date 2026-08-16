@@ -1,5 +1,5 @@
 /* eslint-disable no-undef */
-/* notification-sw-version: 5 — never call showNotification (FCM shows once) */
+/* notification-sw-version: 6 — NEVER showNotification; one FCM toast only */
 importScripts('https://www.gstatic.com/firebasejs/11.8.1/firebase-app-compat.js')
 importScripts('https://www.gstatic.com/firebasejs/11.8.1/firebase-messaging-compat.js')
 
@@ -36,13 +36,11 @@ function resolveNotificationPath(referenceType, referenceId, directUrl) {
 }
 
 /**
- * Do NOT call showNotification here.
- * The browser already displays FCM `notification` payloads once.
- * Calling showNotification again was causing 2 system toasts.
+ * IMPORTANT: never call registration.showNotification().
+ * FCM `notification` payloads are already shown by the browser.
+ * Calling showNotification again = second toast (often with our logo).
  */
-messaging.onBackgroundMessage(() => {
-  // no-op
-})
+messaging.onBackgroundMessage(() => undefined)
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
