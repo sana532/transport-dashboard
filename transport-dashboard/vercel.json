@@ -8,5 +8,5 @@
       ]
     }
   ],
-  "rewrites": [{ "source": "/((?!firebase-messaging-sw\\.js).*)", "destination": "/index.html" }]
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }
