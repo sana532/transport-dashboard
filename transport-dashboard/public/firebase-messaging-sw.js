@@ -59,7 +59,8 @@ messaging.onBackgroundMessage((payload) => {
 
   return self.registration.showNotification(title, {
     body,
-    icon: '/favicon.svg',
+    icon: '/notification-logo.png',
+    badge: '/notification-logo.png',
     data,
     tag: readString(data.id) || readString(data.notification_id) || undefined,
   })

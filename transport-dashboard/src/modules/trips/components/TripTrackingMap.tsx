@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Maximize2, Minimize2 } from 'lucide-react'
-import { MapContainer, Marker, Polyline, TileLayer, useMap } from 'react-leaflet'
+import { MapContainer, Marker, Popup, Polyline, TileLayer, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import type { TripLocationUpdate } from '@/modules/trips/types/tripTracking'
 import {
@@ -399,15 +399,18 @@ export const TripTrackingMap = memo(function TripTrackingMap({
             key={`rest-${stop.id}`}
             position={[stop.lat, stop.lng]}
             icon={restStopIcons.get(stop.id) ?? createRestStopLeafletIcon(stop.name)}
-            title={
-              stop.durationMinutes != null
-                ? t('tripTracking.restStopTitle', {
-                    name: stop.name,
-                    minutes: stop.durationMinutes,
-                  })
-                : stop.name
-            }
-          />
+          >
+            <Popup>
+              <div className="min-w-[10rem] space-y-1 text-start" dir="auto">
+                <p className="text-sm font-semibold text-text-primary">{stop.name}</p>
+                {stop.durationMinutes != null ? (
+                  <p className="text-xs text-text-muted">
+                    {t('tripTracking.restStopDuration', { minutes: stop.durationMinutes })}
+                  </p>
+                ) : null}
+              </div>
+            </Popup>
+          </Marker>
         ))}
 
         {hasLocation ? (

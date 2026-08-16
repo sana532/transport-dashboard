@@ -4,6 +4,7 @@ import type { CompanyTripStatus } from '@/modules/trips/types/companyTrip'
 export function normalizeTripStatusFromApi(raw: unknown): CompanyTripStatus {
   const key = typeof raw === 'string' ? raw.toLowerCase() : ''
   if (key === 'in_progress' || key === 'active') return 'active'
+  if (key === 'interrupted') return 'interrupted'
   if (key === 'completed' || key === 'cancelled' || key === 'scheduled') return key
   return 'scheduled'
 }

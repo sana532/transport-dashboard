@@ -1,5 +1,6 @@
 import type { TripsManagementData, TripsRecentRow } from '@/modules/trips/types'
 import type { CompanyTrip } from '@/modules/trips/types/companyTrip'
+import type { CompanyTripsListQuery } from '@/modules/trips/types/tripsListQuery'
 import { companyTripsService } from '@/modules/trips/services/companyTripsService'
 import {
   formatTripDateTime,
@@ -80,7 +81,7 @@ function toManagementPayload(
 export const tripsManagementService = {
   async getTripsManagementPage(
     locale: string,
-    options?: { page?: number; perPage?: number },
+    options?: CompanyTripsListQuery,
   ): Promise<
     Omit<TripsManagementData, 'stats'> & {
       trips: CompanyTrip[]
@@ -106,8 +107,9 @@ export const tripsManagementService = {
   /** Full list for archive / legacy consumers. Prefer `getTripsManagementPage`. */
   async getTripsManagementData(
     locale: string,
+    filters?: Omit<CompanyTripsListQuery, 'page' | 'perPage'>,
   ): Promise<Omit<TripsManagementData, 'stats'> & { trips: CompanyTrip[] }> {
-    const rows = await companyTripsService.listTrips()
+    const rows = await companyTripsService.listTrips(filters)
     const trips = await enrichTrips(rows)
     return toManagementPayload(trips, locale)
   },

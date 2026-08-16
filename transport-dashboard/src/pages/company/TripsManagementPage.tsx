@@ -10,6 +10,7 @@ import {
   Navigation,
   Pencil,
   Plus,
+  Search,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { paths } from '@/routes/paths'
@@ -21,18 +22,18 @@ import { Input } from '@/shared/ui/Input'
 import type { TripsRecentRow, TripsStatVariant } from '@/modules/trips/types'
 import { CancelTripDialog } from '@/modules/trips/components/CancelTripDialog'
 import { useTripsManagement } from '@/modules/trips/hooks/useTripsManagement'
-import type { CompanyRoute } from '@/modules/routes/types'
-import { routesService } from '@/modules/routes/services/routesService'
-import { routeDisplayName } from '@/modules/routes/utils/routeDisplay'
+import { useCompanyLookups } from '@/modules/lookups/hooks/useCompanyLookups'
 import {
+  applyLocalTripFilters,
   defaultTripListFilters,
-  filterTrips,
   hasActiveTripFilters,
+  tripListFiltersToQuery,
   type TripListFilters,
 } from '@/modules/trips/utils/filterTrips'
 import { mapTripToRecentRow } from '@/modules/trips/services/tripsManagementService'
 import { CountUp } from '@/shared/ui/CountUp'
 import type { TripStatFilterId } from '@/modules/trips/utils/buildTripsStats'
+import { isArchivedTrip } from '@/modules/trips/utils/tripStatus'
 import { isScheduledTripOverdue } from '@/modules/trips/utils/tripTiming'
 
 const selectClass =
@@ -63,6 +64,7 @@ function statusBadgeClass(status: TripsRecentRow['status']): string {
   if (status === 'completed') return 'bg-green-100 text-green-700'
   if (status === 'cancelled') return 'bg-red-100 text-red-700'
   if (status === 'active') return 'bg-blue-100 text-blue-700'
+  if (status === 'interrupted') return 'bg-orange-100 text-orange-800'
   return 'bg-amber-100 text-amber-800'
 }
 
@@ -118,14 +120,61 @@ export function TripsManagementPage() {
   const { t, locale } = useTranslation()
   const navigate = useNavigate()
   const [page, setPage] = useState(1)
-  const { data, isLoading, isFetching, error, reload } = useTripsManagement({ page })
   const [filters, setFilters] = useState<TripListFilters>(defaultTripListFilters)
-  const [routes, setRoutes] = useState<CompanyRoute[]>([])
+  const [searchInput, setSearchInput] = useState('')
   const [statFilter, setStatFilter] = useState<TripStatFilterId>('all')
   const [cancelTripId, setCancelTripId] = useState<number | null>(null)
   const [cancelTripLabel, setCancelTripLabel] = useState<string>('')
   const [showOverdueOnly, setShowOverdueOnly] = useState(false)
   const [nowMs, setNowMs] = useState(() => Date.now())
+
+  const { data: lookups } = useCompanyLookups({
+    routes: true,
+    drivers: true,
+    cities: true,
+    stations: true,
+  })
+
+  const serverFilters = useMemo(() => {
+    const base = tripListFiltersToQuery(filters)
+    if (showOverdueOnly) {
+      return { ...base, resolutionStatus: 'pending_review' as const }
+    }
+    if (
+      (statFilter === 'scheduled' || statFilter === 'active') &&
+      filters.status === 'all'
+    ) {
+      return { ...base, status: statFilter }
+    }
+    return base
+  }, [filters, showOverdueOnly, statFilter])
+
+  const serverFiltersKey = useMemo(() => JSON.stringify(serverFilters), [serverFilters])
+
+  useEffect(() => {
+    setPage(1)
+  }, [serverFiltersKey])
+
+  const { data, isLoading, isFetching, error, reload } = useTripsManagement({
+    page,
+    filters: serverFilters,
+  })
+
+  const originStations = useMemo(() => {
+    if (filters.originCityId === 'all') return lookups.stations
+    const cityId = Number(filters.originCityId)
+    return lookups.stations.filter(
+      (station) => station.city_id == null || station.city_id === cityId,
+    )
+  }, [lookups.stations, filters.originCityId])
+
+  const destinationStations = useMemo(() => {
+    if (filters.destinationCityId === 'all') return lookups.stations
+    const cityId = Number(filters.destinationCityId)
+    return lookups.stations.filter(
+      (station) => station.city_id == null || station.city_id === cityId,
+    )
+  }, [lookups.stations, filters.destinationCityId])
 
   const pagination = data?.pagination
   const visiblePages = useMemo(() => {
@@ -143,19 +192,18 @@ export function TripsManagementPage() {
   }, [page, pagination])
 
   useEffect(() => {
-    void routesService
-      .listRoutes()
-      .then(setRoutes)
-      .catch(() => setRoutes([]))
-  }, [])
-
-  useEffect(() => {
     const intervalId = window.setInterval(() => setNowMs(Date.now()), 60_000)
     return () => window.clearInterval(intervalId)
   }, [])
 
   const overdueTrips = useMemo(
-    () => data?.trips.filter((trip) => isScheduledTripOverdue(trip, nowMs)) ?? [],
+    () =>
+      data?.trips.filter(
+        (trip) =>
+          trip.resolution_status === 'pending_review' ||
+          trip.flagged === true ||
+          isScheduledTripOverdue(trip, nowMs),
+      ) ?? [],
     [data, nowMs],
   )
 
@@ -166,18 +214,9 @@ export function TripsManagementPage() {
 
   const activeTrips = useMemo(() => {
     if (!data) return []
-    const operational = data.trips.filter(
-      (trip) => trip.status !== 'completed' && trip.status !== 'cancelled',
-    )
-    const statusScoped =
-      statFilter === 'scheduled' || statFilter === 'active'
-        ? operational.filter((trip) => trip.status === statFilter)
-        : operational
-    const timingScoped = showOverdueOnly
-      ? statusScoped.filter((trip) => overdueTripIds.has(trip.id))
-      : statusScoped
-    return filterTrips(timingScoped, filters)
-  }, [data, filters, overdueTripIds, showOverdueOnly, statFilter])
+    const operational = data.trips.filter((trip) => !isArchivedTrip(trip.status))
+    return applyLocalTripFilters(operational, filters)
+  }, [data, filters])
 
   const tableRows = useMemo(
     () => activeTrips.map((trip) => mapTripToRecentRow(trip, locale === 'ar' ? 'ar-SY' : 'en-US')),
@@ -189,9 +228,18 @@ export function TripsManagementPage() {
 
   const handleResetFilters = () => {
     setFilters(defaultTripListFilters)
+    setSearchInput('')
     setStatFilter('all')
     setShowOverdueOnly(false)
     setPage(1)
+  }
+
+  const patchFilters = (patch: Partial<TripListFilters>) => {
+    setFilters((prev) => ({ ...prev, ...patch }))
+  }
+
+  const applySearch = () => {
+    patchFilters({ search: searchInput.trim() })
   }
 
   const handleStatClick = (filterId: TripStatFilterId) => {
@@ -199,9 +247,10 @@ export function TripsManagementPage() {
       navigate(paths.company.tripArchive)
       return
     }
+    setShowOverdueOnly(false)
     setStatFilter((prev) => (prev === filterId ? 'all' : filterId))
     if (filterId === 'scheduled' || filterId === 'active') {
-      setFilters((prev) => ({ ...prev, status: 'all' }))
+      setFilters((prev) => ({ ...prev, status: 'all', resolutionStatus: 'all' }))
     }
     setPage(1)
   }
@@ -219,7 +268,11 @@ export function TripsManagementPage() {
   const toggleOverdueFilter = () => {
     setShowOverdueOnly((current) => !current)
     setStatFilter('all')
-    setFilters((current) => ({ ...current, status: 'all' }))
+    setFilters((current) => ({
+      ...current,
+      status: 'all',
+      resolutionStatus: 'all',
+    }))
   }
 
   if (error && !data) {
@@ -389,21 +442,39 @@ export function TripsManagementPage() {
 
       <Card className={tripsSurfaceCardClass}>
         <CardContent className="space-y-4 p-4">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
-            <div className="min-w-0 flex-1">
+          <div className="flex flex-col gap-3">
+            <div className="min-w-0">
               <label htmlFor="trip-search" className="mb-1.5 block text-sm font-medium text-text-secondary">
                 {t('trips.searchLabel')}
               </label>
-              <Input
-                id="trip-search"
-                name="trip-search"
-                placeholder={t('trips.searchPlaceholder')}
-                aria-label={t('trips.searchLabel')}
-                value={filters.search}
-                onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
-              />
+              <div className="relative">
+                <Input
+                  id="trip-search"
+                  name="trip-search"
+                  placeholder={t('trips.searchPlaceholder')}
+                  aria-label={t('trips.searchLabel')}
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      applySearch()
+                    }
+                  }}
+                  className="pe-10"
+                />
+                <button
+                  type="button"
+                  onClick={applySearch}
+                  className="absolute inset-y-0 end-0 z-10 flex items-center px-3 text-text-muted transition-colors hover:text-brand-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
+                  aria-label={t('common.search')}
+                >
+                  <Search className="h-4 w-4" aria-hidden />
+                </button>
+              </div>
             </div>
-            <div className="grid flex-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <div className="flex flex-col gap-1.5">
                 <label htmlFor="trip-route-filter" className="text-sm font-medium text-text-secondary">
                   {t('trips.route')}
@@ -412,55 +483,144 @@ export function TripsManagementPage() {
                   id="trip-route-filter"
                   className={selectClass}
                   value={filters.routeId}
-                  onChange={(e) =>
-                    setFilters((prev) => ({
-                      ...prev,
-                      routeId: e.target.value,
-                    }))
-                  }
+                  onChange={(e) => {
+                    const value = e.target.value
+                    if (value === 'all' || /^\d+$/.test(value)) {
+                      patchFilters({ routeId: value })
+                      return
+                    }
+                    const match = lookups.routes.find(
+                      (route) =>
+                        route.name === value ||
+                        route.name_en === value ||
+                        route.name_ar === value,
+                    )
+                    patchFilters({ routeId: match ? String(match.id) : 'all' })
+                  }}
                 >
                   <option value="all">{t('trips.allRoutes')}</option>
-                  {routes.map((route) => (
-                    <option key={route.id} value={route.id}>
-                      {routeDisplayName(route, locale)}
+                  {lookups.routes.map((route) => (
+                    <option key={route.id} value={String(route.id)}>
+                      {locale === 'ar' && route.name_ar ? route.name_ar : route.name}
                     </option>
                   ))}
                 </select>
               </div>
+
               <div className="flex flex-col gap-1.5">
-                <label htmlFor="trip-date-filter" className="text-sm font-medium text-text-secondary">
-                  {t('trips.filterDate')}
+                <label htmlFor="trip-driver-filter" className="text-sm font-medium text-text-secondary">
+                  {t('trips.driver')}
                 </label>
-                <input
-                  id="trip-date-filter"
-                  type="date"
+                <select
+                  id="trip-driver-filter"
                   className={selectClass}
-                  value={filters.departureDate}
-                  onChange={(e) =>
-                    setFilters((prev) => ({
-                      ...prev,
-                      departureDate: e.target.value,
-                    }))
-                  }
-                />
+                  value={filters.driverId}
+                  onChange={(e) => patchFilters({ driverId: e.target.value })}
+                >
+                  <option value="all">{t('trips.allDrivers')}</option>
+                  {lookups.drivers.map((driver) => (
+                    <option key={driver.id} value={String(driver.id)}>
+                      {driver.name}
+                    </option>
+                  ))}
+                </select>
               </div>
+
               <div className="flex flex-col gap-1.5">
-                <label htmlFor="trip-time-filter" className="text-sm font-medium text-text-secondary">
-                  {t('trips.filterTime')}
+                <label htmlFor="trip-origin-city-filter" className="text-sm font-medium text-text-secondary">
+                  {t('trips.originCity')}
                 </label>
-                <input
-                  id="trip-time-filter"
-                  type="time"
+                <select
+                  id="trip-origin-city-filter"
                   className={selectClass}
-                  value={filters.departureTime}
+                  value={filters.originCityId}
                   onChange={(e) =>
-                    setFilters((prev) => ({
-                      ...prev,
-                      departureTime: e.target.value,
-                    }))
+                    patchFilters({
+                      originCityId: e.target.value,
+                      originStationId: 'all',
+                    })
                   }
-                />
+                >
+                  <option value="all">{t('trips.allCities')}</option>
+                  {lookups.cities.map((city) => (
+                    <option key={city.id} value={String(city.id)}>
+                      {city.name}
+                    </option>
+                  ))}
+                </select>
               </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label
+                  htmlFor="trip-destination-city-filter"
+                  className="text-sm font-medium text-text-secondary"
+                >
+                  {t('trips.destinationCity')}
+                </label>
+                <select
+                  id="trip-destination-city-filter"
+                  className={selectClass}
+                  value={filters.destinationCityId}
+                  onChange={(e) =>
+                    patchFilters({
+                      destinationCityId: e.target.value,
+                      destinationStationId: 'all',
+                    })
+                  }
+                >
+                  <option value="all">{t('trips.allCities')}</option>
+                  {lookups.cities.map((city) => (
+                    <option key={`dest-city-${city.id}`} value={String(city.id)}>
+                      {city.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label
+                  htmlFor="trip-origin-station-filter"
+                  className="text-sm font-medium text-text-secondary"
+                >
+                  {t('trips.originStation')}
+                </label>
+                <select
+                  id="trip-origin-station-filter"
+                  className={selectClass}
+                  value={filters.originStationId}
+                  onChange={(e) => patchFilters({ originStationId: e.target.value })}
+                >
+                  <option value="all">{t('trips.allStations')}</option>
+                  {originStations.map((station) => (
+                    <option key={station.id} value={String(station.id)}>
+                      {station.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label
+                  htmlFor="trip-destination-station-filter"
+                  className="text-sm font-medium text-text-secondary"
+                >
+                  {t('trips.destinationStation')}
+                </label>
+                <select
+                  id="trip-destination-station-filter"
+                  className={selectClass}
+                  value={filters.destinationStationId}
+                  onChange={(e) => patchFilters({ destinationStationId: e.target.value })}
+                >
+                  <option value="all">{t('trips.allStations')}</option>
+                  {destinationStations.map((station) => (
+                    <option key={`dest-station-${station.id}`} value={String(station.id)}>
+                      {station.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div className="flex flex-col gap-1.5">
                 <label htmlFor="trip-status-filter" className="text-sm font-medium text-text-secondary">
                   {t('trips.status')}
@@ -471,10 +631,11 @@ export function TripsManagementPage() {
                   value={filters.status}
                   onChange={(e) => {
                     const next = e.target.value as TripListFilters['status']
-                    setFilters((prev) => ({ ...prev, status: next }))
+                    patchFilters({ status: next })
+                    setShowOverdueOnly(false)
                     if (next === 'scheduled' || next === 'active') {
                       setStatFilter(next)
-                    } else if (next === 'all') {
+                    } else {
                       setStatFilter('all')
                     }
                   }}
@@ -482,7 +643,61 @@ export function TripsManagementPage() {
                   <option value="all">{t('trips.allStatus')}</option>
                   <option value="scheduled">{t('trips.tripStatus.scheduled')}</option>
                   <option value="active">{t('trips.tripStatus.active')}</option>
+                  <option value="interrupted">{t('trips.tripStatus.interrupted')}</option>
                 </select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label
+                  htmlFor="trip-resolution-filter"
+                  className="text-sm font-medium text-text-secondary"
+                >
+                  {t('trips.resolutionStatus')}
+                </label>
+                <select
+                  id="trip-resolution-filter"
+                  className={selectClass}
+                  value={filters.resolutionStatus}
+                  onChange={(e) => {
+                    patchFilters({
+                      resolutionStatus: e.target.value as TripListFilters['resolutionStatus'],
+                    })
+                    setShowOverdueOnly(false)
+                  }}
+                >
+                  <option value="all">{t('trips.allResolutionStatus')}</option>
+                  <option value="pending_review">
+                    {t('trips.resolution.pending_review')}
+                  </option>
+                  <option value="auto_completed">{t('trips.resolution.auto_completed')}</option>
+                  <option value="auto_cancelled">{t('trips.resolution.auto_cancelled')}</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="trip-date-filter" className="text-sm font-medium text-text-secondary">
+                  {t('trips.filterDate')}
+                </label>
+                <input
+                  id="trip-date-filter"
+                  type="date"
+                  className={selectClass}
+                  value={filters.departureDate}
+                  onChange={(e) => patchFilters({ departureDate: e.target.value })}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="trip-time-filter" className="text-sm font-medium text-text-secondary">
+                  {t('trips.filterTime')}
+                </label>
+                <input
+                  id="trip-time-filter"
+                  type="time"
+                  className={selectClass}
+                  value={filters.departureTime}
+                  onChange={(e) => patchFilters({ departureTime: e.target.value })}
+                />
               </div>
             </div>
           </div>
@@ -518,8 +733,7 @@ export function TripsManagementPage() {
           </p>
         </CardHeader>
         <CardContent className="p-0">
-          {data.trips.filter((trip) => trip.status !== 'completed' && trip.status !== 'cancelled')
-            .length === 0 ? (
+          {data.trips.filter((trip) => !isArchivedTrip(trip.status)).length === 0 ? (
             <div className="p-6 text-center">
               <p className="font-medium text-text-primary">{t('trips.emptyTitle')}</p>
               <p className="mt-2 text-sm text-text-muted">{t('trips.emptyHint')}</p>

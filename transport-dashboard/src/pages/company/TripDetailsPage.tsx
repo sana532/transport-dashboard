@@ -20,6 +20,7 @@ type TripTab = 'overview' | 'bookings'
 function tripStatusBadgeClass(status: CompanyTripStatus): string {
   if (status === 'completed') return 'bg-green-100 text-green-700'
   if (status === 'cancelled') return 'bg-red-100 text-red-700'
+  if (status === 'interrupted') return 'bg-orange-100 text-orange-800'
   if (status === 'active') return 'bg-blue-100 text-blue-700'
   return 'bg-amber-100 text-amber-800'
 }

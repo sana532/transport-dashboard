@@ -112,7 +112,7 @@ export function showBrowserNotification(payload: MessagePayload): void {
   try {
     new Notification(title, {
       body: body || undefined,
-      icon: '/favicon.svg',
+      icon: '/notification-logo.png',
       tag: readDataString(payload.data as Record<string, unknown> | undefined, 'id', 'notification_id') ?? undefined,
     })
   } catch (err) {

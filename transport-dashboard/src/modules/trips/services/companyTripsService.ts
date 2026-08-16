@@ -7,6 +7,8 @@ import type {
   TripMutationInput,
   TripStatusUpdateInput,
 } from '@/modules/trips/types/companyTrip'
+import type { CompanyTripsListQuery } from '@/modules/trips/types/tripsListQuery'
+import { buildCompanyTripsListParams } from '@/modules/trips/types/tripsListQuery'
 import { normalizeCompanyTrip } from '@/modules/trips/utils/mapCompanyTrip'
 import { serializeTripStatusForApi } from '@/modules/trips/utils/tripStatus'
 import { getApiErrorMessage } from '@/shared/utils/getApiErrorMessage'
@@ -86,17 +88,12 @@ function readTripsPage(payload: unknown, fallbackPerPage: number): CompanyTripsP
 }
 
 export const companyTripsService = {
-  async listTripsPage(options?: {
-    page?: number
-    perPage?: number
-  }): Promise<CompanyTripsPage> {
-    const page = Math.max(1, Math.floor(options?.page ?? 1))
-    const perPage = Math.min(20, Math.max(1, Math.floor(options?.perPage ?? 20)))
+  async listTripsPage(options?: CompanyTripsListQuery): Promise<CompanyTripsPage> {
+    const params = buildCompanyTripsListParams(options ?? {})
+    const perPage = Number(params.per_page) || 20
 
     try {
-      const { data } = await api.get<unknown>('/company/trips', {
-        params: { page, per_page: perPage },
-      })
+      const { data } = await api.get<unknown>('/company/trips', { params })
       return readTripsPage(data, perPage)
     } catch (error) {
       throw new Error(getApiErrorMessage(error, 'Failed to load trips'))
@@ -104,9 +101,9 @@ export const companyTripsService = {
   },
 
   /** Loads every page. Prefer `listTripsPage` for UI lists. */
-  async listTrips(): Promise<CompanyTrip[]> {
+  async listTrips(filters?: Omit<CompanyTripsListQuery, 'page' | 'perPage'>): Promise<CompanyTrip[]> {
     try {
-      const first = await this.listTripsPage({ page: 1, perPage: 20 })
+      const first = await this.listTripsPage({ ...filters, page: 1, perPage: 20 })
       if (first.lastPage <= 1) return first.trips
 
       const remainingPages = Array.from(
@@ -114,7 +111,9 @@ export const companyTripsService = {
         (_, index) => index + 2,
       )
       const rest = await Promise.all(
-        remainingPages.map((page) => this.listTripsPage({ page, perPage: 20 })),
+        remainingPages.map((page) =>
+          this.listTripsPage({ ...filters, page, perPage: 20 }),
+        ),
       )
 
       return first.trips.concat(...rest.map((item) => item.trips))

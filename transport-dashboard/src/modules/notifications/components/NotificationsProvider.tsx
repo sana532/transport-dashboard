@@ -74,7 +74,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         try {
           new Notification(title, {
             body: body || undefined,
-            icon: '/favicon.svg',
+            icon: '/notification-logo.png',
             tag: item?.id,
           })
         } catch (err) {

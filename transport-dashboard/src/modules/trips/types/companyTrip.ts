@@ -1,6 +1,16 @@
 import type { CityRef, RouteRestAreaStop } from '@/modules/geography/types'
 
-export type CompanyTripStatus = 'scheduled' | 'active' | 'completed' | 'cancelled'
+export type CompanyTripStatus =
+  | 'scheduled'
+  | 'active'
+  | 'interrupted'
+  | 'completed'
+  | 'cancelled'
+
+export type TripResolutionStatus =
+  | 'pending_review'
+  | 'auto_completed'
+  | 'auto_cancelled'
 
 export type TripStationRef = {
   id: number
@@ -72,6 +82,8 @@ export type TripCurrentLocation = {
 export type CompanyTrip = {
   id: number
   status: CompanyTripStatus
+  resolution_status?: TripResolutionStatus | null
+  flagged?: boolean
   departure_time: string
   estimated_arrival_time: string
   base_fare: number

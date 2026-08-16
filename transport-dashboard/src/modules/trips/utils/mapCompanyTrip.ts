@@ -1,15 +1,16 @@
 import { pickRouteNameFields } from '@/modules/routes/utils/routeDisplay'
 import { parseRestAreasFromRecord } from '@/modules/routes/utils/routeRestAreas'
 import { formatRouteLabel } from '@/modules/trips/utils/formatRouteLabel'
-import { formatScheduleDateTime } from '@/shared/utils/formatDateTime'
 import type {
   CompanyTrip,
   CompanyTripStatus,
+  TripResolutionStatus,
   TripSeatMapEntry,
   TripSeatStats,
   TripVehicleLayout,
 } from '@/modules/trips/types/companyTrip'
 import { normalizeTripStatusFromApi } from '@/modules/trips/utils/tripStatus'
+import { formatScheduleDateTime } from '@/shared/utils/formatDateTime'
 
 function normalizeCityRef(raw: unknown): CompanyTrip['origin_city'] {
   if (!raw || typeof raw !== 'object') return null
@@ -31,6 +32,28 @@ function normalizeStationRef(raw: unknown): CompanyTrip['origin_station'] {
 
 function normalizeStatus(raw: unknown): CompanyTripStatus {
   return normalizeTripStatusFromApi(raw)
+}
+
+function normalizeResolutionStatus(raw: unknown): TripResolutionStatus | null {
+  const key = typeof raw === 'string' ? raw.toLowerCase() : ''
+  if (
+    key === 'pending_review' ||
+    key === 'auto_completed' ||
+    key === 'auto_cancelled'
+  ) {
+    return key
+  }
+  return null
+}
+
+function normalizeFlagged(raw: unknown): boolean {
+  if (typeof raw === 'boolean') return raw
+  if (typeof raw === 'number') return raw !== 0
+  if (typeof raw === 'string') {
+    const key = raw.trim().toLowerCase()
+    return key === 'true' || key === '1'
+  }
+  return false
 }
 
 function normalizeVehicleLayout(raw: unknown): TripVehicleLayout | null {
@@ -238,6 +261,8 @@ export function normalizeCompanyTrip(raw: unknown): CompanyTrip | null {
   return {
     id,
     status: normalizeStatus(record.status),
+    resolution_status: normalizeResolutionStatus(record.resolution_status),
+    flagged: normalizeFlagged(record.flagged ?? record.is_flagged),
     departure_time: departure,
     estimated_arrival_time: estimated,
     base_fare: Number(record.base_fare) || 0,

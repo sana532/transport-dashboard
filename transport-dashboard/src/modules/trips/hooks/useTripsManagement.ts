@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import type { TripsManagementData, TripsStatCard } from '@/modules/trips/types'
 import type { CompanyTrip } from '@/modules/trips/types/companyTrip'
+import type { CompanyTripsListQuery } from '@/modules/trips/types/tripsListQuery'
 import {
   tripsManagementService,
   type TripsListPagination,
@@ -15,17 +16,29 @@ export type TripsManagementState = TripsManagementData & {
 
 export const TRIPS_PAGE_SIZE = 20
 
-export const tripsManagementQueryKey = (locale: string, page: number, perPage: number) =>
-  ['trips', 'management', locale, page, perPage] as const
+export const tripsManagementQueryKey = (
+  locale: string,
+  page: number,
+  perPage: number,
+  filtersKey: string,
+) => ['trips', 'management', locale, page, perPage, filtersKey] as const
 
 export const tripsManagementAllQueryKey = (locale: string) =>
   ['trips', 'management', 'all', locale] as const
+
+function stableFiltersKey(filters: CompanyTripsListQuery | undefined): string {
+  if (!filters) return ''
+  const { page: _page, perPage: _perPage, ...rest } = filters
+  return JSON.stringify(rest)
+}
 
 export type UseTripsManagementOptions = {
   /** `page` = one API page (default). `all` = fetch every page (archive). */
   mode?: 'page' | 'all'
   page?: number
   perPage?: number
+  /** Server-side list filters (search, status, route_id, …). */
+  filters?: Omit<CompanyTripsListQuery, 'page' | 'perPage'>
 }
 
 export function useTripsManagement(options: UseTripsManagementOptions = {}) {
@@ -36,15 +49,17 @@ export function useTripsManagement(options: UseTripsManagementOptions = {}) {
     TRIPS_PAGE_SIZE,
     Math.max(1, Math.floor(options.perPage ?? TRIPS_PAGE_SIZE)),
   )
+  const filters = options.filters
+  const filtersKey = stableFiltersKey(filters)
 
   const query = useQuery({
     queryKey:
       mode === 'all'
         ? tripsManagementAllQueryKey(locale)
-        : tripsManagementQueryKey(locale, page, perPage),
+        : tripsManagementQueryKey(locale, page, perPage, filtersKey),
     queryFn: async (): Promise<TripsManagementState> => {
       if (mode === 'all') {
-        const next = await tripsManagementService.getTripsManagementData(locale)
+        const next = await tripsManagementService.getTripsManagementData(locale, filters)
         const stats: TripsStatCard[] = buildTripsStats(next.trips, t)
         return {
           ...next,
@@ -61,13 +76,28 @@ export function useTripsManagement(options: UseTripsManagementOptions = {}) {
       }
 
       const next = await tripsManagementService.getTripsManagementPage(locale, {
+        ...filters,
         page,
         perPage,
       })
       const stats: TripsStatCard[] = buildTripsStats(next.trips, t)
       return { ...next, stats }
     },
-    placeholderData: (previous) => previous,
+    // Keep previous page only while paginating the same filter set — never across filter changes.
+    placeholderData: (previousData, previousQuery) => {
+      if (!previousData || !previousQuery) return undefined
+      const prevKey = previousQuery.queryKey
+      if (
+        mode !== 'all' &&
+        Array.isArray(prevKey) &&
+        prevKey[0] === 'trips' &&
+        prevKey[1] === 'management' &&
+        prevKey[5] === filtersKey
+      ) {
+        return previousData
+      }
+      return undefined
+    },
   })
 
   return {

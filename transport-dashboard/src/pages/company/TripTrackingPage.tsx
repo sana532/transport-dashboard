@@ -1,7 +1,9 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, MapPin, Radio, Wifi, WifiOff } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import { useRestAreas } from '@/modules/geography/hooks/useRestAreas'
+import type { RouteRestAreaStop } from '@/modules/geography/types'
+import { routesService } from '@/modules/routes/services/routesService'
 import { TripTrackingMap } from '@/modules/trips/components/TripTrackingMap'
 import { usePredictedTripLocation } from '@/modules/trips/hooks/usePredictedTripLocation'
 import { useTripDetails } from '@/modules/trips/hooks/useTripDetails'
@@ -75,9 +77,38 @@ export function TripTrackingPage() {
   const { location: liveLocation, connectionStatus, error: trackingError } =
     useTripLocationTracking(tripId)
   const { restAreas: restAreasCatalog } = useRestAreas()
+  const [routeRestStops, setRouteRestStops] = useState<RouteRestAreaStop[] | null>(null)
 
   const dateLocale = locale === 'ar' ? 'ar-SY' : 'en-US'
   const routeLabel = trip ? formatTripRouteLabel(trip, locale) : '—'
+
+  // Trip payload often omits rest_areas; load them from the route (includes duration_minutes).
+  useEffect(() => {
+    const routeId = trip?.route_id || trip?.route?.id
+    const nested = trip?.route?.rest_areas
+    if (nested && nested.length > 0) {
+      setRouteRestStops(nested)
+      return
+    }
+    if (!routeId) {
+      setRouteRestStops(null)
+      return
+    }
+
+    let cancelled = false
+    void routesService
+      .getRoute(routeId)
+      .then((route) => {
+        if (!cancelled) setRouteRestStops(route.rest_areas ?? [])
+      })
+      .catch(() => {
+        if (!cancelled) setRouteRestStops(nested ?? [])
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [trip?.route_id, trip?.route?.id, trip?.route?.rest_areas])
 
   const routePositions = useMemo(
     () => decodeRoutePolyline(trip?.route?.route_polyline),
@@ -92,11 +123,11 @@ export function TripTrackingPage() {
   const restStops = useMemo(
     () =>
       resolveTripMapRestStops({
-        routeStops: trip?.route?.rest_areas,
+        routeStops: routeRestStops ?? trip?.route?.rest_areas,
         catalog: restAreasCatalog,
         routeLine,
       }),
-    [trip?.route?.rest_areas, restAreasCatalog, routeLine],
+    [routeRestStops, trip?.route?.rest_areas, restAreasCatalog, routeLine],
   )
 
   const savedLocation = useMemo(() => {

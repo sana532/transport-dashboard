@@ -10,6 +10,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { companyLookupsService } from '@/modules/lookups/services/companyLookupsService'
 import { routesService } from '@/modules/routes/services/routesService'
 import type { CompanyRoute } from '@/modules/routes/types'
 import { routeDisplayName } from '@/modules/routes/utils/routeDisplay'
@@ -112,6 +113,59 @@ export function TripFormPage() {
   }, [selectedRoute])
 
   const loadCatalogs = useCallback(async () => {
+    try {
+      const lookups = await companyLookupsService.getLookups({
+        routes: true,
+        drivers: true,
+        vehicles: true,
+      })
+
+      if (lookups.routes.length > 0 || lookups.drivers.length > 0 || lookups.vehicles.length > 0) {
+        setRoutes(
+          lookups.routes.map((route) => ({
+            id: route.id,
+            company_id: 0,
+            name: route.name,
+            name_en: route.name_en ?? route.name,
+            name_ar: route.name_ar ?? route.name,
+            origin_station_id: 0,
+            destination_station_id: 0,
+          })),
+        )
+        setDrivers(
+          lookups.drivers.map((driver) => ({
+            id: String(driver.id),
+            name: driver.name,
+            status: 'Available' as const,
+            phone: '',
+            licenseNumber: '—',
+            experienceYears: 0,
+            avatarInitials: driver.name.slice(0, 2).toUpperCase() || 'DR',
+          })),
+        )
+        setVehicles(
+          lookups.vehicles.map((vehicle) => ({
+            id: String(vehicle.id),
+            code: `VH-${String(vehicle.id).padStart(3, '0')}`,
+            model: vehicle.name,
+            plateNumber: vehicle.plate_number ?? vehicle.name,
+            seats: 0,
+            vehicleType: vehicle.name,
+            status: 'Available' as const,
+            verifiedStatus: 'pending',
+            mechanicalStatus: 'active',
+            isActive: true,
+            color: '',
+            vehicleModelId: 0,
+            yearLabel: '—',
+          })),
+        )
+        return
+      }
+    } catch {
+      // Fall back to legacy list endpoints below.
+    }
+
     const [routeList, vehicleRows, driverRows] = await Promise.all([
       routesService.listRoutes(),
       vehiclesService.listVehicles(),
@@ -466,6 +520,9 @@ export function TripFormPage() {
                 >
                   <option value="scheduled">{t('tripForm.statusScheduled')}</option>
                   <option value="active">{t('tripForm.statusActive')}</option>
+                  {isEdit ? (
+                    <option value="interrupted">{t('trips.tripStatus.interrupted')}</option>
+                  ) : null}
                   <option value="completed">{t('tripForm.statusCompleted')}</option>
                   {isEdit ? (
                     <option value="cancelled">{t('tripForm.statusCancelled')}</option>

@@ -42,7 +42,9 @@ function distanceToRouteKm(
 }
 
 /**
- * Prefer trip-linked rest stops; otherwise pick active catalog areas near the route polyline.
+ * Prefer rest stops linked to the company route (with duration_minutes).
+ * Coordinates come from nested rest_area or the /rest-areas catalog.
+ * Fallback: active catalog areas near the polyline (no duration).
  */
 export function resolveTripMapRestStops(input: {
   routeStops?: RouteRestAreaStop[] | null

@@ -35,7 +35,12 @@ export type TripsStatCard = {
   Icon: LucideIcon
 }
 
-export type TripRowStatus = 'scheduled' | 'active' | 'completed' | 'cancelled'
+export type TripRowStatus =
+  | 'scheduled'
+  | 'active'
+  | 'interrupted'
+  | 'completed'
+  | 'cancelled'
 
 export type TripsRecentRow = {
   id: string
