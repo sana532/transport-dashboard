@@ -1,4 +1,5 @@
 /* eslint-disable no-undef */
+/* notification-sw-version: 4 — bump to force browsers to fetch a fresh worker */
 importScripts('https://www.gstatic.com/firebasejs/11.8.1/firebase-app-compat.js')
 importScripts('https://www.gstatic.com/firebasejs/11.8.1/firebase-messaging-compat.js')
 
@@ -12,6 +13,7 @@ firebase.initializeApp({
 })
 
 const messaging = firebase.messaging()
+const NOTIFICATION_ICON = new URL('/notification-logo.png?v=4', self.location.origin).href
 
 function readString(value) {
   return typeof value === 'string' && value.trim() ? value.trim() : null
@@ -56,13 +58,30 @@ function resolveContent(payload) {
 
 messaging.onBackgroundMessage((payload) => {
   const { title, body, data } = resolveContent(payload)
+  const tag =
+    readString(data.id) ||
+    readString(data.notification_id) ||
+    `booking-${title}-${body}`.slice(0, 64)
+
+  /**
+   * If FCM includes a `notification` payload, Firefox/Chrome often already show it
+   * (usually without our logo). Showing again = duplicate.
+   *
+   * Preferred backend contract for web: **data-only** push (no `notification` key)
+   * so this handler owns display + icon. Alternatively set
+   * `notification.icon` to an absolute URL of notification-logo.png.
+   */
+  if (payload.notification && payload.notification.title) {
+    return
+  }
 
   return self.registration.showNotification(title, {
     body,
-    icon: '/notification-logo.png',
-    badge: '/notification-logo.png',
+    icon: NOTIFICATION_ICON,
+    badge: NOTIFICATION_ICON,
     data,
-    tag: readString(data.id) || readString(data.notification_id) || undefined,
+    tag,
+    renotify: false,
   })
 })
 

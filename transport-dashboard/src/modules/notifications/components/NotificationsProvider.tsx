@@ -17,6 +17,7 @@ import {
   showBrowserNotification,
 } from '@/modules/notifications/services/fcmService'
 import { notificationsService } from '@/modules/notifications/services/notificationsService'
+import { claimNotificationAlert } from '@/modules/notifications/utils/notificationAlertDedupe'
 import { useTranslation } from '@/shared/i18n/useTranslation'
 import { useToast } from '@/shared/ui/Toast'
 
@@ -36,12 +37,12 @@ type NotificationsContextValue = {
 
 const NotificationsContext = createContext<NotificationsContextValue | null>(null)
 
-/** Poll often enough that a new booking shows a toast without relying on FCM. */
+/** Poll often enough that the bell updates without relying on FCM alone. */
 const UNREAD_POLL_MS = 8_000
 
 export function NotificationsProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth()
-  const { t } = useTranslation()
+  const { t, locale } = useTranslation()
   const { toast } = useToast()
   const [notifications, setNotifications] = useState<AppNotification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
@@ -58,8 +59,12 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     setIsOpenState(open)
   }, [])
 
-  const showNewNotificationAlert = useCallback(
+  /** In-app toast only — OS toasts come from FCM (one path) to avoid 2–4 duplicates. */
+  const showInAppToast = useCallback(
     (item?: AppNotification | null) => {
+      const id = item?.id
+      if (!claimNotificationAlert(id ? `toast:${id}` : null)) return
+
       const title = item?.title?.trim() || t('notifications.newToastTitle')
       const body = item?.body?.trim() || t('notifications.newToastBody')
 
@@ -69,25 +74,13 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         variant: 'info',
         durationMs: 8_000,
       })
-
-      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-        try {
-          new Notification(title, {
-            body: body || undefined,
-            icon: '/notification-logo.png',
-            tag: item?.id,
-          })
-        } catch (err) {
-          console.warn('[Notifications] Browser alert failed:', err)
-        }
-      }
     },
     [t, toast],
   )
 
   /**
-   * Apply a new unread count. After the first hydrate, any increase shows a toast
-   * (FCM is unreliable; the bell was updating silently before).
+   * Apply a new unread count. After the first hydrate, any increase shows an
+   * in-app toast only (not a second OS notification — FCM already covers that).
    */
   const applyUnreadCount = useCallback(
     async (nextCount: number, options?: { alertOnIncrease?: boolean; latest?: AppNotification | null }) => {
@@ -108,7 +101,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       if (!shouldAlert) return
 
       if (options?.latest) {
-        showNewNotificationAlert(options.latest)
+        showInAppToast(options.latest)
         return
       }
 
@@ -118,12 +111,12 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
           per_page: 5,
         })
         setNotifications(items)
-        showNewNotificationAlert(items[0] ?? null)
+        showInAppToast(items[0] ?? null)
       } catch {
-        showNewNotificationAlert(null)
+        showInAppToast(null)
       }
     },
-    [showNewNotificationAlert],
+    [showInAppToast],
   )
 
   const enablePushNotifications = useCallback(async () => {
@@ -200,17 +193,30 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     void registerWebPush({ mayRequestPermission: false }).catch((err) => {
       console.warn('[FCM] Silent registration failed:', err)
     })
-  }, [isAuthenticated, refreshUnreadCount])
+  }, [isAuthenticated, refreshUnreadCount, locale])
 
   useEffect(() => {
     if (!isAuthenticated) return
 
     const unsubscribe = listenForForegroundMessages((payload) => {
-      const { title, body } = getForegroundToastContent(payload)
-      toast({ title, description: body || undefined, variant: 'info', durationMs: 8_000 })
-      showBrowserNotification(payload)
+      const data = payload.data as Record<string, unknown> | undefined
+      const id =
+        (typeof data?.id === 'string' && data.id) ||
+        (typeof data?.notification_id === 'string' && data.notification_id) ||
+        null
 
-      // Sync bell without a second toast from applyUnreadCount.
+      // Tab is focused: in-app toast is enough. OS push is for background via FCM SW.
+      // Avoid a second OS toast that duplicates the poll / other origin.
+      if (claimNotificationAlert(id ? `fcm-fg:${id}` : `fcm-fg:${Date.now()}`)) {
+        const { title, body } = getForegroundToastContent(payload)
+        toast({ title, description: body || undefined, variant: 'info', durationMs: 8_000 })
+        // Only raise an OS notification if the tab is hidden (user won't see the toast).
+        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+          showBrowserNotification(payload)
+        }
+      }
+
+      // Sync bell without triggering applyUnreadCount alerts again.
       void (async () => {
         try {
           const [items, count] = await Promise.all([
@@ -221,6 +227,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
           unreadCountRef.current = count
           setUnreadCount(count)
           hydratedRef.current = true
+          if (id) claimNotificationAlert(`toast:${id}`)
         } catch (err) {
           console.warn('[Notifications] FCM sync failed:', err)
         }

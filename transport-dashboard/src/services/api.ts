@@ -1,4 +1,5 @@
 import axios, { AxiosHeaders } from 'axios'
+import { readStoredLocale } from '@/shared/i18n/config'
 
 const baseURL = import.meta.env.VITE_API_BASE_URL ?? '/api'
 
@@ -15,10 +16,15 @@ export const api = axios.create({
 api.interceptors.request.use((config) => {
   const headers = AxiosHeaders.from(config.headers)
   const token = localStorage.getItem('auth_token')
+  const locale = readStoredLocale()
 
   if (token) {
     headers.set('Authorization', `Bearer ${token}`)
   }
+
+  // Lets the API localize push/notification copy (ar vs en).
+  headers.set('Accept-Language', locale === 'ar' ? 'ar' : 'en')
+  headers.set('X-Locale', locale)
 
   if (config.data instanceof FormData) {
     headers.delete('Content-Type')

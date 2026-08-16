@@ -7,6 +7,8 @@ import {
 } from 'firebase/messaging'
 import { firebaseApp, firebaseVapidKey, isFirebaseConfigured } from '@/config/firebase'
 import { notificationsService } from '@/modules/notifications/services/notificationsService'
+import { notificationIconUrl } from '@/modules/notifications/utils/notificationIconUrl'
+import { readStoredLocale } from '@/shared/i18n/config'
 
 const SW_PATH = '/firebase-messaging-sw.js'
 
@@ -23,9 +25,12 @@ async function ensureServiceWorker(): Promise<ServiceWorkerRegistration | null> 
   if (!('serviceWorker' in navigator)) return null
 
   const existing = await navigator.serviceWorker.getRegistration(SW_PATH)
-  if (existing) return existing
+  if (existing) {
+    void existing.update()
+    return existing
+  }
 
-  return navigator.serviceWorker.register(SW_PATH)
+  return navigator.serviceWorker.register(SW_PATH, { updateViaCache: 'none' })
 }
 
 export async function registerWebPush(options?: {
@@ -58,7 +63,13 @@ export async function registerWebPush(options?: {
 
   if (!token) return null
 
-  await notificationsService.registerFcmToken({ token, platform: 'web' })
+  const locale = readStoredLocale()
+  await notificationsService.registerFcmToken({
+    token,
+    platform: 'web',
+    locale,
+    language: locale,
+  })
   return token
 }
 
@@ -112,8 +123,14 @@ export function showBrowserNotification(payload: MessagePayload): void {
   try {
     new Notification(title, {
       body: body || undefined,
-      icon: '/notification-logo.png',
-      tag: readDataString(payload.data as Record<string, unknown> | undefined, 'id', 'notification_id') ?? undefined,
+      icon: notificationIconUrl(),
+      tag:
+        readDataString(
+          payload.data as Record<string, unknown> | undefined,
+          'id',
+          'notification_id',
+        ) ?? `fcm-${title}`.slice(0, 64),
+      renotify: false,
     })
   } catch (err) {
     console.warn('[FCM] Browser notification failed:', err)

@@ -2,9 +2,9 @@ import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
 import { messages, type AppLocale } from '@/shared/i18n/messages'
 
-const STORAGE_LOCALE_KEY = 'transport_dashboard_locale'
+export const STORAGE_LOCALE_KEY = 'transport_dashboard_locale'
 
-function readInitialLanguage(): AppLocale {
+export function readStoredLocale(): AppLocale {
   try {
     const stored = localStorage.getItem(STORAGE_LOCALE_KEY)
     if (stored === 'ar' || stored === 'en') return stored
@@ -12,6 +12,10 @@ function readInitialLanguage(): AppLocale {
     // ignore storage read failures
   }
   return 'ar'
+}
+
+function readInitialLanguage(): AppLocale {
+  return readStoredLocale()
 }
 
 if (!i18n.isInitialized) {

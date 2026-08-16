@@ -20,4 +20,8 @@ export type NotificationListFilter = {
 export type RegisterFcmTokenInput = {
   token: string
   platform: 'web' | 'android' | 'ios'
+  /** Dashboard UI language — backend uses this for push copy. */
+  locale?: 'ar' | 'en'
+  language?: 'ar' | 'en'
 }
+
