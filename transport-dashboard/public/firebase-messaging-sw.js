@@ -1,5 +1,5 @@
 /* eslint-disable no-undef */
-/* notification-sw-version: 4 — bump to force browsers to fetch a fresh worker */
+/* notification-sw-version: 5 — never call showNotification (FCM shows once) */
 importScripts('https://www.gstatic.com/firebasejs/11.8.1/firebase-app-compat.js')
 importScripts('https://www.gstatic.com/firebasejs/11.8.1/firebase-messaging-compat.js')
 
@@ -13,11 +13,6 @@ firebase.initializeApp({
 })
 
 const messaging = firebase.messaging()
-const NOTIFICATION_ICON = new URL('/notification-logo.png?v=4', self.location.origin).href
-
-function readString(value) {
-  return typeof value === 'string' && value.trim() ? value.trim() : null
-}
 
 function resolveNotificationPath(referenceType, referenceId, directUrl) {
   if (typeof directUrl === 'string' && directUrl.startsWith('/')) return directUrl
@@ -40,49 +35,13 @@ function resolveNotificationPath(referenceType, referenceId, directUrl) {
   return null
 }
 
-function resolveContent(payload) {
-  const data = payload.data ?? {}
-  const title =
-    payload.notification?.title ||
-    readString(data.title) ||
-    readString(data.notification_title) ||
-    'Notification'
-  const body =
-    payload.notification?.body ||
-    readString(data.body) ||
-    readString(data.message) ||
-    readString(data.notification_body) ||
-    ''
-  return { title, body, data }
-}
-
-messaging.onBackgroundMessage((payload) => {
-  const { title, body, data } = resolveContent(payload)
-  const tag =
-    readString(data.id) ||
-    readString(data.notification_id) ||
-    `booking-${title}-${body}`.slice(0, 64)
-
-  /**
-   * If FCM includes a `notification` payload, Firefox/Chrome often already show it
-   * (usually without our logo). Showing again = duplicate.
-   *
-   * Preferred backend contract for web: **data-only** push (no `notification` key)
-   * so this handler owns display + icon. Alternatively set
-   * `notification.icon` to an absolute URL of notification-logo.png.
-   */
-  if (payload.notification && payload.notification.title) {
-    return
-  }
-
-  return self.registration.showNotification(title, {
-    body,
-    icon: NOTIFICATION_ICON,
-    badge: NOTIFICATION_ICON,
-    data,
-    tag,
-    renotify: false,
-  })
+/**
+ * Do NOT call showNotification here.
+ * The browser already displays FCM `notification` payloads once.
+ * Calling showNotification again was causing 2 system toasts.
+ */
+messaging.onBackgroundMessage(() => {
+  // no-op
 })
 
 self.addEventListener('notificationclick', (event) => {

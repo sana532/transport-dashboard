@@ -20,13 +20,50 @@ export async function isFcmSupported(): Promise<boolean> {
   }
 }
 
+const SW_PATH = '/firebase-messaging-sw.js'
+/** Bump when SW behavior changes so stale workers are unregistered once. */
+const SW_BUILD = '5'
+const SW_BUILD_STORAGE_KEY = 'fcm_sw_build_v'
+
 async function ensureServiceWorker(): Promise<ServiceWorkerRegistration | null> {
   if (!('serviceWorker' in navigator)) return null
 
-  const existing = await navigator.serviceWorker.getRegistration(SW_PATH)
-  if (existing) {
-    void existing.update()
-    return existing
+  let needsReset = false
+  try {
+    needsReset = localStorage.getItem(SW_BUILD_STORAGE_KEY) !== SW_BUILD
+  } catch {
+    needsReset = true
+  }
+
+  if (needsReset) {
+    const registrations = await navigator.serviceWorker.getRegistrations()
+    await Promise.all(
+      registrations.map(async (registration) => {
+        const scriptUrl =
+          registration.active?.scriptURL ||
+          registration.waiting?.scriptURL ||
+          registration.installing?.scriptURL ||
+          ''
+        if (scriptUrl.includes('firebase-messaging-sw')) {
+          try {
+            await registration.unregister()
+          } catch {
+            // ignore
+          }
+        }
+      }),
+    )
+    try {
+      localStorage.setItem(SW_BUILD_STORAGE_KEY, SW_BUILD)
+    } catch {
+      // ignore
+    }
+  } else {
+    const existing = await navigator.serviceWorker.getRegistration(SW_PATH)
+    if (existing) {
+      void existing.update()
+      return existing
+    }
   }
 
   return navigator.serviceWorker.register(SW_PATH, { updateViaCache: 'none' })
