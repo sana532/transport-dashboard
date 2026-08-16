@@ -14,7 +14,6 @@ import {
   getForegroundToastContent,
   listenForForegroundMessages,
   registerWebPush,
-  showBrowserNotification,
 } from '@/modules/notifications/services/fcmService'
 import { notificationsService } from '@/modules/notifications/services/notificationsService'
 import { claimNotificationAlert } from '@/modules/notifications/utils/notificationAlertDedupe'
@@ -205,15 +204,13 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         (typeof data?.notification_id === 'string' && data.notification_id) ||
         null
 
-      // Tab is focused: in-app toast is enough. OS push is for background via FCM SW.
-      // Avoid a second OS toast that duplicates the poll / other origin.
+      // Tab focused: in-app toast only.
+      // OS/system notifications must come from a SINGLE path (FCM). Creating
+      // another `new Notification` here duplicates the backend push (often
+      // Arabic without logo + English with logo).
       if (claimNotificationAlert(id ? `fcm-fg:${id}` : `fcm-fg:${Date.now()}`)) {
         const { title, body } = getForegroundToastContent(payload)
         toast({ title, description: body || undefined, variant: 'info', durationMs: 8_000 })
-        // Only raise an OS notification if the tab is hidden (user won't see the toast).
-        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
-          showBrowserNotification(payload)
-        }
       }
 
       // Sync bell without triggering applyUnreadCount alerts again.

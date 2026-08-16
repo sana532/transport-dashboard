@@ -7,7 +7,6 @@ import {
 } from 'firebase/messaging'
 import { firebaseApp, firebaseVapidKey, isFirebaseConfigured } from '@/config/firebase'
 import { notificationsService } from '@/modules/notifications/services/notificationsService'
-import { notificationIconUrl } from '@/modules/notifications/utils/notificationIconUrl'
 import { readStoredLocale } from '@/shared/i18n/config'
 
 const SW_PATH = '/firebase-messaging-sw.js'
@@ -114,25 +113,8 @@ export function getForegroundToastContent(payload: MessagePayload): {
   return { title, body }
 }
 
-/** System/browser notification (works alongside in-app toast). */
-export function showBrowserNotification(payload: MessagePayload): void {
-  if (!('Notification' in window) || Notification.permission !== 'granted') return
-
-  const { title, body } = getForegroundToastContent(payload)
-
-  try {
-    new Notification(title, {
-      body: body || undefined,
-      icon: notificationIconUrl(),
-      tag:
-        readDataString(
-          payload.data as Record<string, unknown> | undefined,
-          'id',
-          'notification_id',
-        ) ?? `fcm-${title}`.slice(0, 64),
-      renotify: false,
-    })
-  } catch (err) {
-    console.warn('[FCM] Browser notification failed:', err)
-  }
+/** @deprecated OS notifications must only come from FCM — do not call from the app. */
+export function showBrowserNotification(_payload: MessagePayload): void {
+  // Intentionally no-op: creating a second system notification duplicates the
+  // backend FCM toast (often one Arabic without icon + one English with icon).
 }
