@@ -4,11 +4,14 @@ import type {
 } from '@/modules/trips/types/companyTrip'
 import { serializeTripStatusForApi } from '@/modules/trips/utils/tripStatus'
 
+export type CompanyTripsListView = 'upcoming' | 'scheduled' | 'active' | 'archive'
+
 /** Query params for GET /api/company/trips (server-side filters). */
 export type CompanyTripsListQuery = {
   page?: number
   perPage?: number
   search?: string
+  view?: CompanyTripsListView
   status?: CompanyTripStatus | 'all'
   resolutionStatus?: TripResolutionStatus | 'all'
   flagged?: boolean
@@ -38,6 +41,8 @@ export function buildCompanyTripsListParams(
 
   const search = query.search?.trim()
   if (search) params.search = search
+
+  if (query.view) params.view = query.view
 
   if (query.status && query.status !== 'all') {
     params.status = serializeTripStatusForApi(query.status)

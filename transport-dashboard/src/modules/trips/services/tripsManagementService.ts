@@ -86,6 +86,7 @@ export const tripsManagementService = {
     Omit<TripsManagementData, 'stats'> & {
       trips: CompanyTrip[]
       pagination: TripsListPagination
+      counts: Record<string, unknown> | null
     }
   > {
     const pageResult = await companyTripsService.listTripsPage(options)
@@ -93,6 +94,7 @@ export const tripsManagementService = {
 
     return {
       ...toManagementPayload(trips, locale),
+      counts: pageResult.counts,
       pagination: {
         currentPage: pageResult.currentPage,
         lastPage: pageResult.lastPage,

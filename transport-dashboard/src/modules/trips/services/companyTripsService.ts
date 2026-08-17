@@ -54,6 +54,13 @@ export type CompanyTripsPage = {
   total: number
   from: number
   to: number
+  counts: Record<string, unknown> | null
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null
 }
 
 function pickMetaNumber(meta: Record<string, unknown>, key: string): number | null {
@@ -63,12 +70,9 @@ function pickMetaNumber(meta: Record<string, unknown>, key: string): number | nu
 
 function readTripsPage(payload: unknown, fallbackPerPage: number): CompanyTripsPage {
   const trips = unwrapList(payload)
-  const root =
-    payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : null
-  const meta =
-    root?.meta && typeof root.meta === 'object'
-      ? (root.meta as Record<string, unknown>)
-      : root
+  const root = asRecord(payload)
+  const meta = asRecord(root?.meta) ?? root
+  const counts = asRecord(root?.counts) ?? asRecord(meta?.counts)
 
   const currentPage = (meta ? pickMetaNumber(meta, 'current_page') : null) ?? 1
   const perPage =
@@ -84,7 +88,7 @@ function readTripsPage(payload: unknown, fallbackPerPage: number): CompanyTripsP
     (meta ? pickMetaNumber(meta, 'to') : null) ??
     (trips.length > 0 ? from + trips.length - 1 : 0)
 
-  return { trips, currentPage, lastPage, perPage, total, from, to }
+  return { trips, currentPage, lastPage, perPage, total, from, to, counts }
 }
 
 export const companyTripsService = {

@@ -11,22 +11,24 @@ import { driversService } from '@/modules/drivers/services/driversService'
 import { mapCompanyDriverToDriver } from '@/modules/drivers/utils/mapCompanyDriver'
 import { useTranslation } from '@/shared/i18n/useTranslation'
 
-export const driversManagementQueryKey = (locale: string) =>
-  ['drivers', 'management', locale] as const
+export const driversManagementQueryKey = (locale: string, page: number) =>
+  ['drivers', 'management', locale, page] as const
 
-export function useDriversManagement() {
+export function useDriversManagement(page = 1) {
   const { t, locale } = useTranslation()
   const queryClient = useQueryClient()
+  const safePage = Math.max(1, Math.floor(page))
 
   const query = useQuery({
-    queryKey: driversManagementQueryKey(locale),
+    queryKey: driversManagementQueryKey(locale, safePage),
     queryFn: (): Promise<DriversManagementData> =>
-      driversManagementService.getDriversManagementData(t),
+      driversManagementService.getDriversManagementData(t, safePage),
+    placeholderData: (previousData) => previousData,
   })
 
   const reload = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: driversManagementQueryKey(locale) })
-  }, [queryClient, locale])
+    await queryClient.invalidateQueries({ queryKey: ['drivers', 'management'] })
+  }, [queryClient])
 
   const createDriver = useCallback(
     async (input: DriverCreateInput): Promise<Driver> => {

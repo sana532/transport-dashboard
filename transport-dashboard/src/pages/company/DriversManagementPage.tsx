@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { CircleGauge, Download, ListFilter, Loader2, Plus, Search } from 'lucide-react'
 import { cn } from '@/shared/utils/cn'
 import { Button } from '@/shared/ui/Button'
@@ -71,16 +71,18 @@ function DriversErrorState({ message, onRetry }: { message: string; onRetry: () 
 
 export function DriversManagementPage() {
   const { t } = useTranslation()
+  const [page, setPage] = useState(1)
   const {
     data,
     isLoading,
+    isFetching,
     error,
     reload,
     resolveDriver,
     createDriver,
     updateDriver,
     deleteDriver,
-  } = useDriversManagement()
+  } = useDriversManagement(page)
   const [driverFormOpen, setDriverFormOpen] = useState(false)
   const [driverFormMode, setDriverFormMode] = useState<'add' | 'edit'>('add')
   const [editingDriver, setEditingDriver] = useState<Driver | null>(null)
@@ -106,6 +108,21 @@ export function DriversManagementPage() {
     if (!data) return []
     return filterDrivers(data.drivers, activeFilters)
   }, [data, activeFilters])
+
+  const pagination = data?.pagination
+  const lastPage = pagination?.lastPage ?? 1
+
+  useEffect(() => {
+    if (!pagination) return
+    if (page > pagination.lastPage) setPage(pagination.lastPage)
+  }, [page, pagination])
+
+  const visiblePages = useMemo(() => {
+    if (!pagination) return [] as number[]
+    const start = Math.max(1, Math.min(pagination.currentPage - 2, pagination.lastPage - 4))
+    const end = Math.min(pagination.lastPage, start + 4)
+    return Array.from({ length: Math.max(0, end - start + 1) }, (_, index) => start + index)
+  }, [pagination])
 
   const hasActiveFilters =
     search.trim() !== '' ||
@@ -430,6 +447,7 @@ export function DriversManagementPage() {
               </Button>
             </div>
           ) : (
+            <>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {filteredDrivers.map((driver) => (
                 <DriverCard
@@ -455,6 +473,58 @@ export function DriversManagementPage() {
                 />
               ))}
             </div>
+            {pagination && pagination.lastPage > 1 ? (
+              <div className="mt-4 flex flex-col gap-3 border-t border-surface-muted px-1 pt-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-text-muted">
+                  {t('drivers.pagination.showing', {
+                    from: pagination.from,
+                    to: pagination.to,
+                    total: pagination.total,
+                  })}
+                  {isFetching ? ' …' : null}
+                </p>
+                <div className="flex flex-wrap items-center gap-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-8 px-2 text-xs"
+                    disabled={page <= 1}
+                    onClick={() => setPage((value) => Math.max(1, value - 1))}
+                  >
+                    {t('common.previous')}
+                  </Button>
+                  {visiblePages.map((n) => (
+                    <Button
+                      key={n}
+                      type="button"
+                      variant={n === page ? 'primary' : 'outline'}
+                      className="h-8 min-w-8 px-2 text-xs"
+                      onClick={() => setPage(n)}
+                    >
+                      {n}
+                    </Button>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-8 px-2 text-xs"
+                    disabled={page >= lastPage}
+                    onClick={() => setPage((value) => Math.min(lastPage, value + 1))}
+                  >
+                    {t('common.next')}
+                  </Button>
+                </div>
+              </div>
+            ) : pagination ? (
+              <p className="mt-4 text-sm text-text-muted">
+                {t('drivers.pagination.showing', {
+                  from: pagination.from,
+                  to: pagination.to,
+                  total: pagination.total,
+                })}
+              </p>
+            ) : null}
+            </>
           )}
         </CardContent>
       </Card>

@@ -51,6 +51,8 @@ export type CompanyDriver = {
   company_id: number
   roles?: CompanyDriverRole[]
   driver_profile: DriverProfile | null
+  /** True when the index marks the driver as currently on a trip. */
+  in_trip?: boolean
   created_at?: string
   updated_at?: string
 }
@@ -125,10 +127,20 @@ export type DriversFilters = {
   licenseStatus: string
 }
 
+export type DriversListPagination = {
+  currentPage: number
+  lastPage: number
+  perPage: number
+  total: number
+  from: number
+  to: number
+}
+
 export type DriversManagementData = {
   stats: DriversStatCard[]
   drivers: Driver[]
   defaultFilters: DriversFilters
+  pagination: DriversListPagination
 }
 
 export const DriversIcons = {

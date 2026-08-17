@@ -138,16 +138,17 @@ export function TripsManagementPage() {
 
   const serverFilters = useMemo(() => {
     const base = tripListFiltersToQuery(filters)
+    const view =
+      statFilter === 'scheduled'
+        ? ('scheduled' as const)
+        : statFilter === 'active'
+          ? ('active' as const)
+          : ('upcoming' as const)
+
     if (showOverdueOnly) {
-      return { ...base, resolutionStatus: 'pending_review' as const }
+      return { ...base, view, resolutionStatus: 'pending_review' as const }
     }
-    if (
-      (statFilter === 'scheduled' || statFilter === 'active') &&
-      filters.status === 'all'
-    ) {
-      return { ...base, status: statFilter }
-    }
-    return base
+    return { ...base, view }
   }, [filters, showOverdueOnly, statFilter])
 
   const serverFiltersKey = useMemo(() => JSON.stringify(serverFilters), [serverFilters])

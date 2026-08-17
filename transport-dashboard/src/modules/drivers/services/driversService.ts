@@ -16,6 +16,23 @@ function pickString(record: Record<string, unknown>, ...keys: string[]): string 
   return ''
 }
 
+function pickOnTripFlag(record: Record<string, unknown>): boolean {
+  if (
+    record.in_trip === true ||
+    record.is_on_trip === true ||
+    record.on_trip === true ||
+    record.in_trip === 1 ||
+    record.is_on_trip === 1 ||
+    record.on_trip === 1 ||
+    record.in_trip === '1' ||
+    record.in_trip === 'true'
+  ) {
+    return true
+  }
+  const status = typeof record.status === 'string' ? record.status.toLowerCase().replace(/-/g, '_') : ''
+  return status === 'in_trip' || status === 'on_trip'
+}
+
 function hasDriverProfileFields(record: Record<string, unknown>): boolean {
   return (
     record.license_number !== undefined ||
@@ -70,6 +87,7 @@ function flattenDriverRaw(raw: Record<string, unknown>): Record<string, unknown>
         user_id: nestedUser.id ?? raw.user_id,
         driver_profile: profile,
       }),
+      in_trip: pickOnTripFlag(raw) || pickOnTripFlag(nestedUser),
       driver_profile: profile,
     }
   }
@@ -96,6 +114,7 @@ function flattenDriverRaw(raw: Record<string, unknown>): Record<string, unknown>
       email: raw.email ?? null,
       company_id: raw.company_id,
       roles: raw.roles,
+      in_trip: pickOnTripFlag(raw),
       driver_profile: profile,
       created_at: raw.created_at,
       updated_at: raw.updated_at,
@@ -200,6 +219,11 @@ export function normalizeCompanyDriver(raw: unknown): CompanyDriver | null {
     company_id: Number(record.company_id) || 0,
     roles,
     driver_profile: normalizeDriverProfile(record.driver_profile),
+    in_trip:
+      pickOnTripFlag(record) ||
+      (record.driver_profile && typeof record.driver_profile === 'object'
+        ? pickOnTripFlag(record.driver_profile as Record<string, unknown>)
+        : false),
     created_at: typeof record.created_at === 'string' ? record.created_at : undefined,
     updated_at: typeof record.updated_at === 'string' ? record.updated_at : undefined,
   }
@@ -226,6 +250,54 @@ function unwrapOne(payload: unknown): CompanyDriver | null {
     return normalizeCompanyDriver(root.data)
   }
   return normalizeCompanyDriver(root)
+}
+
+export type CompanyDriversPage = {
+  drivers: CompanyDriver[]
+  currentPage: number
+  lastPage: number
+  perPage: number
+  total: number
+  from: number
+  to: number
+  counts: Record<string, unknown> | null
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null
+}
+
+function pickMetaNumber(meta: Record<string, unknown>, key: string): number | null {
+  const value = Number(meta[key])
+  return Number.isFinite(value) ? value : null
+}
+
+function readDriversPage(
+  payload: unknown,
+  fallbackPage: number,
+  fallbackPerPage: number,
+): CompanyDriversPage {
+  const drivers = unwrapList(payload)
+  const root = asRecord(payload)
+  const meta = asRecord(root?.meta) ?? root
+  const counts = asRecord(root?.counts) ?? asRecord(meta?.counts)
+
+  const currentPage = (meta ? pickMetaNumber(meta, 'current_page') : null) ?? fallbackPage
+  const perPage = (meta ? pickMetaNumber(meta, 'per_page') : null) ?? fallbackPerPage
+  const total = (meta ? pickMetaNumber(meta, 'total') : null) ?? drivers.length
+  const lastPage =
+    (meta ? pickMetaNumber(meta, 'last_page') : null) ??
+    Math.max(1, perPage > 0 ? Math.ceil(total / perPage) : 1)
+  const from =
+    (meta ? pickMetaNumber(meta, 'from') : null) ??
+    (drivers.length > 0 ? (currentPage - 1) * perPage + 1 : 0)
+  const to =
+    (meta ? pickMetaNumber(meta, 'to') : null) ??
+    (drivers.length > 0 ? from + drivers.length - 1 : 0)
+
+  return { drivers, currentPage, lastPage, perPage, total, from, to, counts }
 }
 
 /** Optional flat fields — Postman uses root-level keys, same as create. */
@@ -367,10 +439,33 @@ function readHttpStatus(error: unknown): number | undefined {
 }
 
 export const driversService = {
+  async listDriversPage(options?: { page?: number; perPage?: number }): Promise<CompanyDriversPage> {
+    const page = Math.max(1, Math.floor(options?.page ?? 1))
+    const perPage = Math.min(50, Math.max(1, Math.floor(options?.perPage ?? 15)))
+
+    try {
+      const { data } = await api.get<unknown>('/company/drivers', {
+        params: { page, per_page: perPage },
+      })
+      return readDriversPage(data, page, perPage)
+    } catch (error) {
+      throw new Error(getApiErrorMessage(error, 'Failed to load drivers'))
+    }
+  },
+
   async listDrivers(): Promise<CompanyDriver[]> {
     try {
-      const { data } = await api.get<unknown>('/company/drivers')
-      return unwrapList(data)
+      const first = await this.listDriversPage({ page: 1, perPage: 15 })
+      if (first.lastPage <= 1) return first.drivers
+
+      const remainingPages = Array.from(
+        { length: first.lastPage - 1 },
+        (_, index) => index + 2,
+      )
+      const rest = await Promise.all(
+        remainingPages.map((page) => this.listDriversPage({ page, perPage: 15 })),
+      )
+      return first.drivers.concat(...rest.map((item) => item.drivers))
     } catch (error) {
       throw new Error(getApiErrorMessage(error, 'Failed to load drivers'))
     }

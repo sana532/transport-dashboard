@@ -29,7 +29,17 @@ export type BookingsStatCard = {
   variant: BookingsStatVariant
 }
 
+export type BookingsListPagination = {
+  currentPage: number
+  lastPage: number
+  perPage: number
+  total: number
+  from: number
+  to: number
+}
+
 export type BookingsManagementData = {
   bookings: CompanyBooking[]
   stats: BookingsStatCard[]
+  pagination: BookingsListPagination
 }

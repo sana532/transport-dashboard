@@ -80,7 +80,7 @@ export function useTripsManagement(options: UseTripsManagementOptions = {}) {
         page,
         perPage,
       })
-      const stats: TripsStatCard[] = buildTripsStats(next.trips, t)
+      const stats: TripsStatCard[] = buildTripsStats(next.trips, t, next.counts)
       return { ...next, stats }
     },
     // Keep previous page only while paginating the same filter set — never across filter changes.

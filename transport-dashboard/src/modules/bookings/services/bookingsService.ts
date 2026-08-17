@@ -1,5 +1,9 @@
 import { api } from '@/services/api'
-import type { BookingsManagementData, CompanyBooking } from '@/modules/bookings/types'
+import type {
+  BookingsListPagination,
+  BookingsManagementData,
+  CompanyBooking,
+} from '@/modules/bookings/types'
 import { normalizeCompanyBooking } from '@/modules/bookings/utils/mapCompanyBooking'
 import { buildBookingStats } from '@/modules/bookings/utils/buildBookingStats'
 import { getApiErrorMessage } from '@/shared/utils/getApiErrorMessage'
@@ -40,10 +44,55 @@ function unwrapOne(payload: unknown): CompanyBooking | null {
   return normalizeCompanyBooking(root)
 }
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null
+}
+
+function pickMetaNumber(meta: Record<string, unknown>, key: string): number | null {
+  const value = Number(meta[key])
+  return Number.isFinite(value) ? value : null
+}
+
+function readBookingsPage(
+  payload: unknown,
+  fallbackPage: number,
+  fallbackPerPage: number,
+): {
+  bookings: CompanyBooking[]
+  pagination: BookingsListPagination
+  counts: Record<string, unknown> | null
+} {
+  const bookings = unwrapList(payload)
+  const root = asRecord(payload)
+  const meta = asRecord(root?.meta) ?? root
+  const counts = asRecord(meta?.counts) ?? asRecord(root?.counts)
+
+  const currentPage = (meta ? pickMetaNumber(meta, 'current_page') : null) ?? fallbackPage
+  const perPage = (meta ? pickMetaNumber(meta, 'per_page') : null) ?? fallbackPerPage
+  const total = (meta ? pickMetaNumber(meta, 'total') : null) ?? bookings.length
+  const lastPage =
+    (meta ? pickMetaNumber(meta, 'last_page') : null) ??
+    Math.max(1, perPage > 0 ? Math.ceil(total / perPage) : 1)
+  const from =
+    (meta ? pickMetaNumber(meta, 'from') : null) ??
+    (bookings.length > 0 ? (currentPage - 1) * perPage + 1 : 0)
+  const to =
+    (meta ? pickMetaNumber(meta, 'to') : null) ??
+    (bookings.length > 0 ? from + bookings.length - 1 : 0)
+
+  return {
+    bookings,
+    counts,
+    pagination: { currentPage, lastPage, perPage, total, from, to },
+  }
+}
+
 export const bookingsService = {
-  async listBookings(): Promise<CompanyBooking[]> {
+  async listBookings(page = 1): Promise<CompanyBooking[]> {
     try {
-      const { data } = await api.get<unknown>('/company/bookings')
+      const { data } = await api.get<unknown>('/company/bookings', { params: { page } })
       return unwrapList(data)
     } catch (error) {
       throw new Error(getApiErrorMessage(error, 'Failed to load bookings'))
@@ -70,11 +119,17 @@ export const bookingsService = {
     }
   },
 
-  async getBookingsManagementData(): Promise<BookingsManagementData> {
-    const bookings = await this.listBookings()
-    return {
-      bookings,
-      stats: buildBookingStats(bookings),
+  async getBookingsManagementData(page = 1): Promise<BookingsManagementData> {
+    try {
+      const { data } = await api.get<unknown>('/company/bookings', { params: { page } })
+      const parsed = readBookingsPage(data, page, 15)
+      return {
+        bookings: parsed.bookings,
+        stats: buildBookingStats(parsed.bookings, parsed.counts),
+        pagination: parsed.pagination,
+      }
+    } catch (error) {
+      throw new Error(getApiErrorMessage(error, 'Failed to load bookings'))
     }
   },
 }

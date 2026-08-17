@@ -10,8 +10,10 @@ function initialsFromName(name: string): string {
 
 function mapProfileStatus(raw: string | undefined): DriverStatus {
   const key = (raw ?? '').toLowerCase().replace(/-/g, '_')
+  if (key === 'on_trip' || key === 'in_trip' || key === 'on trip' || key === 'in trip' || key === 'busy') {
+    return 'On Trip'
+  }
   if (key === 'active' || key === 'available') return 'Available'
-  if (key === 'on_trip' || key === 'on trip' || key === 'busy') return 'On Trip'
   return 'Off Duty'
 }
 
@@ -44,7 +46,7 @@ export function mapCompanyDriverToDriver(row: CompanyDriver): Driver {
     id: String(row.id),
     profileId: profile?.id ? String(profile.id) : undefined,
     name: row.name,
-    status: mapProfileStatus(profile?.status),
+    status: row.in_trip ? 'On Trip' : mapProfileStatus(profile?.status),
     phone: row.phone_number,
     licenseNumber,
     experienceYears:
