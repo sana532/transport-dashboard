@@ -1,8 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import type {
-  ComplaintManagementRow,
-  ComplaintStatusUpdateInput,
-} from '@/modules/complaints/types'
+import type { ComplaintManagementRow, ComplaintStatusUpdateInput } from '@/modules/complaints/types'
 import { platformComplaintsService } from '@/modules/complaints/services/platformComplaintsService'
 import { useTranslation } from '@/shared/i18n/useTranslation'
 

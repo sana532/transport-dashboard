@@ -74,16 +74,19 @@ function planToForm(plan: CompanySubscriptionPlan): PlanFormState {
   }
 }
 
-function formToInput(form: PlanFormState): SubscriptionPlanInput {
+function formToInput(
+  form: PlanFormState,
+  t: (key: string) => string,
+): SubscriptionPlanInput {
   const price = Number(form.price)
   const validityDays = Number(form.validityDays)
   const maxTickets = Number(form.maxTicketsPerTrip)
   if (!form.nameEn.trim() || !form.nameAr.trim()) {
-    throw new Error('Fill in English and Arabic names.')
+    throw new Error(t('admin.platformPlans.errNames'))
   }
-  if (!Number.isFinite(price) || price < 0) throw new Error('Enter a valid price.')
+  if (!Number.isFinite(price) || price < 0) throw new Error(t('admin.platformPlans.errPrice'))
   if (!Number.isFinite(validityDays) || validityDays < 1) {
-    throw new Error('Validity days must be at least 1.')
+    throw new Error(t('admin.platformPlans.errValidity'))
   }
 
   const input: SubscriptionPlanInput = {
@@ -104,12 +107,12 @@ function formToInput(form: PlanFormState): SubscriptionPlanInput {
 
   if (form.type === 'multi_trip') {
     const trips = Number(form.totalTrips)
-    if (!Number.isFinite(trips) || trips < 1) throw new Error('Total trips must be at least 1.')
+    if (!Number.isFinite(trips) || trips < 1) throw new Error(t('admin.platformPlans.errTrips'))
     input.total_trips = Math.floor(trips)
   } else {
     const discount = Number(form.discountPercentage)
     if (!Number.isFinite(discount) || discount <= 0) {
-      throw new Error('Discount percentage must be greater than 0.')
+      throw new Error(t('admin.platformPlans.errDiscount'))
     }
     input.discount_percentage = discount
   }
@@ -118,7 +121,7 @@ function formToInput(form: PlanFormState): SubscriptionPlanInput {
 }
 
 export function PlatformPlansPage() {
-  const { t } = useTranslation()
+  const { t, locale } = useTranslation()
   const { plans, isLoading, error, reload, createPlan, updatePlan, deletePlan } =
     usePlatformSubscriptionPlans()
 
@@ -157,7 +160,7 @@ export function PlatformPlansPage() {
     setFormError(null)
     setPending(true)
     try {
-      const payload = formToInput(form)
+      const payload = formToInput(form, t)
       if (isEditing && editingId !== null) {
         await updatePlan(editingId, payload)
       } else {
@@ -165,19 +168,19 @@ export function PlatformPlansPage() {
       }
       closeDialog()
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Failed to save plan')
+      setFormError(err instanceof Error ? err.message : t('admin.platformPlans.errorSave'))
     } finally {
       setPending(false)
     }
   }
 
   async function handleDelete(plan: CompanySubscriptionPlan) {
-    if (!window.confirm(`Delete plan "${plan.nameEn}"?`)) return
+    if (!window.confirm(t('admin.platformPlans.confirmDelete', { name: plan.nameEn }))) return
     setActionError(null)
     try {
       await deletePlan(plan.id)
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Failed to delete plan')
+      setActionError(err instanceof Error ? err.message : t('admin.platformPlans.errorDelete'))
     }
   }
 
@@ -197,7 +200,7 @@ export function PlatformPlansPage() {
         </div>
         <button type="button" className={createBtnClass} onClick={openCreate}>
           <Plus className="h-4 w-4" aria-hidden />
-          Add plan
+          {t('admin.platformPlans.add')}
         </button>
       </div>
 
@@ -211,30 +214,30 @@ export function PlatformPlansPage() {
         <form onSubmit={handleSubmit}>
           <div className="border-b border-surface-muted px-6 py-4">
             <h2 className="section-title text-lg font-semibold text-[var(--title-h2)]">
-              {isEditing ? 'Edit platform plan' : 'Add platform plan'}
+              {isEditing ? t('admin.platformPlans.editTitle') : t('admin.platformPlans.addTitle')}
             </h2>
           </div>
           <div className="grid max-h-[70vh] gap-4 overflow-y-auto p-6">
             <div className="grid gap-4 sm:grid-cols-2">
-              <Input label="Name (EN)" value={form.nameEn} onChange={(e) => setForm((p) => ({ ...p, nameEn: e.target.value }))} required />
-              <Input label="Name (AR)" value={form.nameAr} onChange={(e) => setForm((p) => ({ ...p, nameAr: e.target.value }))} required dir="rtl" />
+              <Input label={t('admin.platformPlans.nameEn')} value={form.nameEn} onChange={(e) => setForm((p) => ({ ...p, nameEn: e.target.value }))} required />
+              <Input label={t('admin.platformPlans.nameAr')} value={form.nameAr} onChange={(e) => setForm((p) => ({ ...p, nameAr: e.target.value }))} required dir="rtl" />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-1.5">
-                <label className="text-sm font-medium text-text-secondary">Description (EN)</label>
+                <label className="text-sm font-medium text-text-secondary">{t('admin.platformPlans.descriptionEn')}</label>
                 <textarea className={textareaClass} value={form.descriptionEn} onChange={(e) => setForm((p) => ({ ...p, descriptionEn: e.target.value }))} />
               </div>
               <div className="grid gap-1.5">
-                <label className="text-sm font-medium text-text-secondary">Description (AR)</label>
+                <label className="text-sm font-medium text-text-secondary">{t('admin.platformPlans.descriptionAr')}</label>
                 <textarea className={textareaClass} value={form.descriptionAr} onChange={(e) => setForm((p) => ({ ...p, descriptionAr: e.target.value }))} dir="rtl" />
               </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Input label="Price" value={form.price} onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))} required inputMode="decimal" />
-              <Input label="Validity days" value={form.validityDays} onChange={(e) => setForm((p) => ({ ...p, validityDays: e.target.value }))} required inputMode="numeric" />
+              <Input label={t('admin.platformPlans.price')} value={form.price} onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))} required inputMode="decimal" />
+              <Input label={t('admin.platformPlans.validityDays')} value={form.validityDays} onChange={(e) => setForm((p) => ({ ...p, validityDays: e.target.value }))} required inputMode="numeric" />
             </div>
             <div className="grid gap-1.5">
-              <label className="text-sm font-medium text-text-secondary">Type</label>
+              <label className="text-sm font-medium text-text-secondary">{t('admin.platformPlans.type')}</label>
               <select
                 className={selectClass}
                 value={form.type}
@@ -242,13 +245,13 @@ export function PlatformPlansPage() {
                   setForm((p) => ({ ...p, type: e.target.value as SubscriptionPlanType }))
                 }
               >
-                <option value="multi_trip">multi_trip</option>
-                <option value="discount_pass">discount_pass</option>
+                <option value="multi_trip">{t('admin.platformPlans.type.multiTrip')}</option>
+                <option value="discount_pass">{t('admin.platformPlans.type.discountPass')}</option>
               </select>
             </div>
             {form.type === 'multi_trip' ? (
               <Input
-                label="Total trips"
+                label={t('admin.platformPlans.totalTrips')}
                 value={form.totalTrips}
                 onChange={(e) => setForm((p) => ({ ...p, totalTrips: e.target.value }))}
                 required
@@ -256,7 +259,7 @@ export function PlatformPlansPage() {
               />
             ) : (
               <Input
-                label="Discount percentage"
+                label={t('admin.platformPlans.discountPercentage')}
                 value={form.discountPercentage}
                 onChange={(e) => setForm((p) => ({ ...p, discountPercentage: e.target.value }))}
                 required
@@ -264,7 +267,7 @@ export function PlatformPlansPage() {
               />
             )}
             <Input
-              label="Max tickets per trip"
+              label={t('admin.platformPlans.maxTicketsPerTrip')}
               value={form.maxTicketsPerTrip}
               onChange={(e) => setForm((p) => ({ ...p, maxTicketsPerTrip: e.target.value }))}
               inputMode="numeric"
@@ -276,7 +279,7 @@ export function PlatformPlansPage() {
                 onChange={(e) => setForm((p) => ({ ...p, isActive: e.target.checked }))}
                 className="h-4 w-4 rounded border-border text-[#2F3E1F]"
               />
-              Active
+              {t('common.active')}
             </label>
             {formError ? (
               <p className="text-sm text-red-700" role="alert">
@@ -286,10 +289,10 @@ export function PlatformPlansPage() {
           </div>
           <div className="flex flex-wrap gap-3 border-t border-surface-muted px-6 py-4">
             <Button type="submit" disabled={pending} className="bg-[#2F3E1F] px-6 text-white hover:bg-[#243217] disabled:opacity-70">
-              {pending ? 'Saving…' : isEditing ? 'Save changes' : 'Create plan'}
+              {pending ? t('common.saving') : isEditing ? t('common.saveChanges') : t('admin.platformPlans.create')}
             </Button>
             <Button type="button" variant="outline" onClick={closeDialog}>
-              Cancel
+              {t('common.cancel')}
             </Button>
           </div>
         </form>
@@ -302,7 +305,7 @@ export function PlatformPlansPage() {
               {error}
             </p>
             <Button type="button" onClick={() => void reload()} className="bg-[#2F3E1F] text-white hover:bg-[#243217]">
-              Retry
+              {t('common.retry')}
             </Button>
           </CardContent>
         </Card>
@@ -312,35 +315,43 @@ export function PlatformPlansPage() {
             <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#2F3E1F]/10 text-[#2F3E1F]">
               <Package className="h-5 w-5" aria-hidden />
             </span>
-            <CardTitle className="text-lg">All platform plans</CardTitle>
+            <CardTitle className="text-lg">{t('admin.platformPlans.listTitle')}</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <p className="text-sm text-text-muted">Loading…</p>
+              <p className="text-sm text-text-muted">{t('common.loading')}</p>
             ) : plans.length === 0 ? (
               <div className="rounded-lg border border-dashed border-border px-6 py-10 text-center">
-                <p className="text-sm text-text-muted">No platform plans yet.</p>
+                <p className="text-sm text-text-muted">{t('admin.platformPlans.empty')}</p>
               </div>
             ) : (
               <div className="overflow-x-auto rounded-lg border border-border">
                 <table className="app-table w-full min-w-[720px] text-sm">
                   <thead>
                     <tr className="border-b border-border bg-surface-muted/50 text-xs uppercase tracking-wide text-text-muted">
-                      <th className="px-4 py-3 text-start font-semibold">Name</th>
-                      <th className="px-3 py-3 text-start font-semibold">Type</th>
-                      <th className="px-3 py-3 text-start font-semibold">Price</th>
-                      <th className="px-3 py-3 text-start font-semibold">Validity</th>
-                      <th className="px-3 py-3 text-start font-semibold">Status</th>
-                      <th className="px-3 py-3 text-end font-semibold">Actions</th>
+                      <th className="px-4 py-3 text-start font-semibold">{t('admin.platformPlans.colName')}</th>
+                      <th className="px-3 py-3 text-start font-semibold">{t('admin.platformPlans.colType')}</th>
+                      <th className="px-3 py-3 text-start font-semibold">{t('admin.platformPlans.colPrice')}</th>
+                      <th className="px-3 py-3 text-start font-semibold">{t('admin.platformPlans.colValidity')}</th>
+                      <th className="px-3 py-3 text-start font-semibold">{t('common.status')}</th>
+                      <th className="px-3 py-3 text-end font-semibold">{t('common.actions')}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {plans.map((plan) => (
                       <tr key={plan.id} className="border-b border-surface-muted last:border-0">
-                        <td className="px-4 py-3 font-medium text-text-primary">{plan.nameEn}</td>
-                        <td className="px-3 py-3 font-mono text-xs text-text-secondary">{plan.type}</td>
+                        <td className="px-4 py-3 font-medium text-text-primary">
+                          {locale === 'ar' ? plan.nameAr || plan.nameEn : plan.nameEn}
+                        </td>
+                        <td className="px-3 py-3 text-text-secondary">
+                          {plan.type === 'discount_pass'
+                            ? t('admin.platformPlans.type.discountPass')
+                            : t('admin.platformPlans.type.multiTrip')}
+                        </td>
                         <td className="px-3 py-3 text-text-secondary">{plan.price}</td>
-                        <td className="px-3 py-3 text-text-secondary">{plan.validityDays}d</td>
+                        <td className="px-3 py-3 text-text-secondary">
+                          {t('admin.platformPlans.validityDaysValue', { days: String(plan.validityDays) })}
+                        </td>
                         <td className="px-3 py-3">
                           <span
                             className={cn(
@@ -348,19 +359,24 @@ export function PlatformPlansPage() {
                               plan.isActive ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-600',
                             )}
                           >
-                            {plan.isActive ? 'active' : 'inactive'}
+                            {plan.isActive ? t('common.active') : t('common.inactive')}
                           </span>
                         </td>
                         <td className="px-3 py-3">
                           <div className="flex items-center justify-end gap-1.5">
-                            <button type="button" className={iconBtnClass} onClick={() => openEdit(plan)} aria-label={`Edit ${plan.nameEn}`}>
+                            <button
+                              type="button"
+                              className={iconBtnClass}
+                              onClick={() => openEdit(plan)}
+                              aria-label={t('common.edit')}
+                            >
                               <Pencil className="h-4 w-4" />
                             </button>
                             <button
                               type="button"
                               className={cn(iconBtnClass, 'hover:border-red-200 hover:text-red-700')}
                               onClick={() => void handleDelete(plan)}
-                              aria-label={`Delete ${plan.nameEn}`}
+                              aria-label={t('common.delete')}
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>

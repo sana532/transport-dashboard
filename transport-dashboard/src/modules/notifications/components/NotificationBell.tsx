@@ -1,9 +1,11 @@
 import { Bell } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { useNotificationAction } from '@/modules/notifications/hooks/useNotificationAction'
+import {
+  notificationDestination,
+  useNotificationAction,
+} from '@/modules/notifications/hooks/useNotificationAction'
 import { useNotifications } from '@/modules/notifications/components/NotificationsProvider'
-import { paths } from '@/routes/paths'
 import { useTranslation } from '@/shared/i18n/useTranslation'
 import { Button } from '@/shared/ui/Button'
 import { cn } from '@/shared/utils/cn'
@@ -32,7 +34,7 @@ export function NotificationBell({ variant = 'company' }: NotificationBellProps)
     enablePushNotifications,
     markAllAsRead,
   } = useNotifications()
-  const { openNotification } = useNotificationAction()
+  const { openNotification, audience, listPath } = useNotificationAction()
   const panelRef = useRef<HTMLDivElement>(null)
   const isCompany = variant === 'company'
 
@@ -137,7 +139,7 @@ export function NotificationBell({ variant = 'company' }: NotificationBellProps)
 
             {notifications.map((item) => {
               const isUnread = !item.readAt
-              const isClickable = Boolean(item.targetPath)
+              const isClickable = Boolean(notificationDestination(item, audience))
               return (
                 <button
                   key={item.id}
@@ -179,7 +181,7 @@ export function NotificationBell({ variant = 'company' }: NotificationBellProps)
               )}
             >
               <Link
-                to={paths.company.notifications}
+                to={listPath}
                 onClick={() => setIsOpen(false)}
                 className={cn(
                   'block rounded-lg px-2 py-2 text-center text-xs font-semibold transition-colors',

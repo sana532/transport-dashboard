@@ -20,7 +20,7 @@ const iconBtnClass =
   'inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-text-secondary transition-colors hover:bg-surface-muted hover:text-text-primary'
 
 export function PlatformPromoCodesPage() {
-  const { t } = useTranslation()
+  const { t, locale } = useTranslation()
   const { data, isLoading, error, reload, deletePromoCode } = usePlatformPromoCodes()
   const [actionError, setActionError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
@@ -35,12 +35,12 @@ export function PlatformPromoCodesPage() {
   }, [data, query])
 
   async function handleDelete(id: number, code: string) {
-    if (!window.confirm(`Delete platform promo "${code}"?`)) return
+    if (!window.confirm(t('admin.promoCodes.confirmDelete', { code }))) return
     setActionError(null)
     try {
       await deletePromoCode(id)
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Failed to delete promo')
+      setActionError(err instanceof Error ? err.message : t('admin.promoCodes.errorDelete'))
     }
   }
 
@@ -60,7 +60,7 @@ export function PlatformPromoCodesPage() {
         </div>
         <Link to={paths.admin.promoCodeNew} className={createBtnClass}>
           <Plus className="h-4 w-4" aria-hidden />
-          Add promo
+          {t('admin.promoCodes.add')}
         </Link>
       </div>
 
@@ -81,7 +81,7 @@ export function PlatformPromoCodesPage() {
               onClick={() => void reload()}
               className="bg-[#2F3E1F] text-white hover:bg-[#243217]"
             >
-              Retry
+              {t('common.retry')}
             </Button>
           </CardContent>
         </Card>
@@ -92,48 +92,48 @@ export function PlatformPromoCodesPage() {
               <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#2F3E1F]/10 text-[#2F3E1F]">
                 <Tag className="h-5 w-5" aria-hidden />
               </span>
-              <CardTitle className="text-lg">All platform promos</CardTitle>
+              <CardTitle className="text-lg">{t('admin.promoCodes.listTitle')}</CardTitle>
             </div>
             <input
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search code or name…"
+              placeholder={t('promoCodes.searchPlaceholder')}
               className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm sm:max-w-xs"
             />
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <p className="text-sm text-text-muted">Loading…</p>
+              <p className="text-sm text-text-muted">{t('common.loading')}</p>
             ) : rows.length === 0 ? (
               <div className="rounded-lg border border-dashed border-border px-6 py-10 text-center">
-                <p className="text-sm text-text-muted">No platform promo codes yet.</p>
+                <p className="text-sm text-text-muted">{t('admin.promoCodes.empty')}</p>
               </div>
             ) : (
               <div className="overflow-x-auto rounded-lg border border-border">
                 <table className="app-table w-full min-w-[720px] text-sm">
                   <thead>
                     <tr className="border-b border-border bg-surface-muted/50 text-xs uppercase tracking-wide text-text-muted">
-                      <th className="px-4 py-3 text-start font-semibold">Code</th>
-                      <th className="px-3 py-3 text-start font-semibold">Name</th>
-                      <th className="px-3 py-3 text-start font-semibold">Value</th>
-                      <th className="px-3 py-3 text-start font-semibold">Valid to</th>
-                      <th className="px-3 py-3 text-start font-semibold">Status</th>
-                      <th className="px-3 py-3 text-end font-semibold">Actions</th>
+                      <th className="px-4 py-3 text-start font-semibold">{t('promoCodes.col.code')}</th>
+                      <th className="px-3 py-3 text-start font-semibold">{t('promoCodes.col.name')}</th>
+                      <th className="px-3 py-3 text-start font-semibold">{t('admin.promoCodes.colValue')}</th>
+                      <th className="px-3 py-3 text-start font-semibold">{t('admin.promoCodes.colValidTo')}</th>
+                      <th className="px-3 py-3 text-start font-semibold">{t('common.status')}</th>
+                      <th className="px-3 py-3 text-end font-semibold">{t('common.actions')}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {rows.map((promo) => (
                       <tr key={promo.id} className="border-b border-surface-muted last:border-0">
                         <td className="px-4 py-3 font-mono text-xs font-medium">{promo.code}</td>
-                        <td className="px-3 py-3">{promoDisplayName(promo, 'en')}</td>
+                        <td className="px-3 py-3">{promoDisplayName(promo, locale)}</td>
                         <td className="px-3 py-3 text-text-secondary">
                           {promo.type === 'percentage' || promo.type === 'percent'
                             ? `${promo.value}%`
                             : String(promo.value)}
                         </td>
                         <td className="px-3 py-3 text-text-secondary">
-                          {formatPromoDate(promo.validTo, 'en-US')}
+                          {formatPromoDate(promo.validTo, locale === 'ar' ? 'ar-SY' : 'en-US')}
                         </td>
                         <td className="px-3 py-3">
                           <PromoLifecycleBadge promo={promo} />
@@ -143,16 +143,16 @@ export function PlatformPromoCodesPage() {
                             <Link
                               to={paths.admin.promoCodeEdit(String(promo.id))}
                               className={iconBtnClass}
-                              title="Edit"
-                              aria-label={`Edit ${promo.code}`}
+                              title={t('common.edit')}
+                              aria-label={t('promoCodes.aria.edit', { code: promo.code })}
                             >
                               <Pencil className="h-4 w-4" />
                             </Link>
                             <button
                               type="button"
                               className={cn(iconBtnClass, 'hover:border-red-200 hover:text-red-700')}
-                              title="Delete"
-                              aria-label={`Delete ${promo.code}`}
+                              title={t('common.delete')}
+                              aria-label={t('promoCodes.aria.delete', { code: promo.code })}
                               onClick={() => void handleDelete(promo.id, promo.code)}
                             >
                               <Trash2 className="h-4 w-4" />

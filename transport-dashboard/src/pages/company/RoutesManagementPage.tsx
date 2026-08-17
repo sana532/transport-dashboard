@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { MapPinned, Pencil, Plus, Trash2 } from 'lucide-react'
 import { formatRestAreaLabel } from '@/modules/geography/utils/restAreaApi'
+import { translateCityName } from '@/modules/geography/utils/cityNames'
 import type { Station } from '@/modules/geography/types'
 import type { CompanyRoute } from '@/modules/routes/types'
 import { RouteRestAreasCell } from '@/modules/routes/components/RouteRestAreasCell'
@@ -52,8 +53,8 @@ function isValidDurationHhmm(value: string): boolean {
   return Number.isFinite(h) && Number.isFinite(m) && m >= 0 && m < 60
 }
 
-function stationCityLabel(station: Station): string {
-  if (station.city?.name?.trim()) return station.city.name.trim()
+function stationCityLabel(station: Station, locale: string): string {
+  if (station.city?.name?.trim()) return translateCityName(station.city.name.trim(), locale)
   return station.name
 }
 
@@ -67,8 +68,8 @@ function buildAutoRouteName(
   const dest = stations.find((s) => String(s.id) === destinationStationId)
   if (!origin || !dest) return ''
 
-  const fromLabel = stationCityLabel(origin)
-  const toLabel = stationCityLabel(dest)
+  const fromLabel = stationCityLabel(origin, 'en')
+  const toLabel = stationCityLabel(dest, 'en')
   if (fromLabel === toLabel) {
     return `${origin.name} to ${dest.name}`
   }
@@ -85,18 +86,20 @@ function buildAutoRouteNameAr(
   const dest = stations.find((s) => String(s.id) === destinationStationId)
   if (!origin || !dest) return ''
 
-  const fromLabel = stationCityLabel(origin)
-  const toLabel = stationCityLabel(dest)
+  const fromLabel = stationCityLabel(origin, 'ar')
+  const toLabel = stationCityLabel(dest, 'ar')
   if (fromLabel === toLabel) {
     return `${origin.name} إلى ${dest.name}`
   }
   return `${fromLabel} إلى ${toLabel}`
 }
 
-function stationLabel(route: CompanyRoute, kind: 'origin' | 'destination'): string {
+function stationLabel(route: CompanyRoute, kind: 'origin' | 'destination', locale: string): string {
   const station = kind === 'origin' ? route.origin_station : route.destination_station
   const city = kind === 'origin' ? route.origin_city : route.destination_city
-  if (station?.name && city?.name) return `${station.name} (${city.name})`
+  if (station?.name && city?.name) {
+    return `${station.name} (${translateCityName(city.name, locale)})`
+  }
   if (station?.name) return station.name
   const id = kind === 'origin' ? route.origin_station_id : route.destination_station_id
   return `#${id}`
@@ -456,7 +459,7 @@ export function RoutesManagementPage() {
                           <option value="">{t('routes.form.chooseRestArea')}</option>
                           {restAreas.map((area) => (
                             <option key={area.id} value={area.id}>
-                              {formatRestAreaLabel(area)}
+                              {formatRestAreaLabel(area, locale)}
                             </option>
                           ))}
                         </select>
@@ -619,8 +622,8 @@ export function RoutesManagementPage() {
                       <td className="px-4 py-3 font-semibold text-text-primary">
                         {routeDisplayName(row, locale)}
                       </td>
-                      <td className="px-4 py-3">{stationLabel(row, 'origin')}</td>
-                      <td className="px-4 py-3">{stationLabel(row, 'destination')}</td>
+                      <td className="px-4 py-3">{stationLabel(row, 'origin', locale)}</td>
+                      <td className="px-4 py-3">{stationLabel(row, 'destination', locale)}</td>
                       <td className="px-4 py-3 align-top">
                         <RouteRestAreasCell
                           stops={row.rest_areas}

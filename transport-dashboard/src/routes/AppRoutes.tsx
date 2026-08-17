@@ -139,6 +139,7 @@ export function AppRoutes() {
             <Route path="complaint-categories" element={<PlatformComplaintCategoriesPage />} />
             <Route path="users" element={<UsersManagementPage />} />
             <Route path="users/:userId" element={<UserDetailsPage />} />
+            <Route path="notifications" element={<NotificationsPage />} />
             <Route path="settings" element={<AdminSettingsPage />} />
           </Route>
         </Route>

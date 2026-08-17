@@ -35,6 +35,7 @@ function formatJoinDate(iso: string | undefined): string | undefined {
 export function mapCompanyDriverToDriver(row: CompanyDriver): Driver {
   const profile = row.driver_profile
   const rating = profile?.rating != null ? Number.parseFloat(String(profile.rating)) : undefined
+  const ratingCount = profile?.rating_count
   const licenseNumber = profile?.license_number?.trim() || '—'
   const experienceYears = profile?.years_of_experience
   const licenseExpiry = profile?.license_expiration_date?.slice(0, 10)
@@ -66,5 +67,6 @@ export function mapCompanyDriverToDriver(row: CompanyDriver): Driver {
     joinDateLabel: formatJoinDate(profile?.created_at ?? row.created_at),
     totalTrips: profile?.total_trips ?? profile?.total_rides ?? 0,
     rating: Number.isFinite(rating) ? rating : undefined,
+    ratingCount: ratingCount != null && Number.isFinite(ratingCount) ? ratingCount : 0,
   }
 }

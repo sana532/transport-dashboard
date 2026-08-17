@@ -1,5 +1,6 @@
 import { CreditCard, Eye, Pencil, Phone, Trash2 } from 'lucide-react'
 import type { Driver, DriverStatus } from '@/modules/drivers/types'
+import { DriverRating } from '@/modules/drivers/components/DriverRating'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardContent } from '@/shared/ui/Card'
 import { useMediaImageSrc } from '@/shared/hooks/useMediaImageSrc'
@@ -77,6 +78,9 @@ export function DriverCard({ driver, onView, onEdit, onDelete }: DriverCardProps
           </p>
           <p className="text-text-muted">
             {t('drivers.card.trips', { count: String(driver.totalTrips ?? 0) })}
+          </p>
+          <p className="flex items-center gap-2 text-text-primary">
+            <DriverRating rating={driver.rating} ratingCount={driver.ratingCount} compact />
           </p>
         </div>
 

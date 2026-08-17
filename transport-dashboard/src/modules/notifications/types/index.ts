@@ -6,6 +6,7 @@ export type AppNotification = {
   createdAt: string | null
   referenceType: string | null
   referenceId: string | null
+  directUrl: string | null
   targetPath: string | null
   raw: unknown
 }

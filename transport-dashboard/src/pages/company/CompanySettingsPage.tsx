@@ -1,6 +1,7 @@
 import { useEffect, useId, useState, type FormEvent } from 'react'
 import { Building2, Languages, Loader2, Moon, Sun } from 'lucide-react'
 import { useCompanyProfile } from '@/modules/companies/components/CompanyProfileProvider'
+import { CompanyRating } from '@/modules/companies/components/CompanyRating'
 import { usePreferences } from '@/shared/preferences/PreferencesProvider'
 import { useTranslation } from '@/shared/i18n/useTranslation'
 import { useMediaImageSrc } from '@/shared/hooks/useMediaImageSrc'
@@ -162,6 +163,20 @@ export function CompanySettingsPage() {
                     autoComplete="organization"
                   />
                 </div>
+
+                {profile ? (
+                  <div>
+                    <p className="text-sm font-medium text-text-secondary">
+                      {t('admin.companies.colRating')}
+                    </p>
+                    <div className="mt-1.5 text-sm text-text-primary">
+                      <CompanyRating
+                        averageRating={profile.averageRating}
+                        totalRatings={profile.totalRatings}
+                      />
+                    </div>
+                  </div>
+                ) : null}
 
                 {profile?.email && profile.email !== '—' ? (
                   <div>

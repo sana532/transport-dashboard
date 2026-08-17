@@ -16,8 +16,21 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/Card'
 import { Input } from '@/shared/ui/Input'
 import { cn } from '@/shared/utils/cn'
 
+type UsersStatusFilter = '' | PlatformUserStatus | 'flagged' | 'banned'
+
 const selectClass =
   'w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary shadow-sm transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30'
+
+function isAccountStatus(value: UsersStatusFilter): value is PlatformUserStatus {
+  return value === 'active' || value === 'suspended' || value === 'inactive'
+}
+
+function parseOptionalNumber(raw: string): number | undefined {
+  const trimmed = raw.trim()
+  if (!trimmed) return undefined
+  const parsed = Number(trimmed)
+  return Number.isFinite(parsed) ? parsed : undefined
+}
 
 function StatusBadge({ status }: { status: PlatformUser['status'] }) {
   const { t } = useTranslation()
@@ -60,23 +73,27 @@ export function UsersManagementPage() {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [role, setRole] = useState('')
-  const [status, setStatus] = useState<PlatformUserStatus | ''>('')
+  const [statusFilter, setStatusFilter] = useState<UsersStatusFilter>('')
   const [companyIdInput, setCompanyIdInput] = useState('')
   const [companyId, setCompanyId] = useState<number | undefined>()
-  const [adminFlagged, setAdminFlagged] = useState<'all' | 'true' | 'false'>('all')
-  const [isBanned, setIsBanned] = useState<'all' | 'true' | 'false'>('all')
+  const [minScoreInput, setMinScoreInput] = useState('')
+  const [maxScoreInput, setMaxScoreInput] = useState('')
+  const [minScore, setMinScore] = useState<number | undefined>()
+  const [maxScore, setMaxScore] = useState<number | undefined>()
 
   const query = useMemo(
     () => ({
       page,
       search: search || undefined,
       role: role || undefined,
-      status: status || undefined,
+      status: isAccountStatus(statusFilter) ? statusFilter : undefined,
       company_id: companyId,
-      admin_flagged: adminFlagged === 'all' ? undefined : adminFlagged === 'true',
-      is_banned: isBanned === 'all' ? undefined : isBanned === 'true',
+      min_score: minScore,
+      max_score: maxScore,
+      admin_flagged: statusFilter === 'flagged' ? true : undefined,
+      is_banned: statusFilter === 'banned' ? true : undefined,
     }),
-    [page, search, role, status, companyId, adminFlagged, isBanned],
+    [page, search, role, statusFilter, companyId, minScore, maxScore],
   )
 
   const { users, pagination, isLoading, error, reload } = usePlatformUsers(query)
@@ -90,10 +107,23 @@ export function UsersManagementPage() {
   function applyFilters() {
     setPage(1)
     setSearch(searchInput.trim())
-    const parsed = Number(companyIdInput.trim())
+    const parsedCompanyId = Number(companyIdInput.trim())
     setCompanyId(
-      companyIdInput.trim() && Number.isFinite(parsed) && parsed > 0 ? parsed : undefined,
+      companyIdInput.trim() && Number.isFinite(parsedCompanyId) && parsedCompanyId > 0
+        ? parsedCompanyId
+        : undefined,
     )
+    const parsedMin = parseOptionalNumber(minScoreInput)
+    const parsedMax = parseOptionalNumber(maxScoreInput)
+    if (parsedMin != null && parsedMax != null && parsedMin > parsedMax) {
+      setMinScoreInput(String(parsedMax))
+      setMaxScoreInput(String(parsedMin))
+      setMinScore(parsedMax)
+      setMaxScore(parsedMin)
+    } else {
+      setMinScore(parsedMin)
+      setMaxScore(parsedMax)
+    }
   }
 
   return (
@@ -161,9 +191,9 @@ export function UsersManagementPage() {
               <select
                 id="user_status_filter"
                 className={selectClass}
-                value={status}
+                value={statusFilter}
                 onChange={(e) => {
-                  setStatus(e.target.value as PlatformUserStatus | '')
+                  setStatusFilter(e.target.value as UsersStatusFilter)
                   setPage(1)
                 }}
               >
@@ -177,6 +207,8 @@ export function UsersManagementPage() {
                         : t('common.inactive')}
                   </option>
                 ))}
+                <option value="flagged">{t('admin.users.colFlagged')}</option>
+                <option value="banned">{t('admin.users.colBanned')}</option>
               </select>
             </div>
             <Input
@@ -186,42 +218,36 @@ export function UsersManagementPage() {
               onChange={(e) => setCompanyIdInput(e.target.value)}
               placeholder="e.g. 1"
             />
-            <div>
-              <label htmlFor="user_flagged_filter" className="mb-1.5 block text-sm font-medium text-text-secondary">
-                {t('admin.users.colFlagged')}
-              </label>
-              <select
-                id="user_flagged_filter"
-                className={selectClass}
-                value={adminFlagged}
-                onChange={(e) => {
-                  setAdminFlagged(e.target.value as 'all' | 'true' | 'false')
-                  setPage(1)
-                }}
-              >
-                <option value="all">{t('admin.users.filterAll')}</option>
-                <option value="true">{t('admin.users.filterYes')}</option>
-                <option value="false">{t('admin.users.filterNo')}</option>
-              </select>
-            </div>
-            <div>
-              <label htmlFor="user_banned_filter" className="mb-1.5 block text-sm font-medium text-text-secondary">
-                {t('admin.users.colBanned')}
-              </label>
-              <select
-                id="user_banned_filter"
-                className={selectClass}
-                value={isBanned}
-                onChange={(e) => {
-                  setIsBanned(e.target.value as 'all' | 'true' | 'false')
-                  setPage(1)
-                }}
-              >
-                <option value="all">{t('admin.users.filterAll')}</option>
-                <option value="true">{t('admin.users.filterYes')}</option>
-                <option value="false">{t('admin.users.filterNo')}</option>
-              </select>
-            </div>
+            <Input
+              label={t('admin.users.minScore')}
+              name="user_min_score"
+              type="number"
+              inputMode="numeric"
+              value={minScoreInput}
+              onChange={(e) => setMinScoreInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  applyFilters()
+                }
+              }}
+              placeholder="0"
+            />
+            <Input
+              label={t('admin.users.maxScore')}
+              name="user_max_score"
+              type="number"
+              inputMode="numeric"
+              value={maxScoreInput}
+              onChange={(e) => setMaxScoreInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  applyFilters()
+                }
+              }}
+              placeholder="100"
+            />
             <div className="flex items-end">
               <Button
                 type="button"

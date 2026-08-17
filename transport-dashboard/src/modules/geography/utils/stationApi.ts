@@ -1,4 +1,5 @@
 import type { Station } from '@/modules/geography/types'
+import { translateCityName } from '@/modules/geography/utils/cityNames'
 
 function pickNumber(record: Record<string, unknown>, key: string): number | undefined {
   const value = record[key]
@@ -109,13 +110,16 @@ export function unwrapStationList(payload: unknown): Station[] {
 }
 
 /** Display-only: strip merged coords from city label if API returns them in name. */
-export function formatStationCityLabel(station: {
-  city?: { name: string } | null
-  city_id: number
-}): string {
+export function formatStationCityLabel(
+  station: {
+    city?: { name: string } | null
+    city_id: number
+  },
+  locale = 'en',
+): string {
   if (station.city?.name) {
     const parsed = parseMergedLocationLabel(station.city.name)
-    return parsed?.label ?? station.city.name
+    return translateCityName(parsed?.label ?? station.city.name, locale)
   }
   return station.city_id ? `#${station.city_id}` : '—'
 }

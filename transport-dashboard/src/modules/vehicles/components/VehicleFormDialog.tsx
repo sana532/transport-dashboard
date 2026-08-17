@@ -84,7 +84,6 @@ export function VehicleFormDialog({
 }: VehicleFormDialogProps) {
   const { t } = useTranslation()
   const titleId = useId()
-  const descId = useId()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [vehicleModelId, setVehicleModelId] = useState('')
@@ -187,14 +186,11 @@ export function VehicleFormDialog({
 
   return (
     <Modal open={open} onClose={handleClose} className="max-h-[min(92vh,820px)] overflow-y-auto">
-      <form onSubmit={handleSubmit} aria-labelledby={titleId} aria-describedby={descId}>
+      <form onSubmit={handleSubmit} aria-labelledby={titleId}>
         <div className="border-b border-surface-muted px-6 py-5">
           <h2 id={titleId} className="text-xl font-semibold tracking-tight text-[var(--title-h2)]">
             {isEdit ? t('vehicles.form.editTitle') : t('vehicles.form.addTitle')}
           </h2>
-          <p id={descId} className="mt-1 text-sm text-text-muted">
-            {t('vehicles.form.hint')}
-          </p>
         </div>
 
         {displayError ? (

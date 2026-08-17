@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { FolderTree, Pencil, Plus, Trash2 } from 'lucide-react'
+import { FolderTree, ImageIcon, Pencil, Plus, Trash2 } from 'lucide-react'
 import type { ComplaintCategory } from '@/modules/complaints/types'
 import type { PlatformComplaintCategoryInput } from '@/modules/complaints/services/platformComplaintsService'
 import { usePlatformComplaintCategories } from '@/modules/complaints/hooks/usePlatformComplaintCategories'
@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/Card'
 import { Input } from '@/shared/ui/Input'
 import { Modal } from '@/shared/ui/Modal'
 import { cn } from '@/shared/utils/cn'
+import { resolveMediaUrl } from '@/shared/utils/resolveMediaUrl'
 
 const createBtnClass = cn(
   'inline-flex shrink-0 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold',
@@ -193,14 +194,26 @@ export function PlatformComplaintCategoriesPage() {
               placeholder={t('admin.complaintCategories.form.nameArPlaceholder')}
               required
             />
-            <Input
-              label={t('admin.complaintCategories.form.iconUrl')}
-              name="icon_url"
-              value={form.iconUrl}
-              onChange={(e) => setForm((prev) => ({ ...prev, iconUrl: e.target.value }))}
-              placeholder="https://…"
-              dir="ltr"
-            />
+            <div className="grid gap-2">
+              <Input
+                label={t('admin.complaintCategories.form.iconUrl')}
+                name="icon_url"
+                value={form.iconUrl}
+                onChange={(e) => setForm((prev) => ({ ...prev, iconUrl: e.target.value }))}
+                placeholder="https://…"
+                dir="ltr"
+              />
+              <p className="text-xs text-text-muted">{t('admin.complaintCategories.form.iconHint')}</p>
+              {resolveMediaUrl(form.iconUrl) ? (
+                <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-lg border border-border bg-surface-muted">
+                  <img
+                    src={resolveMediaUrl(form.iconUrl)}
+                    alt={t('admin.complaintCategories.form.iconAlt')}
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+              ) : null}
+            </div>
             <div className="grid gap-1.5">
               <label htmlFor="category_visibility" className="text-sm font-medium text-text-secondary">
                 {t('admin.complaintCategories.form.visibility')}
@@ -287,15 +300,19 @@ export function PlatformComplaintCategoriesPage() {
               <div className="overflow-x-auto rounded-lg border border-border">
                 <table className="app-table w-full min-w-[720px] table-fixed border-collapse text-sm">
                   <colgroup>
+                    <col className="w-[4.5rem]" />
+                    <col className="w-[20%]" />
+                    <col className="w-[20%]" />
                     <col className="w-[22%]" />
-                    <col className="w-[22%]" />
-                    <col className="w-[24%]" />
                     <col className="w-[14%]" />
                     <col className="w-[6rem]" />
                   </colgroup>
                   <thead>
                     <tr className="border-b border-border bg-surface-muted/50 text-xs uppercase tracking-wide text-text-muted">
                       <th className="py-3 ps-4 pe-2 text-start font-semibold">
+                        {t('admin.complaintCategories.col.icon')}
+                      </th>
+                      <th className="px-2 py-3 text-start font-semibold">
                         {t('admin.complaintCategories.col.nameEn')}
                       </th>
                       <th className="px-2 py-3 text-start font-semibold">
@@ -318,12 +335,26 @@ export function PlatformComplaintCategoriesPage() {
                       const scopeLabel = t(`admin.complaintCategories.scope.${scopeKey}`, {
                         defaultValue: scopeKey,
                       })
+                      const iconSrc = resolveMediaUrl(category.iconUrl)
                       return (
                         <tr
                           key={category.id}
                           className="border-b border-surface-muted transition-colors last:border-0 hover:bg-surface-muted/40"
                         >
-                          <td className="py-3 ps-4 pe-2 align-middle text-start font-medium text-text-primary">
+                          <td className="py-3 ps-4 pe-2 align-middle">
+                            <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg border border-border bg-surface-muted">
+                              {iconSrc ? (
+                                <img
+                                  src={iconSrc}
+                                  alt=""
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <ImageIcon className="h-4 w-4 text-text-muted" aria-hidden />
+                              )}
+                            </span>
+                          </td>
+                          <td className="px-2 py-3 align-middle text-start font-medium text-text-primary">
                             <span className="block truncate" title={category.nameEn}>
                               {category.nameEn || '—'}
                             </span>

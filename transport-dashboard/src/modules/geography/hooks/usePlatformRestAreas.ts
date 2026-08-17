@@ -42,14 +42,6 @@ export function usePlatformRestAreas() {
     [load],
   )
 
-  const deleteRestArea = useCallback(
-    async (id: number) => {
-      await platformRestAreasService.deleteRestArea(id)
-      await load()
-    },
-    [load],
-  )
-
   return {
     restAreas,
     isLoading,
@@ -57,6 +49,5 @@ export function usePlatformRestAreas() {
     reload: load,
     createRestArea,
     updateRestArea,
-    deleteRestArea,
   }
 }

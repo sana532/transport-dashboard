@@ -89,12 +89,4 @@ export const platformRestAreasService = {
       throw new Error(getApiErrorMessage(error, 'Failed to update rest area'))
     }
   },
-
-  async deleteRestArea(id: number): Promise<void> {
-    try {
-      await api.delete(`/platform/rest-areas/${id}`)
-    } catch (error) {
-      throw new Error(getApiErrorMessage(error, 'Failed to delete rest area'))
-    }
-  },
 }

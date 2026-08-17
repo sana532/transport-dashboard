@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react'
-import { MapPin, Pencil, Plus, Trash2 } from 'lucide-react'
+import { MapPin, Pencil, Plus } from 'lucide-react'
 import type { City, Station, StationFormInput } from '@/modules/geography/types'
 import { usePlatformCities } from '@/modules/geography/hooks/usePlatformCities'
 import { usePlatformStations } from '@/modules/geography/hooks/usePlatformStations'
@@ -50,7 +50,7 @@ function formatCoords(station: Station): string {
 }
 
 export function StationsManagementPage() {
-  const { t } = useTranslation()
+  const { t, locale } = useTranslation()
   const { cities, isLoading: citiesLoading } = usePlatformCities()
   const {
     stations,
@@ -59,7 +59,6 @@ export function StationsManagementPage() {
     reload,
     createStation,
     updateStation,
-    deleteStation,
   } = usePlatformStations()
 
   const cityById = useMemo(() => {
@@ -73,7 +72,6 @@ export function StationsManagementPage() {
   const [form, setForm] = useState<StationFormInput>(emptyForm)
   const [formError, setFormError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
-  const [actionError, setActionError] = useState<string | null>(null)
 
   const isEditing = editingId !== null
 
@@ -88,8 +86,8 @@ export function StationsManagementPage() {
 
   function cityLabel(station: Station): string {
     const city = cityById.get(station.city_id || station.city?.id || 0)
-    if (city) return formatCityLabel(city)
-    return formatStationCityLabel(station)
+    if (city) return formatCityLabel(city, locale)
+    return formatStationCityLabel(station, locale)
   }
 
   function openCreate() {
@@ -143,16 +141,6 @@ export function StationsManagementPage() {
     }
   }
 
-  async function handleDelete(station: Station) {
-    if (!window.confirm(t('admin.stations.confirmDelete', { name: station.name }))) return
-    setActionError(null)
-    try {
-      await deleteStation(station.id)
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : t('admin.stations.deleteFailed'))
-    }
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -170,12 +158,6 @@ export function StationsManagementPage() {
           {t('admin.stations.add')}
         </button>
       </div>
-
-      {actionError ? (
-        <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
-          {actionError}
-        </p>
-      ) : null}
 
       <Modal open={dialogOpen} onClose={closeDialog} className="max-w-lg p-0">
         <form onSubmit={handleSubmit}>
@@ -204,7 +186,7 @@ export function StationsManagementPage() {
                 </option>
                 {cities.map((city) => (
                   <option key={city.id} value={city.id}>
-                    {formatCityLabel(city)}
+                    {formatCityLabel(city, locale)}
                   </option>
                 ))}
               </select>
@@ -358,15 +340,6 @@ export function StationsManagementPage() {
                               onClick={() => openEdit(station)}
                             >
                               <Pencil className="h-4 w-4" />
-                            </button>
-                            <button
-                              type="button"
-                              className={cn(iconBtnClass, 'hover:border-red-200 hover:text-red-700')}
-                              title={t('admin.geo.delete')}
-                              aria-label={t('admin.geo.deleteItem', { name: station.name })}
-                              onClick={() => void handleDelete(station)}
-                            >
-                              <Trash2 className="h-4 w-4" />
                             </button>
                           </div>
                         </td>

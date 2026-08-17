@@ -53,6 +53,29 @@ function pickId(record: Record<string, unknown>): number | null {
   return null
 }
 
+function pickFiniteNumber(record: Record<string, unknown>, ...keys: string[]): number | undefined {
+  for (const key of keys) {
+    const value = record[key]
+    if (value == null || value === '') continue
+    const n = typeof value === 'number' ? value : Number(String(value).replace(/,/g, ''))
+    if (Number.isFinite(n)) return n
+  }
+  return undefined
+}
+
+function ratingFields(
+  record: Record<string, unknown>,
+  fallback: Partial<PlatformCompany> = {},
+): Pick<PlatformCompany, 'averageRating' | 'totalRatings'> {
+  return {
+    averageRating:
+      pickFiniteNumber(record, 'average_rating', 'avg_rating', 'rating') ?? fallback.averageRating,
+    totalRatings:
+      pickFiniteNumber(record, 'total_ratings', 'ratings_count', 'rating_count') ??
+      fallback.totalRatings,
+  }
+}
+
 function normalizeStatus(raw: unknown, fallback: CompanyStatus = 'active'): CompanyStatus {
   if (raw === 'active' || raw === 'inactive' || raw === 'suspended') return raw
   return fallback
@@ -71,6 +94,8 @@ function normalizeCompany(raw: unknown, fallback: Partial<PlatformCompany> = {})
       status: fallback.status ?? 'active',
       logo_url: fallback.logo_url ?? null,
       cover_image_url: fallback.cover_image_url ?? null,
+      averageRating: fallback.averageRating,
+      totalRatings: fallback.totalRatings,
       created_at: fallback.created_at,
     }
   }
@@ -98,6 +123,7 @@ function normalizeCompany(raw: unknown, fallback: Partial<PlatformCompany> = {})
       pickString(nested, 'cover_image') ??
       fallback.cover_image_url ??
       null,
+    ...ratingFields(nested, fallback),
     created_at: pickString(nested, 'created_at') ?? fallback.created_at,
   }
 }

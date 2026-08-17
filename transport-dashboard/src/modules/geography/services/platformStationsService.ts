@@ -87,12 +87,4 @@ export const platformStationsService = {
       throw new Error(getApiErrorMessage(error, 'Failed to update station'))
     }
   },
-
-  async deleteStation(id: number): Promise<void> {
-    try {
-      await api.delete(`/platform/stations/${id}`)
-    } catch (error) {
-      throw new Error(getApiErrorMessage(error, 'Failed to delete station'))
-    }
-  },
 }

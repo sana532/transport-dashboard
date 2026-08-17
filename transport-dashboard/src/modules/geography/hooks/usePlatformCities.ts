@@ -42,14 +42,6 @@ export function usePlatformCities() {
     [load],
   )
 
-  const deleteCity = useCallback(
-    async (id: number) => {
-      await platformCitiesService.deleteCity(id)
-      await load()
-    },
-    [load],
-  )
-
   return {
     cities,
     isLoading,
@@ -57,6 +49,5 @@ export function usePlatformCities() {
     reload: load,
     createCity,
     updateCity,
-    deleteCity,
   }
 }

@@ -1,4 +1,5 @@
 import type { RestArea } from '@/modules/geography/types'
+import { translateCityName } from '@/modules/geography/utils/cityNames'
 
 function pickNumber(record: Record<string, unknown>, key: string): number | undefined {
   const value = record[key]
@@ -75,10 +76,9 @@ export function formatRestAreaCoords(area: RestArea): string {
   return '—'
 }
 
-export function formatRestAreaCityLabel(area: RestArea): string {
-  if (area.city?.name) return area.city.name
-  if (area.governorate_name) return area.governorate_name
-  return '—'
+export function formatRestAreaCityLabel(area: RestArea, locale = 'en'): string {
+  const raw = area.city?.name || area.governorate_name
+  return raw ? translateCityName(raw, locale) : '—'
 }
 
 export function unwrapRestAreaList(payload: unknown): RestArea[] {
@@ -106,8 +106,8 @@ export function unwrapRestAreaOne(payload: unknown): RestArea | null {
   return normalizeRestArea(root)
 }
 
-export function formatRestAreaLabel(area: RestArea): string {
-  if (area.city?.name) return `${area.name} — ${area.city.name}`
-  if (area.governorate_name) return `${area.name} — ${area.governorate_name}`
+export function formatRestAreaLabel(area: RestArea, locale = 'en'): string {
+  const city = formatRestAreaCityLabel(area, locale)
+  if (city && city !== '—') return `${area.name} — ${city}`
   return area.name
 }

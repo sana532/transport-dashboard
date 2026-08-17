@@ -1,5 +1,5 @@
 /* eslint-disable no-undef */
-/* notification-sw-version: 6 — NEVER showNotification; one FCM toast only */
+/* notification-sw-version: 7 — NEVER showNotification; one FCM toast only */
 importScripts('https://www.gstatic.com/firebasejs/11.8.1/firebase-app-compat.js')
 importScripts('https://www.gstatic.com/firebasejs/11.8.1/firebase-messaging-compat.js')
 
@@ -14,8 +14,33 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging()
 
-function resolveNotificationPath(referenceType, referenceId, directUrl) {
-  if (typeof directUrl === 'string' && directUrl.startsWith('/')) return directUrl
+function audienceFromClients(clientList) {
+  for (const client of clientList) {
+    try {
+      if (new URL(client.url).pathname.startsWith('/admin')) return 'admin'
+    } catch {
+      // ignore
+    }
+  }
+  return 'company'
+}
+
+function resolveNotificationPath(referenceType, referenceId, directUrl, audience) {
+  const isAdmin = audience === 'admin'
+
+  if (typeof directUrl === 'string' && directUrl.startsWith('/')) {
+    if (!isAdmin) return directUrl.startsWith('/admin/') ? '/company/notifications' : directUrl
+
+    const complaintMatch = directUrl.match(/^\/(?:company|admin)\/complaints\/([^/?#]+)/)
+    if (complaintMatch) return `/admin/complaints/${complaintMatch[1]}`
+    const userMatch = directUrl.match(/^\/(?:company|admin)\/users\/([^/?#]+)/)
+    if (userMatch) return `/admin/users/${userMatch[1]}`
+    const companyMatch = directUrl.match(/^\/admin\/companies\/([^/?#]+)/)
+    if (companyMatch) return `/admin/companies/${companyMatch[1]}`
+    if (directUrl.startsWith('/admin/')) return directUrl
+    if (directUrl.startsWith('/company/notifications')) return '/admin/notifications'
+    return '/admin/notifications'
+  }
 
   const id =
     typeof referenceId === 'number'
@@ -24,15 +49,23 @@ function resolveNotificationPath(referenceType, referenceId, directUrl) {
         ? referenceId.trim()
         : null
 
-  if (!referenceType || !id) return null
+  if (!referenceType || !id) return isAdmin ? '/admin/notifications' : '/company/notifications'
 
   const type = String(referenceType).split('\\').pop().toLowerCase()
+
+  if (isAdmin) {
+    if (type.includes('complaint')) return `/admin/complaints/${id}`
+    if (type === 'company' || type.endsWith('company')) return `/admin/companies/${id}`
+    if (type === 'user' || type.endsWith('user')) return `/admin/users/${id}`
+    if (type.includes('promo')) return `/admin/promo-codes/${id}/edit`
+    return '/admin/notifications'
+  }
 
   if (type.includes('trip')) return `/company/trips/${id}`
   if (type.includes('booking')) return `/company/bookings/${id}`
   if (type.includes('complaint')) return `/company/complaints/${id}`
 
-  return null
+  return '/company/notifications'
 }
 
 /**
@@ -46,13 +79,18 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close()
 
   const data = event.notification.data ?? {}
-  const path =
-    resolveNotificationPath(data.reference_type, data.reference_id, data.url) ??
-    '/company/notifications'
-  const targetUrl = new URL(path, self.location.origin).href
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      const audience = audienceFromClients(clientList)
+      const path = resolveNotificationPath(
+        data.reference_type,
+        data.reference_id,
+        data.url,
+        audience,
+      )
+      const targetUrl = new URL(path, self.location.origin).href
+
       for (const client of clientList) {
         if (!('focus' in client)) continue
         if (client.url.startsWith(self.location.origin)) {

@@ -1,9 +1,5 @@
 import { api } from '@/services/api'
-import type {
-  ComplaintCategory,
-  ComplaintManagementRow,
-  ComplaintStatusUpdateInput,
-} from '@/modules/complaints/types'
+import type { ComplaintCategory, ComplaintManagementRow, ComplaintStatusUpdateInput } from '@/modules/complaints/types'
 import {
   normalizeCompanyComplaint,
   normalizeComplaintCategory,

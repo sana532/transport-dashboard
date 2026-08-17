@@ -4,7 +4,10 @@ import {
   useNotificationsPage,
   type NotificationReadFilter,
 } from '@/modules/notifications/hooks/useNotificationsPage'
-import { useNotificationAction } from '@/modules/notifications/hooks/useNotificationAction'
+import {
+  notificationDestination,
+  useNotificationAction,
+} from '@/modules/notifications/hooks/useNotificationAction'
 import { useNotifications } from '@/modules/notifications/components/NotificationsProvider'
 import type { AppNotification } from '@/modules/notifications/types'
 import { Button } from '@/shared/ui/Button'
@@ -58,7 +61,7 @@ function NotificationsErrorState({ message, onRetry }: { message: string; onRetr
 export function NotificationsPage() {
   const { t, locale } = useTranslation()
   const { refreshUnreadCount } = useNotifications()
-  const { openNotification } = useNotificationAction()
+  const { openNotification, audience } = useNotificationAction()
   const [filter, setFilter] = useState<NotificationReadFilter>('all')
   const [page, setPage] = useState(1)
   const { notifications, isLoading, error, reload, markAsRead, markAllAsRead } =
@@ -105,7 +108,13 @@ export function NotificationsPage() {
           <h1 className="text-[34px] font-semibold tracking-tight text-[var(--title-h1)]">
             {t('notifications.pageTitle')}
           </h1>
-          <p className="mt-1 text-sm text-text-muted">{t('notifications.pageSubtitle')}</p>
+          <p className="mt-1 text-sm text-text-muted">
+            {t(
+              audience === 'admin'
+                ? 'notifications.pageSubtitleAdmin'
+                : 'notifications.pageSubtitle',
+            )}
+          </p>
         </div>
         <Button
           type="button"
@@ -161,6 +170,7 @@ export function NotificationsPage() {
             <ul className="divide-y divide-surface-muted">
               {pageRows.map((item) => {
                 const isUnread = !item.readAt
+                const isClickable = Boolean(notificationDestination(item, audience))
                 return (
                   <li key={item.id}>
                     <button
@@ -168,7 +178,7 @@ export function NotificationsPage() {
                       className={cn(
                         'flex w-full flex-col gap-1 px-6 py-4 text-start transition-colors hover:bg-surface-muted/60',
                         isUnread && 'bg-brand-primary/5',
-                        item.targetPath && 'cursor-pointer',
+                        isClickable && 'cursor-pointer',
                       )}
                       onClick={() => handleOpen(item)}
                     >

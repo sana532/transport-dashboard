@@ -42,14 +42,6 @@ export function usePlatformStations() {
     [load],
   )
 
-  const deleteStation = useCallback(
-    async (id: number) => {
-      await platformStationsService.deleteStation(id)
-      await load()
-    },
-    [load],
-  )
-
   return {
     stations,
     isLoading,
@@ -57,6 +49,5 @@ export function usePlatformStations() {
     reload: load,
     createStation,
     updateStation,
-    deleteStation,
   }
 }

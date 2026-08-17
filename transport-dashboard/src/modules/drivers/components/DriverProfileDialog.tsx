@@ -3,12 +3,12 @@ import {
   CreditCard,
   Mail,
   Phone,
-  Star,
   User,
   X,
 } from 'lucide-react'
 import type { ReactNode } from 'react'
 import type { Driver, DriverStatus } from '@/modules/drivers/types'
+import { DriverRating } from '@/modules/drivers/components/DriverRating'
 import { useMediaImageSrc } from '@/shared/hooks/useMediaImageSrc'
 import { useTranslation } from '@/shared/i18n/useTranslation'
 import { Button } from '@/shared/ui/Button'
@@ -181,16 +181,7 @@ export function DriverProfileDialog({
             />
             <ProfileRow
               label={t('drivers.profile.rating')}
-              value={
-                driver.rating != null ? (
-                  <span className="inline-flex items-center gap-1">
-                    <Star className="h-4 w-4 fill-amber-400 text-amber-400" aria-hidden />
-                    {driver.rating}
-                  </span>
-                ) : (
-                  '—'
-                )
-              }
+              value={<DriverRating rating={driver.rating} ratingCount={driver.ratingCount} />}
             />
             <ProfileRow
               label={t('common.status')}

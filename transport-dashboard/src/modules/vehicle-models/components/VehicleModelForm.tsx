@@ -15,17 +15,10 @@ import { useTranslation } from '@/shared/i18n/useTranslation'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/Card'
 import { Input } from '@/shared/ui/Input'
-import { cn } from '@/shared/utils/cn'
 import { resolveMediaUrl } from '@/shared/utils/resolveMediaUrl'
 
 const selectClass =
   'w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary shadow-sm transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30'
-
-const monoClass = cn(
-  selectClass,
-  'font-mono text-start text-xs leading-relaxed',
-  'dir-ltr unicode-bidi-plaintext',
-)
 
 const defaultOptions = defaultLayoutFormOptions()
 
@@ -121,16 +114,6 @@ export function VehicleModelForm({
     const files = event.target.files
     if (!files) return
     setImages(Array.from(files))
-  }
-
-  function onAdvancedJsonChange(value: string) {
-    setLayoutConfigJson(value)
-    const options = extractLayoutFormOptions(value)
-    if (!options) return
-    setSeatCount(options.seatCount)
-    setSeatCountDraft(String(options.seatCount))
-    setRows(options.rows)
-    setHasAisle(options.hasAisle)
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -354,27 +337,6 @@ export function VehicleModelForm({
           ) : null}
 
           <SeatLayoutPreview layoutConfigJson={layoutConfigJson} />
-
-          <details className="rounded-lg border border-border bg-surface">
-            <summary className="cursor-pointer px-4 py-2.5 text-sm font-medium text-text-secondary">
-              {t('admin.vehicleModels.form.advancedJson')}
-            </summary>
-            <div className="border-t border-border p-4">
-              <p className="mb-3 text-xs text-text-muted">
-                {t('admin.vehicleModels.form.advancedJsonHint')}
-              </p>
-              <textarea
-                id="layout_config"
-                name="layout_config"
-                dir="ltr"
-                rows={12}
-                className={monoClass}
-                value={layoutConfigJson}
-                onChange={(e) => onAdvancedJsonChange(e.target.value)}
-                required
-              />
-            </div>
-          </details>
 
           <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
             <button

@@ -62,10 +62,27 @@ export function normalizeNotification(raw: unknown): AppNotification | null {
     readString(record.sent_at) ??
     readString(nested?.created_at)
 
-  const referenceType =
-    readString(record.reference_type) ?? readString(nested?.reference_type)
-  const referenceId =
-    readId(record.reference_id) ?? readId(nested?.reference_id)
+  let referenceType =
+    readString(record.reference_type) ??
+    readString(nested?.reference_type) ??
+    readString(record.notifiable_type) ??
+    readString(nested?.notifiable_type)
+  const complaintId = readId(record.complaint_id) ?? readId(nested?.complaint_id)
+  const companyId = readId(record.company_id) ?? readId(nested?.company_id)
+  const userId = readId(record.user_id) ?? readId(nested?.user_id)
+  let referenceId =
+    readId(record.reference_id) ??
+    readId(nested?.reference_id) ??
+    complaintId ??
+    companyId ??
+    userId
+
+  if (!referenceType) {
+    if (complaintId) referenceType = 'complaint'
+    else if (companyId) referenceType = 'company'
+    else if (userId) referenceType = 'user'
+  }
+
   const directUrl = readString(record.url) ?? readString(nested?.url)
 
   return {
@@ -76,6 +93,7 @@ export function normalizeNotification(raw: unknown): AppNotification | null {
     createdAt,
     referenceType,
     referenceId,
+    directUrl,
     targetPath: resolveNotificationRoute(referenceType, referenceId, directUrl),
     raw,
   }

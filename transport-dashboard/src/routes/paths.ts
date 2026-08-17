@@ -50,6 +50,7 @@ export const paths = {
     complaints: '/admin/complaints',
     complaintDetails: (complaintId: string) => `/admin/complaints/${complaintId}`,
     complaintCategories: '/admin/complaint-categories',
+    notifications: '/admin/notifications',
     settings: '/admin/settings',
   },
 } as const

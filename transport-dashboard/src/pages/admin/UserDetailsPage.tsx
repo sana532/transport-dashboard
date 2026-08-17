@@ -64,6 +64,8 @@ export function UserDetailsPage() {
     setAdminFlagged(reliability?.admin_flagged ?? user.admin_flagged)
   }, [user, reliability])
 
+  const isFlagged = reliability?.admin_flagged ?? user?.admin_flagged ?? false
+  const isBanned = reliability?.is_banned ?? user?.is_banned ?? false
   const bannedUntilRaw = reliability?.banned_until ?? user?.banned_until ?? null
   const bannedUntilDate = bannedUntilRaw ? new Date(bannedUntilRaw) : null
   const bannedUntilLabel =
@@ -323,40 +325,51 @@ export function UserDetailsPage() {
                 <p className="mt-0.5 text-sm text-text-muted">{t('admin.users.reliabilityHint')}</p>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4 p-4">
+            <CardContent className="space-y-5 p-4">
               <div className="grid gap-3 sm:grid-cols-3">
-                <div className="rounded-lg border border-border bg-surface-muted/40 px-3 py-2">
+                <div className="rounded-lg border border-border bg-surface-muted/40 px-3 py-2.5">
                   <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
                     {t('admin.users.colScore')}
                   </p>
                   <p className="mt-1 text-lg font-semibold text-text-primary">
                     {reliability?.score ?? user.score ?? '—'}
                   </p>
+                  <p className="mt-1 text-xs leading-5 text-text-muted">{t('admin.users.scoreHint')}</p>
                 </div>
-                <div className="rounded-lg border border-border bg-surface-muted/40 px-3 py-2">
+                <div
+                  className={cn(
+                    'rounded-lg border px-3 py-2.5',
+                    isFlagged
+                      ? 'border-amber-200 bg-amber-50'
+                      : 'border-border bg-surface-muted/40',
+                  )}
+                >
                   <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
                     {t('admin.users.colFlagged')}
                   </p>
                   <p className="mt-1 text-sm font-medium text-text-primary">
-                    {(reliability?.admin_flagged ?? user.admin_flagged)
-                      ? t('admin.users.filterYes')
-                      : t('admin.users.filterNo')}
+                    {isFlagged ? t('admin.users.flaggedYes') : t('admin.users.flaggedNo')}
                   </p>
+                  <p className="mt-1 text-xs leading-5 text-text-muted">{t('admin.users.flaggedHint')}</p>
                 </div>
-                <div className="rounded-lg border border-border bg-surface-muted/40 px-3 py-2">
+                <div
+                  className={cn(
+                    'rounded-lg border px-3 py-2.5',
+                    isBanned ? 'border-red-200 bg-red-50' : 'border-border bg-surface-muted/40',
+                  )}
+                >
                   <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
                     {t('admin.users.colBanned')}
                   </p>
                   <p className="mt-1 text-sm font-medium text-text-primary">
-                    {(reliability?.is_banned ?? user.is_banned)
-                      ? t('admin.users.filterYes')
-                      : t('admin.users.filterNo')}
+                    {isBanned ? t('admin.users.bannedYes') : t('admin.users.bannedNo')}
                   </p>
                   {bannedUntilLabel ? (
                     <p className="mt-1 text-xs text-text-muted">
                       {t('admin.users.bannedUntil')}: {bannedUntilLabel}
                     </p>
                   ) : null}
+                  <p className="mt-1 text-xs leading-5 text-text-muted">{t('admin.users.bannedHint')}</p>
                 </div>
               </div>
 
@@ -365,17 +378,6 @@ export function UserDetailsPage() {
                   {reliability.notes}
                 </p>
               ) : null}
-
-              <label className={cn('flex items-center gap-2 text-sm text-text-primary')}>
-                <input
-                  type="checkbox"
-                  checked={adminFlagged}
-                  onChange={(e) => setAdminFlagged(e.target.checked)}
-                  disabled={isSaving}
-                  className="h-4 w-4 rounded border-border"
-                />
-                {t('admin.users.adminFlaggedLabel')}
-              </label>
 
               {reliabilityError ? (
                 <p className="text-sm text-red-700" role="alert">
@@ -388,33 +390,68 @@ export function UserDetailsPage() {
                 </p>
               ) : null}
 
-              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                <Button
-                  type="button"
-                  disabled={isSaving}
-                  onClick={() => void onSaveReliability()}
-                  className="w-full bg-[#2F3E1F] text-white hover:bg-[#243217] sm:w-auto"
-                >
-                  {t('admin.users.saveReliability')}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={isSaving || !(reliability?.is_banned ?? user.is_banned)}
-                  onClick={() => void onClearBan()}
-                  className="w-full sm:w-auto"
-                >
-                  {t('admin.users.clearBan')}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={isSaving}
-                  onClick={() => void onResetReliability()}
-                  className="w-full sm:w-auto"
-                >
-                  {t('admin.users.resetReliability')}
-                </Button>
+              <div className="space-y-4 border-t border-surface-muted pt-4">
+                <p className="text-sm font-semibold text-text-primary">
+                  {t('admin.users.reliabilityActions')}
+                </p>
+
+                <div className="rounded-lg border border-border px-3 py-3">
+                  <label className="flex items-start gap-2 text-sm text-text-primary">
+                    <input
+                      type="checkbox"
+                      checked={adminFlagged}
+                      onChange={(e) => setAdminFlagged(e.target.checked)}
+                      disabled={isSaving}
+                      className="mt-0.5 h-4 w-4 rounded border-border"
+                    />
+                    <span>
+                      <span className="font-medium">{t('admin.users.adminFlaggedLabel')}</span>
+                      <span className="mt-0.5 block text-xs font-normal text-text-muted">
+                        {t('admin.users.adminFlaggedHelp')}
+                      </span>
+                    </span>
+                  </label>
+                  <Button
+                    type="button"
+                    disabled={isSaving}
+                    onClick={() => void onSaveReliability()}
+                    className="mt-3 w-full bg-[#2F3E1F] text-white hover:bg-[#243217] sm:w-auto"
+                  >
+                    {t('admin.users.saveReliability')}
+                  </Button>
+                </div>
+
+                <div className="rounded-lg border border-border px-3 py-3">
+                  <p className="text-sm font-medium text-text-primary">{t('admin.users.clearBan')}</p>
+                  <p className="mt-0.5 text-xs text-text-muted">
+                    {isBanned ? t('admin.users.clearBanHelp') : t('admin.users.notBannedNow')}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={isSaving || !isBanned}
+                    onClick={() => void onClearBan()}
+                    className="mt-3 w-full sm:w-auto"
+                  >
+                    {t('admin.users.clearBan')}
+                  </Button>
+                </div>
+
+                <div className="rounded-lg border border-border px-3 py-3">
+                  <p className="text-sm font-medium text-text-primary">
+                    {t('admin.users.resetReliability')}
+                  </p>
+                  <p className="mt-0.5 text-xs text-text-muted">{t('admin.users.resetHelp')}</p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={isSaving}
+                    onClick={() => void onResetReliability()}
+                    className="mt-3 w-full sm:w-auto"
+                  >
+                    {t('admin.users.resetReliability')}
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>

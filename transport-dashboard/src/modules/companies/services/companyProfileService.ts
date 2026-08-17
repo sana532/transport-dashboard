@@ -13,6 +13,8 @@ export type CompanyProfile = {
   status: CompanyStatus
   logoUrl: string | null
   coverImageUrl: string | null
+  averageRating?: number
+  totalRatings?: number
 }
 
 export type UpdateCompanyProfileInput = {
@@ -24,6 +26,16 @@ function pickString(record: Record<string, unknown>, ...keys: string[]): string 
   for (const key of keys) {
     const value = record[key]
     if (typeof value === 'string' && value.trim()) return value.trim()
+  }
+  return undefined
+}
+
+function pickFiniteNumber(record: Record<string, unknown>, ...keys: string[]): number | undefined {
+  for (const key of keys) {
+    const value = record[key]
+    if (value == null || value === '') continue
+    const n = typeof value === 'number' ? value : Number(String(value).replace(/,/g, ''))
+    if (Number.isFinite(n)) return n
   }
   return undefined
 }
@@ -82,6 +94,8 @@ export function normalizeCompanyProfile(raw: unknown): CompanyProfile | null {
     coverImageUrl: mediaUrl(
       pickString(nested, 'cover_image_url', 'cover_image', 'cover') ?? coverFromMedia,
     ),
+    averageRating: pickFiniteNumber(nested, 'average_rating', 'avg_rating', 'rating'),
+    totalRatings: pickFiniteNumber(nested, 'total_ratings', 'ratings_count', 'rating_count'),
   }
 }
 
@@ -96,6 +110,8 @@ function toPlatformShape(profile: CompanyProfile): PlatformCompany {
     status: profile.status,
     logo_url: profile.logoUrl,
     cover_image_url: profile.coverImageUrl,
+    averageRating: profile.averageRating,
+    totalRatings: profile.totalRatings,
   }
 }
 

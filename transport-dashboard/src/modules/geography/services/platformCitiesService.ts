@@ -4,13 +4,12 @@ import { unwrapCityList, unwrapCityOne } from '@/modules/geography/utils/cityApi
 import { getApiErrorMessage } from '@/shared/utils/getApiErrorMessage'
 
 function toWritePayload(input: CityFormInput): CityWritePayload {
-  const nameEn = input.nameEn.trim()
-  const nameAr = input.nameAr.trim()
+  const name = input.name.trim()
   const latitude = Number(input.latitude.trim())
   const longitude = Number(input.longitude.trim())
 
-  if (!nameEn || !nameAr) {
-    throw new Error('English and Arabic names are required')
+  if (!name) {
+    throw new Error('A city name is required')
   }
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
     throw new Error('Latitude and longitude must be valid numbers')
@@ -23,8 +22,7 @@ function toWritePayload(input: CityFormInput): CityWritePayload {
   }
 
   return {
-    name_en: nameEn,
-    name_ar: nameAr,
+    name,
     latitude,
     longitude,
   }
@@ -33,10 +31,10 @@ function toWritePayload(input: CityFormInput): CityWritePayload {
 function fallbackCity(id: number, payload: CityWritePayload): City {
   return {
     id,
-    name: payload.name_en,
-    name_en: payload.name_en,
-    name_ar: payload.name_ar,
-    governorate_name: payload.name_ar,
+    name: payload.name,
+    name_en: payload.name,
+    name_ar: null,
+    governorate_name: null,
     latitude: payload.latitude,
     longitude: payload.longitude,
   }
@@ -76,7 +74,7 @@ export const platformCitiesService = {
         error instanceof Error &&
         (error.message.includes('Latitude') ||
           error.message.includes('Longitude') ||
-          error.message.includes('names'))
+          error.message.includes('name'))
       ) {
         throw error
       }
@@ -96,7 +94,7 @@ export const platformCitiesService = {
         error instanceof Error &&
         (error.message.includes('Latitude') ||
           error.message.includes('Longitude') ||
-          error.message.includes('names'))
+          error.message.includes('name'))
       ) {
         throw error
       }
@@ -104,11 +102,4 @@ export const platformCitiesService = {
     }
   },
 
-  async deleteCity(id: number): Promise<void> {
-    try {
-      await api.delete(`/platform/cities/${id}`)
-    } catch (error) {
-      throw new Error(getApiErrorMessage(error, 'Failed to delete city'))
-    }
-  },
 }

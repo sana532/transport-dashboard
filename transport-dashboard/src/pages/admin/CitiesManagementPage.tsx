@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Landmark, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Landmark, Pencil, Plus } from 'lucide-react'
 import type { City, CityFormInput } from '@/modules/geography/types'
 import { usePlatformCities } from '@/modules/geography/hooks/usePlatformCities'
 import { formatCityCoords, formatCityLabel } from '@/modules/geography/utils/cityApi'
@@ -19,24 +19,22 @@ const iconBtnClass =
   'inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-text-secondary transition-colors hover:bg-surface-muted hover:text-text-primary'
 
 const emptyForm: CityFormInput = {
-  nameEn: '',
-  nameAr: '',
+  name: '',
   latitude: '',
   longitude: '',
 }
 
 function cityToForm(city: City): CityFormInput {
   return {
-    nameEn: city.name_en ?? city.name,
-    nameAr: city.name_ar ?? city.governorate_name ?? '',
+    name: city.name,
     latitude: city.latitude != null ? String(city.latitude) : '',
     longitude: city.longitude != null ? String(city.longitude) : '',
   }
 }
 
 export function CitiesManagementPage() {
-  const { t } = useTranslation()
-  const { cities, isLoading, error, reload, createCity, updateCity, deleteCity } =
+  const { t, locale } = useTranslation()
+  const { cities, isLoading, error, reload, createCity, updateCity } =
     usePlatformCities()
 
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -44,7 +42,6 @@ export function CitiesManagementPage() {
   const [form, setForm] = useState<CityFormInput>(emptyForm)
   const [formError, setFormError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
-  const [actionError, setActionError] = useState<string | null>(null)
 
   const isEditing = editingId !== null
 
@@ -73,7 +70,7 @@ export function CitiesManagementPage() {
     event.preventDefault()
     setFormError(null)
 
-    if (!form.nameEn.trim() || !form.nameAr.trim() || !form.latitude.trim() || !form.longitude.trim()) {
+    if (!form.name.trim() || !form.latitude.trim() || !form.longitude.trim()) {
       setFormError(t('admin.cities.form.required'))
       return
     }
@@ -104,22 +101,6 @@ export function CitiesManagementPage() {
     }
   }
 
-  async function handleDelete(city: City) {
-    if (
-      !window.confirm(
-        t('admin.cities.confirmDelete', { name: formatCityLabel(city) }),
-      )
-    ) {
-      return
-    }
-    setActionError(null)
-    try {
-      await deleteCity(city.id)
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : t('admin.cities.deleteFailed'))
-    }
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -138,12 +119,6 @@ export function CitiesManagementPage() {
         </button>
       </div>
 
-      {actionError ? (
-        <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
-          {actionError}
-        </p>
-      ) : null}
-
       <Modal open={dialogOpen} onClose={closeDialog} className="max-w-lg p-0">
         <form onSubmit={handleSubmit}>
           <div className="border-b border-surface-muted px-6 py-4">
@@ -154,20 +129,11 @@ export function CitiesManagementPage() {
           </div>
           <div className="grid gap-4 p-6">
             <Input
-              label={t('admin.cities.form.nameEn')}
-              name="name_en"
-              value={form.nameEn}
-              onChange={(e) => setForm((prev) => ({ ...prev, nameEn: e.target.value }))}
-              placeholder={t('admin.cities.form.nameEnPlaceholder')}
-              required
-            />
-            <Input
-              label={t('admin.cities.form.nameAr')}
-              name="name_ar"
-              value={form.nameAr}
-              onChange={(e) => setForm((prev) => ({ ...prev, nameAr: e.target.value }))}
-              placeholder={t('admin.cities.form.nameArPlaceholder')}
-              dir="rtl"
+              label={t('admin.cities.form.name')}
+              name="name"
+              value={form.name}
+              onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+              placeholder={t('admin.cities.form.namePlaceholder')}
               required
             />
             <div className="grid gap-4 sm:grid-cols-2">
@@ -251,20 +217,16 @@ export function CitiesManagementPage() {
               </div>
             ) : (
               <div className="overflow-x-auto rounded-lg border border-border" dir="rtl">
-                <table className="app-table w-full min-w-[640px] table-fixed border-collapse text-sm">
+                <table className="app-table w-full min-w-[520px] table-fixed border-collapse text-sm">
                   <colgroup>
-                    <col className="w-[24%]" />
-                    <col className="w-[24%]" />
-                    <col className="w-[28%]" />
+                    <col />
+                    <col className="w-[40%]" />
                     <col className="w-[6rem]" />
                   </colgroup>
                   <thead>
                     <tr className="border-b border-border bg-surface-muted/50 text-xs uppercase tracking-wide text-text-muted">
-                      <th className="py-3 ps-4 pe-1 text-start font-semibold">
-                        {t('admin.cities.colNameEn')}
-                      </th>
-                      <th className="py-3 ps-1 pe-2 text-start font-semibold">
-                        {t('admin.cities.colNameAr')}
+                      <th className="py-3 ps-4 pe-2 text-start font-semibold">
+                        {t('admin.geo.colName')}
                       </th>
                       <th className="px-3 py-3 text-start font-semibold">
                         {t('admin.geo.colCoordinates')}
@@ -275,58 +237,45 @@ export function CitiesManagementPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {cities.map((city) => (
-                      <tr
-                        key={city.id}
-                        className="border-b border-surface-muted transition-colors last:border-0 hover:bg-surface-muted/40"
-                      >
-                        <td className="py-3 ps-4 pe-1 align-middle text-start font-medium text-text-primary">
-                          <span className="block truncate" title={city.name_en ?? city.name}>
-                            {city.name_en ?? city.name}
-                          </span>
-                        </td>
-                        <td className="py-3 ps-1 pe-2 align-middle text-start text-text-secondary">
-                          <span className="block truncate" dir="rtl" title={city.name_ar ?? ''}>
-                            {city.name_ar ?? '—'}
-                          </span>
-                        </td>
-                        <td className="px-3 py-3 align-middle text-start">
-                          <span
-                            className="inline-block whitespace-nowrap font-mono text-xs tabular-nums text-text-secondary"
-                            dir="ltr"
-                            title={formatCityCoords(city)}
-                          >
-                            {formatCityCoords(city)}
-                          </span>
-                        </td>
-                        <td className="px-2 py-3 align-middle">
-                          <div className="flex items-center justify-end gap-1.5">
-                            <button
-                              type="button"
-                              className={iconBtnClass}
-                              title={t('admin.geo.edit')}
-                              aria-label={t('admin.geo.editItem', {
-                                name: formatCityLabel(city),
-                              })}
-                              onClick={() => openEdit(city)}
+                    {cities.map((city) => {
+                      const label = formatCityLabel(city, locale)
+                      return (
+                        <tr
+                          key={city.id}
+                          className="border-b border-surface-muted transition-colors last:border-0 hover:bg-surface-muted/40"
+                        >
+                          <td className="py-3 ps-4 pe-2 align-middle text-start font-medium text-text-primary">
+                            <span className="block truncate" title={label}>
+                              {label || '—'}
+                            </span>
+                          </td>
+                          <td className="px-3 py-3 align-middle text-start">
+                            <span
+                              className="inline-block whitespace-nowrap font-mono text-xs tabular-nums text-text-secondary"
+                              dir="ltr"
+                              title={formatCityCoords(city)}
                             >
-                              <Pencil className="h-4 w-4" />
-                            </button>
-                            <button
-                              type="button"
-                              className={cn(iconBtnClass, 'hover:border-red-200 hover:text-red-700')}
-                              title={t('admin.geo.delete')}
-                              aria-label={t('admin.geo.deleteItem', {
-                                name: formatCityLabel(city),
-                              })}
-                              onClick={() => void handleDelete(city)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                              {formatCityCoords(city)}
+                            </span>
+                          </td>
+                          <td className="px-2 py-3 align-middle">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                className={iconBtnClass}
+                                title={t('admin.geo.edit')}
+                                aria-label={t('admin.geo.editItem', {
+                                  name: label,
+                                })}
+                                onClick={() => openEdit(city)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>

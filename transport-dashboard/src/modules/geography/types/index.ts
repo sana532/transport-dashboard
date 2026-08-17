@@ -15,17 +15,15 @@ export type City = {
   longitude?: number
 }
 
-/** POST/PATCH body — platform cities require bilingual names */
+/** POST/PATCH body — catalog stores a single `name` */
 export type CityWritePayload = {
-  name_en: string
-  name_ar: string
+  name: string
   latitude: number
   longitude: number
 }
 
 export type CityFormInput = {
-  nameEn: string
-  nameAr: string
+  name: string
   latitude: string
   longitude: string
 }

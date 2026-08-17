@@ -1,6 +1,6 @@
-import { useState, type FormEvent } from 'react'
-import { Coffee, Pencil, Plus, Trash2 } from 'lucide-react'
-import type { RestArea, RestAreaFormInput } from '@/modules/geography/types'
+import { useMemo, useState, type FormEvent } from 'react'
+import { Coffee, Pencil, Plus } from 'lucide-react'
+import type { City, RestArea, RestAreaFormInput } from '@/modules/geography/types'
 import { usePlatformCities } from '@/modules/geography/hooks/usePlatformCities'
 import { usePlatformRestAreas } from '@/modules/geography/hooks/usePlatformRestAreas'
 import { formatCityLabel } from '@/modules/geography/utils/cityApi'
@@ -47,7 +47,7 @@ function restAreaToForm(area: RestArea): RestAreaFormInput {
 }
 
 export function RestAreasManagementPage() {
-  const { t } = useTranslation()
+  const { t, locale } = useTranslation()
   const { cities, isLoading: citiesLoading } = usePlatformCities()
   const {
     restAreas,
@@ -56,17 +56,27 @@ export function RestAreasManagementPage() {
     reload,
     createRestArea,
     updateRestArea,
-    deleteRestArea,
   } = usePlatformRestAreas()
+
+  const cityById = useMemo(() => {
+    const map = new Map<number, City>()
+    cities.forEach((city) => map.set(city.id, city))
+    return map
+  }, [cities])
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [form, setForm] = useState<RestAreaFormInput>(emptyForm)
   const [formError, setFormError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
-  const [actionError, setActionError] = useState<string | null>(null)
 
   const isEditing = editingId !== null
+
+  function cityLabel(area: RestArea): string {
+    const city = cityById.get(area.city_id || area.city?.id || 0)
+    if (city) return formatCityLabel(city, locale)
+    return formatRestAreaCityLabel(area, locale)
+  }
 
   function openCreate() {
     setEditingId(null)
@@ -118,16 +128,6 @@ export function RestAreasManagementPage() {
     }
   }
 
-  async function handleDelete(area: RestArea) {
-    if (!window.confirm(t('admin.restAreas.confirmDelete', { name: area.name }))) return
-    setActionError(null)
-    try {
-      await deleteRestArea(area.id)
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : t('admin.restAreas.deleteFailed'))
-    }
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -145,12 +145,6 @@ export function RestAreasManagementPage() {
           {t('admin.restAreas.add')}
         </button>
       </div>
-
-      {actionError ? (
-        <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
-          {actionError}
-        </p>
-      ) : null}
 
       <Modal open={dialogOpen} onClose={closeDialog} className="max-w-lg p-0">
         <form onSubmit={handleSubmit}>
@@ -179,7 +173,7 @@ export function RestAreasManagementPage() {
                 </option>
                 {cities.map((city) => (
                   <option key={city.id} value={city.id}>
-                    {formatCityLabel(city)}
+                    {formatCityLabel(city, locale)}
                   </option>
                 ))}
               </select>
@@ -320,7 +314,9 @@ export function RestAreasManagementPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {restAreas.map((area) => (
+                    {restAreas.map((area) => {
+                      const cityName = cityLabel(area)
+                      return (
                       <tr
                         key={area.id}
                         className="border-b border-surface-muted transition-colors last:border-0 hover:bg-surface-muted/40"
@@ -331,8 +327,8 @@ export function RestAreasManagementPage() {
                           </span>
                         </td>
                         <td className="py-3 ps-1 pe-2 align-middle text-start text-text-secondary">
-                          <span className="block truncate" title={formatRestAreaCityLabel(area)}>
-                            {formatRestAreaCityLabel(area)}
+                          <span className="block truncate" title={cityName}>
+                            {cityName}
                           </span>
                         </td>
                         <td className="px-3 py-3 align-middle text-start">
@@ -372,19 +368,11 @@ export function RestAreasManagementPage() {
                             >
                               <Pencil className="h-4 w-4" />
                             </button>
-                            <button
-                              type="button"
-                              className={cn(iconBtnClass, 'hover:border-red-200 hover:text-red-700')}
-                              title={t('admin.geo.delete')}
-                              aria-label={t('admin.geo.deleteItem', { name: area.name })}
-                              onClick={() => void handleDelete(area)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
                           </div>
                         </td>
                       </tr>
-                    ))}
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>

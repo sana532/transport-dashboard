@@ -5,6 +5,7 @@ import { useAuth } from '@/modules/auth/hooks/useAuth'
 import type { CompanyStatus, CreateCompanyInput } from '@/modules/companies/types'
 import { useCompanies } from '@/modules/companies/hooks/useCompanies'
 import { paths } from '@/routes/paths'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/Card'
 import { Input } from '@/shared/ui/Input'
@@ -58,6 +59,7 @@ function FormSection({
 
 export function CreateCompanyPage() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const { token, role } = useAuth()
   const { createCompany } = useCompanies()
   const [form, setForm] = useState<CreateCompanyInput>(defaultForm)
@@ -107,13 +109,13 @@ export function CreateCompanyPage() {
 
     try {
       const result = await createCompany(form)
-      setSuccess(`Company "${result.company.name}" was created successfully.`)
+      setSuccess(t('admin.companies.createSuccess', { name: result.company.name }))
       setForm(defaultForm)
       window.setTimeout(() => {
         navigate(paths.admin.companies, { replace: true })
       }, 1200)
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to create company'
+      const message = err instanceof Error ? err.message : t('admin.companies.createFailed')
       setError(message)
       if (message.toLowerCase().includes('sign in')) {
         window.setTimeout(() => navigate(paths.login, { replace: true }), 2000)
@@ -131,14 +133,11 @@ export function CreateCompanyPage() {
           className="mb-3 inline-flex items-center gap-1.5 text-sm font-medium text-brand-primary hover:underline"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden />
-          Back to companies
+          {t('admin.companies.backToList')}
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight text-[var(--title-h1)]">
-          Create company
+          {t('admin.companies.create')}
         </h1>
-        <p className="mt-1 text-sm text-text-muted">
-          Register a transport company and its manager account (platform API).
-        </p>
       </div>
 
       {error ? (
@@ -156,17 +155,17 @@ export function CreateCompanyPage() {
       ) : null}
 
       <form className="space-y-5" onSubmit={onSubmit} noValidate>
-        <FormSection icon={Building2} title="Company information">
+        <FormSection icon={Building2} title={t('admin.companies.companyInfo')}>
           <div className="grid gap-4 sm:grid-cols-2">
             <Input
-              label="Company name"
+              label={t('admin.companies.companyName')}
               name="company_name"
               value={form.company.name}
               onChange={(e) => updateCompany('name', e.target.value)}
               required
             />
             <Input
-              label="Email"
+              label={t('admin.companies.colEmail')}
               name="company_email"
               type="email"
               value={form.company.email}
@@ -174,7 +173,7 @@ export function CreateCompanyPage() {
               required
             />
             <Input
-              label="Phone"
+              label={t('admin.companies.colPhone')}
               name="company_phone"
               value={form.company.phone}
               onChange={(e) => updateCompany('phone', e.target.value)}
@@ -182,7 +181,7 @@ export function CreateCompanyPage() {
             />
             <div className="flex w-full flex-col gap-1.5">
               <label htmlFor="company_status" className="text-sm font-medium text-text-secondary">
-                Status
+                {t('common.status')}
               </label>
               <select
                 id="company_status"
@@ -191,13 +190,13 @@ export function CreateCompanyPage() {
                 value={form.company.status}
                 onChange={(e) => updateCompany('status', e.target.value as CompanyStatus)}
               >
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-                <option value="suspended">Suspended</option>
+                <option value="active">{t('common.active')}</option>
+                <option value="inactive">{t('common.inactive')}</option>
+                <option value="suspended">{t('admin.companies.statusSuspended')}</option>
               </select>
             </div>
             <Input
-              label="Address"
+              label={t('admin.companies.colAddress')}
               name="company_address"
               value={form.company.address}
               onChange={(e) => updateCompany('address', e.target.value)}
@@ -205,7 +204,7 @@ export function CreateCompanyPage() {
             />
             <div className="flex w-full flex-col gap-1.5 sm:col-span-2">
               <label htmlFor="company_description" className="text-sm font-medium text-text-secondary">
-                Description
+                {t('admin.companies.colDescription')}
               </label>
               <textarea
                 id="company_description"
@@ -214,12 +213,12 @@ export function CreateCompanyPage() {
                 className={cn(selectClass, 'resize-y')}
                 value={form.company.description}
                 onChange={(e) => updateCompany('description', e.target.value)}
-                placeholder="Optional"
+                placeholder={t('admin.companies.optional')}
               />
             </div>
             <div className="flex w-full flex-col gap-1.5">
               <label htmlFor="company_logo" className="text-sm font-medium text-text-secondary">
-                Logo
+                {t('admin.companies.logo')}
               </label>
               <input
                 id="company_logo"
@@ -232,7 +231,7 @@ export function CreateCompanyPage() {
             </div>
             <div className="flex w-full flex-col gap-1.5">
               <label htmlFor="company_cover" className="text-sm font-medium text-text-secondary">
-                Cover image
+                {t('admin.companies.coverImage')}
               </label>
               <input
                 id="company_cover"
@@ -246,31 +245,31 @@ export function CreateCompanyPage() {
           </div>
         </FormSection>
 
-        <FormSection icon={User} title="Company manager">
+        <FormSection icon={User} title={t('admin.companies.managerSection')}>
           <div className="grid gap-4 sm:grid-cols-2">
             <Input
-              label="Manager name"
+              label={t('admin.companies.managerName')}
               name="manager_name"
               value={form.manager.name}
               onChange={(e) => updateManager('name', e.target.value)}
               required
             />
             <Input
-              label="Username"
+              label={t('admin.companies.username')}
               name="manager_username"
               value={form.manager.username}
               onChange={(e) => updateManager('username', e.target.value)}
               required
             />
             <Input
-              label="Phone number"
+              label={t('admin.companies.phoneNumber')}
               name="manager_phone"
               value={form.manager.phoneNumber}
               onChange={(e) => updateManager('phoneNumber', e.target.value)}
               required
             />
             <Input
-              label="Manager email"
+              label={t('admin.companies.managerEmail')}
               name="manager_email"
               type="email"
               value={form.manager.email}
@@ -278,7 +277,7 @@ export function CreateCompanyPage() {
               required
             />
             <Input
-              label="Password"
+              label={t('admin.companies.password')}
               name="manager_password"
               type="password"
               autoComplete="new-password"
@@ -287,7 +286,7 @@ export function CreateCompanyPage() {
               required
             />
             <Input
-              label="Confirm password"
+              label={t('admin.companies.confirmPassword')}
               name="manager_password_confirmation"
               type="password"
               autoComplete="new-password"
@@ -305,14 +304,14 @@ export function CreateCompanyPage() {
             onClick={() => navigate(paths.admin.companies)}
             className="w-full sm:w-auto"
           >
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button
             type="submit"
             disabled={pending}
             className="w-full bg-brand-primary text-white hover:bg-brand-primary-dark sm:w-auto"
           >
-            {pending ? 'Creating…' : 'Create company'}
+            {pending ? t('admin.companies.creating') : t('admin.companies.create')}
           </Button>
         </div>
       </form>

@@ -18,11 +18,11 @@ import {
   Key,
   Lock,
   Mail,
-  Star,
   Upload,
   User,
 } from 'lucide-react'
 import type { Driver, DriverCreateInput, DriverUpdateInput } from '@/modules/drivers/types'
+import { DriverRating } from '@/modules/drivers/components/DriverRating'
 import { mapDriverStatusToApi } from '@/modules/drivers/utils/mapCompanyDriver'
 import { useTranslation } from '@/shared/i18n/useTranslation'
 import { Button } from '@/shared/ui/Button'
@@ -566,9 +566,12 @@ export function DriverFormDialog({
                 </div>
                 <div className="flex justify-between gap-2">
                   <span className="text-text-muted">{t('drivers.profile.rating')}</span>
-                  <span className="inline-flex items-center gap-1 font-medium text-text-primary">
-                    <Star className="h-4 w-4 fill-amber-400 text-amber-400" aria-hidden />
-                    {isEdit && driver?.rating != null ? driver.rating : '—'}
+                  <span className="font-medium text-text-primary">
+                    {isEdit && driver ? (
+                      <DriverRating rating={driver.rating} ratingCount={driver.ratingCount} />
+                    ) : (
+                      '—'
+                    )}
                   </span>
                 </div>
               </CardContent>

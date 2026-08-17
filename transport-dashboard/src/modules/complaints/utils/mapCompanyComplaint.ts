@@ -346,7 +346,11 @@ export function normalizeComplaintCategory(raw: unknown, locale: string): Compla
   const nameEn = pickString(record, 'name_en', 'name')
   const nameAr = pickString(record, 'name_ar')
   const label = locale === 'ar' && nameAr ? nameAr : nameEn || nameAr || `Category ${id}`
-  const iconUrl = pickString(record, 'icon_url', 'icon') || null
+  const iconUrl =
+    extractMediaUrl(record.icon_url) ||
+    extractMediaUrl(record.icon) ||
+    pickString(record, 'icon_url', 'icon') ||
+    null
   const visibilityScope = pickString(record, 'visibility_scope') || null
   const isActiveRaw = record.is_active
   const isActive =

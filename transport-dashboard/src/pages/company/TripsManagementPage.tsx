@@ -35,6 +35,7 @@ import { CountUp } from '@/shared/ui/CountUp'
 import type { TripStatFilterId } from '@/modules/trips/utils/buildTripsStats'
 import { isArchivedTrip } from '@/modules/trips/utils/tripStatus'
 import { isScheduledTripOverdue } from '@/modules/trips/utils/tripTiming'
+import { translateCityName } from '@/modules/geography/utils/cityNames'
 
 const selectClass =
   'w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary shadow-sm transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30'
@@ -544,7 +545,7 @@ export function TripsManagementPage() {
                   <option value="all">{t('trips.allCities')}</option>
                   {lookups.cities.map((city) => (
                     <option key={city.id} value={String(city.id)}>
-                      {city.name}
+                      {translateCityName(city.name, locale)}
                     </option>
                   ))}
                 </select>
@@ -571,7 +572,7 @@ export function TripsManagementPage() {
                   <option value="all">{t('trips.allCities')}</option>
                   {lookups.cities.map((city) => (
                     <option key={`dest-city-${city.id}`} value={String(city.id)}>
-                      {city.name}
+                      {translateCityName(city.name, locale)}
                     </option>
                   ))}
                 </select>

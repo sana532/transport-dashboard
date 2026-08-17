@@ -104,6 +104,7 @@ export type Driver = {
   joinDateLabel?: string
   totalTrips?: number
   rating?: number
+  ratingCount?: number
 }
 
 export type DriversStatVariant = 'primary' | 'success' | 'info' | 'neutral'

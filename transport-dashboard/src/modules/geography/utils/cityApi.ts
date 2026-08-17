@@ -1,4 +1,5 @@
 import type { City } from '@/modules/geography/types'
+import { translateCityName } from '@/modules/geography/utils/cityNames'
 
 function pickNumber(record: Record<string, unknown>, key: string): number | undefined {
   const value = record[key]
@@ -12,15 +13,24 @@ function pickStringField(record: Record<string, unknown>, key: string): string |
   return typeof value === 'string' && value.trim() ? value.trim() : null
 }
 
+function looksArabic(value: string): boolean {
+  return /[\u0600-\u06FF]/.test(value)
+}
+
 export function normalizeCity(raw: unknown): City | null {
   if (!raw || typeof raw !== 'object') return null
   const record = raw as Record<string, unknown>
   const id = typeof record.id === 'number' ? record.id : Number(record.id)
   if (!Number.isFinite(id)) return null
 
-  const name_en = pickStringField(record, 'name_en')
-  const name_ar = pickStringField(record, 'name_ar')
+  let name_en = pickStringField(record, 'name_en')
+  let name_ar = pickStringField(record, 'name_ar')
   const legacyName = pickStringField(record, 'name')
+
+  // Public/platform list currently returns a single `name` (localized), not name_en/name_ar.
+  if (!name_en && legacyName && !looksArabic(legacyName)) name_en = legacyName
+  if (!name_ar && legacyName && looksArabic(legacyName)) name_ar = legacyName
+
   const name = name_en ?? name_ar ?? legacyName
   if (!name) return null
 
@@ -29,7 +39,7 @@ export function normalizeCity(raw: unknown): City | null {
     name,
     name_en,
     name_ar,
-    governorate_name: pickStringField(record, 'governorate_name') ?? name_ar,
+    governorate_name: pickStringField(record, 'governorate_name'),
     latitude: pickNumber(record, 'latitude'),
     longitude: pickNumber(record, 'longitude'),
   }
@@ -67,10 +77,8 @@ export function formatCityCoords(city: City): string {
   return '—'
 }
 
-/** Dropdown / table label: "English — Arabic" when both exist */
-export function formatCityLabel(city: City): string {
-  const en = city.name_en?.trim() || city.name
-  const ar = city.name_ar?.trim() || city.governorate_name?.trim()
-  if (ar && ar !== en) return `${en} — ${ar}`
-  return en
+/** Dropdown / table label, translated locally from the stored `name`. */
+export function formatCityLabel(city: City, locale = 'en'): string {
+  const raw = city.name_en?.trim() || city.name_ar?.trim() || city.name
+  return translateCityName(raw, locale)
 }

@@ -11,7 +11,7 @@ import { readStoredLocale } from '@/shared/i18n/config'
 
 const SW_PATH = '/firebase-messaging-sw.js'
 /** Bump when SW behavior changes so stale workers are unregistered once. */
-const SW_BUILD = '6'
+const SW_BUILD = '7'
 const SW_BUILD_STORAGE_KEY = 'fcm_sw_build_v'
 
 export async function isFcmSupported(): Promise<boolean> {

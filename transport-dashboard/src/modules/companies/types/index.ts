@@ -10,6 +10,8 @@ export type PlatformCompany = {
   status: CompanyStatus
   logo_url?: string | null
   cover_image_url?: string | null
+  averageRating?: number
+  totalRatings?: number
   created_at?: string
 }
 

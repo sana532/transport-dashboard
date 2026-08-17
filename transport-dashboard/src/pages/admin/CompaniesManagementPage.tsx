@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Building2, Plus } from 'lucide-react'
 import { useCompanies } from '@/modules/companies/hooks/useCompanies'
+import { CompanyRating } from '@/modules/companies/components/CompanyRating'
 import type { CompanyStatus, PlatformCompany } from '@/modules/companies/types'
 import { paths } from '@/routes/paths'
 import { useTranslation } from '@/shared/i18n/useTranslation'
@@ -171,6 +172,13 @@ export function CompaniesManagementPage() {
                         <p className="mt-0.5 text-sm text-text-muted" dir="ltr">
                           {company.phone}
                         </p>
+                        <p className="mt-2 text-sm text-text-secondary">
+                          <CompanyRating
+                            averageRating={company.averageRating}
+                            totalRatings={company.totalRatings}
+                            compact
+                          />
+                        </p>
                       </div>
                       <StatusBadge status={company.status} />
                     </div>
@@ -190,6 +198,7 @@ export function CompaniesManagementPage() {
                   <thead>
                     <tr className="border-b border-border text-text-muted">
                       <th className="pb-3 pe-4 font-medium">{t('admin.companies.colName')}</th>
+                      <th className="pb-3 pe-4 font-medium">{t('admin.companies.colRating')}</th>
                       <th className="pb-3 pe-4 font-medium">{t('admin.companies.colEmail')}</th>
                       <th className="pb-3 pe-4 font-medium">{t('admin.companies.colPhone')}</th>
                       <th className="pb-3 pe-4 font-medium">{t('common.status')}</th>
@@ -201,6 +210,13 @@ export function CompaniesManagementPage() {
                       <tr key={company.id} className="border-b border-surface-muted last:border-0">
                         <td className="py-3 pe-4 font-medium text-text-primary">
                           {company.name}
+                        </td>
+                        <td className="py-3 pe-4 text-text-secondary">
+                          <CompanyRating
+                            averageRating={company.averageRating}
+                            totalRatings={company.totalRatings}
+                            compact
+                          />
                         </td>
                         <td className="py-3 pe-4 text-text-secondary">{company.email}</td>
                         <td className="py-3 pe-4 text-text-secondary">{company.phone}</td>

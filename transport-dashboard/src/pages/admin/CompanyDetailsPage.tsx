@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, Building2 } from 'lucide-react'
 import { useCompanyDetail } from '@/modules/companies/hooks/useCompanyDetail'
+import { CompanyRating } from '@/modules/companies/components/CompanyRating'
 import type { CompanyStatus, UpdateCompanyInput } from '@/modules/companies/types'
 import { paths } from '@/routes/paths'
 import { useTranslation } from '@/shared/i18n/useTranslation'
@@ -98,6 +99,14 @@ export function CompanyDetailsPage() {
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[var(--title-h1)]">
           {company?.name ?? t('admin.companies.detailsTitle')}
         </h1>
+        {company ? (
+          <div className="mt-2">
+            <CompanyRating
+              averageRating={company.averageRating}
+              totalRatings={company.totalRatings}
+            />
+          </div>
+        ) : null}
         <p className="mt-1 text-sm text-text-muted">{t('admin.companies.detailsSubtitle')}</p>
       </div>
 

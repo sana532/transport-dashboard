@@ -12,6 +12,7 @@ import {
   toApiDateTime,
 } from '@/modules/promo-codes/utils/promoCodeDates'
 import { paths } from '@/routes/paths'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/Card'
 import { Input } from '@/shared/ui/Input'
@@ -24,6 +25,7 @@ const textareaClass =
   'min-h-[80px] w-full resize-y rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary shadow-sm transition-colors placeholder:text-text-muted focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30'
 
 export function PlatformPromoCodeFormPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { promoId } = useParams()
   const isEdit = Boolean(promoId)
@@ -103,7 +105,7 @@ export function PlatformPromoCodeFormPage() {
       })
       .catch((err) => {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Failed to load promo')
+          setError(err instanceof Error ? err.message : t('admin.promoCodes.errorLoad'))
         }
       })
       .finally(() => {
@@ -126,11 +128,11 @@ export function PlatformPromoCodeFormPage() {
 
     const parsedValue = Number(value)
     if (!nameEn.trim() || !nameAr.trim() || !code.trim() || !Number.isFinite(parsedValue)) {
-      setError('Fill in names, code, and a valid value.')
+      setError(t('admin.promoCodes.validation.required'))
       return
     }
     if (!validFromDate || !validToDate) {
-      setError('Set validity dates.')
+      setError(t('admin.promoCodes.validation.dates'))
       return
     }
 
@@ -168,14 +170,14 @@ export function PlatformPromoCodeFormPage() {
       }
       navigate(paths.admin.promoCodes)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save promo')
+      setError(err instanceof Error ? err.message : t('admin.promoCodes.errorSave'))
     } finally {
       setIsSaving(false)
     }
   }
 
   if (isLoading) {
-    return <p className="text-sm text-text-muted">Loading…</p>
+    return <p className="text-sm text-text-muted">{t('common.loading')}</p>
   }
 
   return (
@@ -186,85 +188,85 @@ export function PlatformPromoCodeFormPage() {
           className="inline-flex items-center gap-1.5 text-sm font-medium text-[#2F3E1F] hover:underline"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden />
-          Back to platform promos
+          {t('admin.promoCodes.back')}
         </Link>
-        <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-text-muted">Offers</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[var(--title-h1)]">
-          {isEdit ? 'Edit platform promo' : 'Add platform promo'}
-        </h1>
-        <p className="mt-1 text-sm text-text-muted">
-          Define a global discount offer for the whole platform.
+        <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-text-muted">
+          {t('admin.nav.offers')}
         </p>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[var(--title-h1)]">
+          {isEdit ? t('admin.promoCodes.editTitle') : t('admin.promoCodes.addTitle')}
+        </h1>
+        <p className="mt-1 text-sm text-text-muted">{t('admin.promoCodes.formSubtitle')}</p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Promo details</CardTitle>
+          <CardTitle className="text-lg">{t('admin.promoCodes.details')}</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="grid gap-4">
             <div className="grid gap-4 sm:grid-cols-2">
-              <Input label="Name (EN)" value={nameEn} onChange={(e) => setNameEn(e.target.value)} required />
-              <Input label="Name (AR)" value={nameAr} onChange={(e) => setNameAr(e.target.value)} required dir="rtl" />
+              <Input label={t('promoCodes.nameEn')} value={nameEn} onChange={(e) => setNameEn(e.target.value)} required />
+              <Input label={t('promoCodes.nameAr')} value={nameAr} onChange={(e) => setNameAr(e.target.value)} required dir="rtl" />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-1.5">
-                <label className="text-sm font-medium text-text-secondary">Description (EN)</label>
+                <label className="text-sm font-medium text-text-secondary">{t('promoCodes.descriptionEn')}</label>
                 <textarea className={textareaClass} value={descriptionEn} onChange={(e) => setDescriptionEn(e.target.value)} />
               </div>
               <div className="grid gap-1.5">
-                <label className="text-sm font-medium text-text-secondary">Description (AR)</label>
+                <label className="text-sm font-medium text-text-secondary">{t('promoCodes.descriptionAr')}</label>
                 <textarea className={textareaClass} value={descriptionAr} onChange={(e) => setDescriptionAr(e.target.value)} dir="rtl" />
               </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
-              <Input label="Code" value={code} onChange={(e) => setCode(e.target.value)} required />
+              <Input label={t('promoCodes.col.code')} value={code} onChange={(e) => setCode(e.target.value)} required />
               <div className="grid gap-1.5">
-                <label className="text-sm font-medium text-text-secondary">Type</label>
+                <label className="text-sm font-medium text-text-secondary">{t('promoCodes.discountType')}</label>
                 <select className={selectClass} value={promoType} onChange={(e) => setPromoType(e.target.value)}>
-                  <option value="percentage">percentage</option>
-                  <option value="fixed">fixed</option>
+                  <option value="percentage">{t('promoCodes.type.percentage')}</option>
+                  <option value="fixed">{t('promoCodes.type.fixed')}</option>
                 </select>
               </div>
-              <Input label="Value" value={value} onChange={(e) => setValue(e.target.value)} required inputMode="decimal" />
+              <Input label={t('promoCodes.discountValue')} value={value} onChange={(e) => setValue(e.target.value)} required inputMode="decimal" />
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
               <Input
-                label="Max discount amount"
+                label={t('promoCodes.maxDiscount')}
                 value={maxDiscountAmount}
                 onChange={(e) => setMaxDiscountAmount(e.target.value)}
                 inputMode="decimal"
               />
               <Input
-                label="Route ID (optional)"
+                label={t('admin.promoCodes.routeId')}
                 value={routeId}
                 onChange={(e) => setRouteId(e.target.value)}
                 inputMode="numeric"
               />
               <Input
-                label="Min ticket price"
+                label={t('promoCodes.minTicketPrice')}
                 value={minTicketPrice}
                 onChange={(e) => setMinTicketPrice(e.target.value)}
                 inputMode="decimal"
               />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Input label="Max uses" value={maxUses} onChange={(e) => setMaxUses(e.target.value)} inputMode="numeric" />
+              <Input label={t('promoCodes.maxUses')} value={maxUses} onChange={(e) => setMaxUses(e.target.value)} inputMode="numeric" />
               <Input
-                label="Max uses per user"
+                label={t('promoCodes.maxUsesPerUser')}
                 value={maxUsesPerUser}
                 onChange={(e) => setMaxUsesPerUser(e.target.value)}
                 inputMode="numeric"
               />
             </div>
             <div className="grid gap-2">
-              <p className="text-sm font-medium text-text-secondary">Valid days</p>
+              <p className="text-sm font-medium text-text-secondary">{t('promoCodes.validDaysHint')}</p>
               <div className="flex flex-wrap gap-2">
                 {WEEKDAYS.map((day) => (
                   <label
                     key={day}
                     className={cn(
-                      'inline-flex cursor-pointer items-center rounded-lg border px-3 py-1.5 text-xs capitalize',
+                      'inline-flex cursor-pointer items-center rounded-lg border px-3 py-1.5 text-xs',
                       validDays.includes(day)
                         ? 'border-[#2F3E1F] bg-[#2F3E1F]/10 text-[#2F3E1F]'
                         : 'border-border text-text-secondary',
@@ -276,19 +278,19 @@ export function PlatformPromoCodeFormPage() {
                       checked={validDays.includes(day)}
                       onChange={() => toggleDay(day)}
                     />
-                    {day.slice(0, 3)}
+                    {t(`promoCodes.weekday.${day}`)}
                   </label>
                 ))}
               </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-2 sm:grid-cols-2">
-                <Input label="Valid from (date)" type="date" value={validFromDate} onChange={(e) => setValidFromDate(e.target.value)} required />
-                <Input label="Time" type="time" value={validFromTime} onChange={(e) => setValidFromTime(e.target.value)} />
+                <Input label={t('promoCodes.validFrom')} type="date" value={validFromDate} onChange={(e) => setValidFromDate(e.target.value)} required />
+                <Input label={t('promoCodes.time')} type="time" value={validFromTime} onChange={(e) => setValidFromTime(e.target.value)} />
               </div>
               <div className="grid gap-2 sm:grid-cols-2">
-                <Input label="Valid to (date)" type="date" value={validToDate} onChange={(e) => setValidToDate(e.target.value)} required />
-                <Input label="Time" type="time" value={validToTime} onChange={(e) => setValidToTime(e.target.value)} />
+                <Input label={t('promoCodes.validTo')} type="date" value={validToDate} onChange={(e) => setValidToDate(e.target.value)} required />
+                <Input label={t('promoCodes.time')} type="time" value={validToTime} onChange={(e) => setValidToTime(e.target.value)} />
               </div>
             </div>
             <label className="flex items-center gap-2 text-sm text-text-secondary">
@@ -298,7 +300,7 @@ export function PlatformPromoCodeFormPage() {
                 onChange={(e) => setIsActive(e.target.checked)}
                 className="h-4 w-4 rounded border-border text-[#2F3E1F]"
               />
-              Active
+              {t('common.active')}
             </label>
             {error ? (
               <p className="text-sm text-red-700" role="alert">
@@ -311,10 +313,10 @@ export function PlatformPromoCodeFormPage() {
                 disabled={isSaving}
                 className="bg-[#2F3E1F] px-6 text-white hover:bg-[#243217] disabled:opacity-70"
               >
-                {isSaving ? 'Saving…' : isEdit ? 'Save changes' : 'Create promo'}
+                {isSaving ? t('common.saving') : isEdit ? t('common.saveChanges') : t('admin.promoCodes.create')}
               </Button>
               <Button type="button" variant="outline" onClick={() => navigate(paths.admin.promoCodes)}>
-                Cancel
+                {t('common.cancel')}
               </Button>
             </div>
           </form>

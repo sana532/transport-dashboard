@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ArrowLeft, ChevronDown, Pause, Play, Plus, Search, Trash2 } from 'lucide-react'
+import { ArrowLeft, ChevronDown, Pause, Play, Search, Trash2 } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import { usePackageSubscribersManagement } from '@/modules/subscription-packages/hooks/usePackageSubscribersManagement'
 import type {
@@ -242,13 +242,6 @@ export function PackageSubscribersPage() {
               </div>
             )}
           </div>
-          <Button
-            type="button"
-            className="w-full shrink-0 bg-[var(--brand-primary)] py-2.5 text-sm font-semibold text-white shadow-md hover:bg-[var(--brand-primary-dark)] sm:w-auto sm:self-start"
-          >
-            <Plus className="h-4 w-4" aria-hidden />
-            {t('packageSubscribers.addSubscriber')}
-          </Button>
         </div>
       </div>
 
