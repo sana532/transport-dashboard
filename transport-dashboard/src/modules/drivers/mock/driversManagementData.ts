@@ -35,6 +35,14 @@ export const driversManagementMockData: DriversManagementData = {
       variant: 'neutral',
     },
   ],
+  pagination: {
+    currentPage: 1,
+    lastPage: 1,
+    perPage: 15,
+    total: 6,
+    from: 1,
+    to: 6,
+  },
   defaultFilters: {
     search: '',
     status: 'All Status',
