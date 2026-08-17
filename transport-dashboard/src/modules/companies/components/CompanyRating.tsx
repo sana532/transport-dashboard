@@ -1,4 +1,3 @@
-import type { PlatformCompany } from '@/modules/companies/types'
 import { StarRating } from '@/shared/ui/StarRating'
 import { useTranslation } from '@/shared/i18n/useTranslation'
 
