@@ -30,7 +30,7 @@ export function useRoutesManagement() {
   })
 
   const reload = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: routesManagementQueryKey })
+    await queryClient.invalidateQueries({ queryKey: ['routes'] })
   }, [queryClient])
 
   const createRoute = useCallback(

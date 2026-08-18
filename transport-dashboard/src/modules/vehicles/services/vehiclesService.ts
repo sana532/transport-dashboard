@@ -48,6 +48,18 @@ export function normalizeCompanyVehicle(raw: unknown): CompanyVehicle | null {
     record.is_active === '1' ||
     record.is_active === 'true'
 
+  const statusRaw =
+    typeof record.status === 'string' ? record.status.toLowerCase().replace(/-/g, '_') : ''
+  const in_trip =
+    record.in_trip === true ||
+    record.is_on_trip === true ||
+    record.on_trip === true ||
+    record.in_trip === 1 ||
+    record.in_trip === '1' ||
+    record.in_trip === 'true' ||
+    statusRaw === 'in_trip' ||
+    statusRaw === 'on_trip'
+
   return {
     id,
     company_id: Number(record.company_id) || 0,
@@ -60,6 +72,7 @@ export function normalizeCompanyVehicle(raw: unknown): CompanyVehicle | null {
       typeof record.mechanical_status === 'string' ? record.mechanical_status : 'operational',
     layout_config_snapshot: record.layout_config_snapshot,
     is_active,
+    in_trip,
     photos: pickMediaUrls(
       record.photos,
       record.photo,
@@ -92,6 +105,54 @@ function unwrapOne(payload: unknown): CompanyVehicle | null {
   const root = payload as Record<string, unknown>
   if (root.data) return normalizeCompanyVehicle(root.data)
   return normalizeCompanyVehicle(root)
+}
+
+export type CompanyVehiclesPage = {
+  vehicles: CompanyVehicle[]
+  currentPage: number
+  lastPage: number
+  perPage: number
+  total: number
+  from: number
+  to: number
+  counts: Record<string, unknown> | null
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null
+}
+
+function pickMetaNumber(meta: Record<string, unknown>, key: string): number | null {
+  const value = Number(meta[key])
+  return Number.isFinite(value) ? value : null
+}
+
+function readVehiclesPage(
+  payload: unknown,
+  fallbackPage: number,
+  fallbackPerPage: number,
+): CompanyVehiclesPage {
+  const vehicles = unwrapList(payload)
+  const root = asRecord(payload)
+  const meta = asRecord(root?.meta) ?? root
+  const counts = asRecord(root?.counts) ?? asRecord(meta?.counts)
+
+  const currentPage = (meta ? pickMetaNumber(meta, 'current_page') : null) ?? fallbackPage
+  const perPage = (meta ? pickMetaNumber(meta, 'per_page') : null) ?? fallbackPerPage
+  const total = (meta ? pickMetaNumber(meta, 'total') : null) ?? vehicles.length
+  const lastPage =
+    (meta ? pickMetaNumber(meta, 'last_page') : null) ??
+    Math.max(1, perPage > 0 ? Math.ceil(total / perPage) : 1)
+  const from =
+    (meta ? pickMetaNumber(meta, 'from') : null) ??
+    (vehicles.length > 0 ? (currentPage - 1) * perPage + 1 : 0)
+  const to =
+    (meta ? pickMetaNumber(meta, 'to') : null) ??
+    (vehicles.length > 0 ? from + vehicles.length - 1 : 0)
+
+  return { vehicles, currentPage, lastPage, perPage, total, from, to, counts }
 }
 
 function buildVehicleFormData(input: VehicleCreateInput | VehicleUpdateInput): FormData {
@@ -132,10 +193,33 @@ async function submitVehicleUpdate(id: number, input: VehicleUpdateInput): Promi
 }
 
 export const vehiclesService = {
+  async listVehiclesPage(options?: { page?: number; perPage?: number }): Promise<CompanyVehiclesPage> {
+    const page = Math.max(1, Math.floor(options?.page ?? 1))
+    const perPage = Math.min(50, Math.max(1, Math.floor(options?.perPage ?? 15)))
+
+    try {
+      const { data } = await api.get<unknown>('/company/vehicles', {
+        params: { page, per_page: perPage },
+      })
+      return readVehiclesPage(data, page, perPage)
+    } catch (error) {
+      throw new Error(getApiErrorMessage(error, 'Failed to load vehicles'))
+    }
+  },
+
   async listVehicles(): Promise<CompanyVehicle[]> {
     try {
-      const { data } = await api.get<unknown>('/company/vehicles')
-      return unwrapList(data)
+      const first = await this.listVehiclesPage({ page: 1, perPage: 15 })
+      if (first.lastPage <= 1) return first.vehicles
+
+      const remainingPages = Array.from(
+        { length: first.lastPage - 1 },
+        (_, index) => index + 2,
+      )
+      const rest = await Promise.all(
+        remainingPages.map((page) => this.listVehiclesPage({ page, perPage: 15 })),
+      )
+      return first.vehicles.concat(...rest.map((item) => item.vehicles))
     } catch (error) {
       throw new Error(getApiErrorMessage(error, 'Failed to load vehicles'))
     }

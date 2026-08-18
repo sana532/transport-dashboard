@@ -67,3 +67,5 @@ export type DashboardData = {
   dailyBookings: DailyBooking[]
   recentTrips: RecentTrip[]
 }
+
+export type { WeeklyAiSummary } from './weeklySummary'

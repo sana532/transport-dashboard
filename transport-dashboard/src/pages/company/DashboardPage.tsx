@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/shared/ui/Card'
 import { useDashboard } from '@/modules/dashboard/hooks/useDashboard'
 import { DashboardStatsGrid } from '@/modules/dashboard/components/DashboardStatsGrid'
 import { DashboardChartsRow } from '@/modules/dashboard/components/DashboardChartsRow'
+import { WeeklyAiSummaryWidget } from '@/modules/dashboard/components/WeeklyAiSummaryWidget'
 import { useTranslation } from '@/shared/i18n/useTranslation'
 
 const sectionMotion = {
@@ -14,10 +15,6 @@ const sectionMotion = {
 function DashboardLoadingState() {
   return (
     <div className="space-y-6">
-      <div className="space-y-2">
-        <div className="h-8 w-44 animate-pulse rounded-lg bg-surface-muted" />
-        <div className="h-4 w-72 max-w-full animate-pulse rounded bg-surface-muted" />
-      </div>
       <div className="grid gap-4 sm:grid-cols-2">
         {Array.from({ length: 2 }).map((_, idx) => (
           <div key={idx} className="h-32 animate-pulse rounded-2xl bg-surface-muted" />
@@ -49,14 +46,6 @@ export function DashboardPage() {
   const { t } = useTranslation()
   const { data, isLoading, error, reload } = useDashboard()
 
-  if (isLoading) {
-    return <DashboardLoadingState />
-  }
-
-  if (error || !data) {
-    return <DashboardErrorState message={error ?? t('dashboard.errorUnavailable')} onRetry={reload} />
-  }
-
   return (
     <motion.div
       className="space-y-6"
@@ -73,15 +62,27 @@ export function DashboardPage() {
       </motion.div>
 
       <motion.div variants={sectionMotion}>
-        <DashboardStatsGrid statCards={data.statCards} />
+        <WeeklyAiSummaryWidget />
       </motion.div>
 
-      <motion.div variants={sectionMotion}>
-        <DashboardChartsRow
-          revenueTrendData={data.revenueTrendData}
-          routePerformanceData={data.routePerformanceData}
-        />
-      </motion.div>
+      {isLoading ? (
+        <DashboardLoadingState />
+      ) : error || !data ? (
+        <DashboardErrorState message={error ?? t('dashboard.errorUnavailable')} onRetry={reload} />
+      ) : (
+        <>
+          <motion.div variants={sectionMotion}>
+            <DashboardStatsGrid statCards={data.statCards} />
+          </motion.div>
+
+          <motion.div variants={sectionMotion}>
+            <DashboardChartsRow
+              revenueTrendData={data.revenueTrendData}
+              routePerformanceData={data.routePerformanceData}
+            />
+          </motion.div>
+        </>
+      )}
     </motion.div>
   )
 }

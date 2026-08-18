@@ -188,7 +188,7 @@ export function normalizeCompanyTrip(raw: unknown): CompanyTrip | null {
     const r = record.route as Record<string, unknown>
     const routeId = typeof r.id === 'number' ? r.id : Number(r.id)
     const { name_en, name_ar, name } = pickRouteNameFields(r)
-    if (Number.isFinite(routeId) && (name_en || name)) {
+    if (Number.isFinite(routeId)) {
       const polylineRaw = r.route_polyline ?? r.polyline ?? r.encoded_polyline
       const distanceRaw = r.route_distance_meters ?? r.distance_meters
       const durationRaw = r.route_duration_seconds ?? r.duration_seconds

@@ -101,9 +101,19 @@ export type PackagesStatCard = {
   Icon: LucideIcon
 }
 
+export type PackagesListPagination = {
+  currentPage: number
+  lastPage: number
+  perPage: number
+  total: number
+  from: number
+  to: number
+}
+
 export type PackagesManagementData = {
   stats: PackagesStatCard[]
   plans: SubscriptionPlanCard[]
+  pagination: PackagesListPagination
 }
 
 export const PackagesIcons = {

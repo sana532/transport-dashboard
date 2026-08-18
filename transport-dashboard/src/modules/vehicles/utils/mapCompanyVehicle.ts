@@ -10,9 +10,12 @@ function yearFromIso(iso: string | undefined): string {
 export function mapMechanicalToStatus(
   mechanicalStatus: string,
   isActive: boolean,
+  inTrip = false,
 ): VehicleOperationalStatus {
+  if (inTrip) return 'In Trip'
   if (!isActive) return 'Maintenance'
-  const key = mechanicalStatus.toLowerCase()
+  const key = mechanicalStatus.toLowerCase().replace(/-/g, '_')
+  if (key === 'in_trip' || key === 'on_trip') return 'In Trip'
   if (key === 'maintenance' || key === 'out_of_service' || key === 'inactive') {
     return 'Maintenance'
   }
@@ -37,7 +40,7 @@ export function mapCompanyVehicleToVehicle(row: CompanyVehicle): Vehicle {
     plateNumber: row.plate_number,
     seats,
     vehicleType: modelName,
-    status: mapMechanicalToStatus(row.mechanical_status, row.is_active),
+    status: mapMechanicalToStatus(row.mechanical_status, row.is_active, row.in_trip === true),
     verifiedStatus: row.verified_status,
     mechanicalStatus: row.mechanical_status,
     isActive: row.is_active,

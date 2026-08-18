@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import {
   AlertTriangle,
   Archive,
   Ban,
   CalendarClock,
   ClipboardList,
+  ListFilter,
   Loader2,
   MapPin,
   Navigation,
@@ -36,6 +38,10 @@ import type { TripStatFilterId } from '@/modules/trips/utils/buildTripsStats'
 import { isArchivedTrip } from '@/modules/trips/utils/tripStatus'
 import { isScheduledTripOverdue } from '@/modules/trips/utils/tripTiming'
 import { translateCityName } from '@/modules/geography/utils/cityNames'
+import { stationsService } from '@/modules/geography/services/stationsService'
+import type { Station } from '@/modules/geography/types'
+import { routesService } from '@/modules/routes/services/routesService'
+import { routeDisplayName } from '@/modules/routes/utils/routeDisplay'
 
 const selectClass =
   'w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary shadow-sm transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30'
@@ -121,7 +127,8 @@ export function TripsManagementPage() {
   const { t, locale } = useTranslation()
   const navigate = useNavigate()
   const [page, setPage] = useState(1)
-  const [filters, setFilters] = useState<TripListFilters>(defaultTripListFilters)
+  const [draftFilters, setDraftFilters] = useState<TripListFilters>(defaultTripListFilters)
+  const [appliedFilters, setAppliedFilters] = useState<TripListFilters>(defaultTripListFilters)
   const [searchInput, setSearchInput] = useState('')
   const [statFilter, setStatFilter] = useState<TripStatFilterId>('all')
   const [cancelTripId, setCancelTripId] = useState<number | null>(null)
@@ -130,14 +137,46 @@ export function TripsManagementPage() {
   const [nowMs, setNowMs] = useState(() => Date.now())
 
   const { data: lookups } = useCompanyLookups({
-    routes: true,
     drivers: true,
     cities: true,
     stations: true,
   })
 
+  const { data: routeCatalog } = useQuery({
+    queryKey: ['routes', 'catalog', locale],
+    queryFn: async (): Promise<{ routes: Awaited<ReturnType<typeof routesService.listRoutes>>; stations: Station[] }> => {
+      const [routes, stations] = await Promise.all([
+        routesService.listRoutes(),
+        stationsService.listStations(),
+      ])
+      return { routes, stations }
+    },
+    staleTime: 60_000,
+  })
+
+  const routeList = routeCatalog?.routes ?? []
+  const routeStations = routeCatalog?.stations ?? []
+
+  const routeOptions = useMemo(() => {
+    const byId = new Map<number, (typeof routeList)[number]>()
+    for (const route of routeList) byId.set(route.id, route)
+    return Array.from(byId.values()).sort((a, b) =>
+      routeDisplayName(a, locale, { stations: routeStations }).localeCompare(
+        routeDisplayName(b, locale, { stations: routeStations }),
+        locale,
+      ),
+    )
+  }, [routeList, routeStations, locale])
+
+  const selectedRoute = useMemo(() => {
+    if (appliedFilters.routeId === 'all') return null
+    const routeId = Number(appliedFilters.routeId)
+    if (!Number.isFinite(routeId)) return null
+    return routeOptions.find((route) => route.id === routeId) ?? null
+  }, [appliedFilters.routeId, routeOptions])
+
   const serverFilters = useMemo(() => {
-    const base = tripListFiltersToQuery(filters)
+    const base = tripListFiltersToQuery(appliedFilters)
     const view =
       statFilter === 'scheduled'
         ? ('scheduled' as const)
@@ -149,7 +188,7 @@ export function TripsManagementPage() {
       return { ...base, view, resolutionStatus: 'pending_review' as const }
     }
     return { ...base, view }
-  }, [filters, showOverdueOnly, statFilter])
+  }, [appliedFilters, showOverdueOnly, statFilter])
 
   const serverFiltersKey = useMemo(() => JSON.stringify(serverFilters), [serverFilters])
 
@@ -163,20 +202,20 @@ export function TripsManagementPage() {
   })
 
   const originStations = useMemo(() => {
-    if (filters.originCityId === 'all') return lookups.stations
-    const cityId = Number(filters.originCityId)
+    if (draftFilters.originCityId === 'all') return lookups.stations
+    const cityId = Number(draftFilters.originCityId)
     return lookups.stations.filter(
       (station) => station.city_id == null || station.city_id === cityId,
     )
-  }, [lookups.stations, filters.originCityId])
+  }, [lookups.stations, draftFilters.originCityId])
 
   const destinationStations = useMemo(() => {
-    if (filters.destinationCityId === 'all') return lookups.stations
-    const cityId = Number(filters.destinationCityId)
+    if (draftFilters.destinationCityId === 'all') return lookups.stations
+    const cityId = Number(draftFilters.destinationCityId)
     return lookups.stations.filter(
       (station) => station.city_id == null || station.city_id === cityId,
     )
-  }, [lookups.stations, filters.destinationCityId])
+  }, [lookups.stations, draftFilters.destinationCityId])
 
   const pagination = data?.pagination
   const visiblePages = useMemo(() => {
@@ -217,8 +256,8 @@ export function TripsManagementPage() {
   const activeTrips = useMemo(() => {
     if (!data) return []
     const operational = data.trips.filter((trip) => !isArchivedTrip(trip.status))
-    return applyLocalTripFilters(operational, filters)
-  }, [data, filters])
+    return applyLocalTripFilters(operational, appliedFilters, { selectedRoute })
+  }, [data, appliedFilters, selectedRoute])
 
   const tableRows = useMemo(
     () => activeTrips.map((trip) => mapTripToRecentRow(trip, locale === 'ar' ? 'ar-SY' : 'en-US')),
@@ -226,22 +265,40 @@ export function TripsManagementPage() {
   )
 
   const hasActiveFilters =
-    hasActiveTripFilters(filters) || statFilter !== 'all' || showOverdueOnly
+    hasActiveTripFilters(appliedFilters) || statFilter !== 'all' || showOverdueOnly
+
+  const hasPendingFilterChanges =
+    searchInput.trim() !== appliedFilters.search ||
+    JSON.stringify({ ...draftFilters, search: undefined }) !==
+      JSON.stringify({ ...appliedFilters, search: undefined })
 
   const handleResetFilters = () => {
-    setFilters(defaultTripListFilters)
+    setDraftFilters(defaultTripListFilters)
+    setAppliedFilters(defaultTripListFilters)
     setSearchInput('')
     setStatFilter('all')
     setShowOverdueOnly(false)
     setPage(1)
   }
 
-  const patchFilters = (patch: Partial<TripListFilters>) => {
-    setFilters((prev) => ({ ...prev, ...patch }))
+  const patchDraftFilters = (patch: Partial<TripListFilters>) => {
+    setDraftFilters((prev) => ({ ...prev, ...patch }))
+  }
+
+  const handleApplyFilters = () => {
+    const nextFilters = { ...draftFilters, search: searchInput.trim() }
+    setAppliedFilters(nextFilters)
+    setShowOverdueOnly(false)
+    if (nextFilters.status === 'scheduled' || nextFilters.status === 'active') {
+      setStatFilter(nextFilters.status)
+    } else {
+      setStatFilter('all')
+    }
+    setPage(1)
   }
 
   const applySearch = () => {
-    patchFilters({ search: searchInput.trim() })
+    handleApplyFilters()
   }
 
   const handleStatClick = (filterId: TripStatFilterId) => {
@@ -252,7 +309,9 @@ export function TripsManagementPage() {
     setShowOverdueOnly(false)
     setStatFilter((prev) => (prev === filterId ? 'all' : filterId))
     if (filterId === 'scheduled' || filterId === 'active') {
-      setFilters((prev) => ({ ...prev, status: 'all', resolutionStatus: 'all' }))
+      const cleared = { ...defaultTripListFilters, status: 'all' as const, resolutionStatus: 'all' as const }
+      setDraftFilters(cleared)
+      setAppliedFilters(cleared)
     }
     setPage(1)
   }
@@ -270,11 +329,9 @@ export function TripsManagementPage() {
   const toggleOverdueFilter = () => {
     setShowOverdueOnly((current) => !current)
     setStatFilter('all')
-    setFilters((current) => ({
-      ...current,
-      status: 'all',
-      resolutionStatus: 'all',
-    }))
+    const cleared = { ...defaultTripListFilters, status: 'all' as const, resolutionStatus: 'all' as const }
+    setDraftFilters(cleared)
+    setAppliedFilters(cleared)
   }
 
   if (error && !data) {
@@ -484,26 +541,13 @@ export function TripsManagementPage() {
                 <select
                   id="trip-route-filter"
                   className={selectClass}
-                  value={filters.routeId}
-                  onChange={(e) => {
-                    const value = e.target.value
-                    if (value === 'all' || /^\d+$/.test(value)) {
-                      patchFilters({ routeId: value })
-                      return
-                    }
-                    const match = lookups.routes.find(
-                      (route) =>
-                        route.name === value ||
-                        route.name_en === value ||
-                        route.name_ar === value,
-                    )
-                    patchFilters({ routeId: match ? String(match.id) : 'all' })
-                  }}
+                  value={draftFilters.routeId}
+                  onChange={(e) => patchDraftFilters({ routeId: e.target.value })}
                 >
                   <option value="all">{t('trips.allRoutes')}</option>
-                  {lookups.routes.map((route) => (
+                  {routeOptions.map((route) => (
                     <option key={route.id} value={String(route.id)}>
-                      {locale === 'ar' && route.name_ar ? route.name_ar : route.name}
+                      {routeDisplayName(route, locale, { stations: routeStations })}
                     </option>
                   ))}
                 </select>
@@ -516,8 +560,8 @@ export function TripsManagementPage() {
                 <select
                   id="trip-driver-filter"
                   className={selectClass}
-                  value={filters.driverId}
-                  onChange={(e) => patchFilters({ driverId: e.target.value })}
+                  value={draftFilters.driverId}
+                  onChange={(e) => patchDraftFilters({ driverId: e.target.value })}
                 >
                   <option value="all">{t('trips.allDrivers')}</option>
                   {lookups.drivers.map((driver) => (
@@ -535,9 +579,9 @@ export function TripsManagementPage() {
                 <select
                   id="trip-origin-city-filter"
                   className={selectClass}
-                  value={filters.originCityId}
+                  value={draftFilters.originCityId}
                   onChange={(e) =>
-                    patchFilters({
+                    patchDraftFilters({
                       originCityId: e.target.value,
                       originStationId: 'all',
                     })
@@ -562,9 +606,9 @@ export function TripsManagementPage() {
                 <select
                   id="trip-destination-city-filter"
                   className={selectClass}
-                  value={filters.destinationCityId}
+                  value={draftFilters.destinationCityId}
                   onChange={(e) =>
-                    patchFilters({
+                    patchDraftFilters({
                       destinationCityId: e.target.value,
                       destinationStationId: 'all',
                     })
@@ -589,8 +633,8 @@ export function TripsManagementPage() {
                 <select
                   id="trip-origin-station-filter"
                   className={selectClass}
-                  value={filters.originStationId}
-                  onChange={(e) => patchFilters({ originStationId: e.target.value })}
+                  value={draftFilters.originStationId}
+                  onChange={(e) => patchDraftFilters({ originStationId: e.target.value })}
                 >
                   <option value="all">{t('trips.allStations')}</option>
                   {originStations.map((station) => (
@@ -611,8 +655,8 @@ export function TripsManagementPage() {
                 <select
                   id="trip-destination-station-filter"
                   className={selectClass}
-                  value={filters.destinationStationId}
-                  onChange={(e) => patchFilters({ destinationStationId: e.target.value })}
+                  value={draftFilters.destinationStationId}
+                  onChange={(e) => patchDraftFilters({ destinationStationId: e.target.value })}
                 >
                   <option value="all">{t('trips.allStations')}</option>
                   {destinationStations.map((station) => (
@@ -630,16 +674,9 @@ export function TripsManagementPage() {
                 <select
                   id="trip-status-filter"
                   className={selectClass}
-                  value={filters.status}
+                  value={draftFilters.status}
                   onChange={(e) => {
-                    const next = e.target.value as TripListFilters['status']
-                    patchFilters({ status: next })
-                    setShowOverdueOnly(false)
-                    if (next === 'scheduled' || next === 'active') {
-                      setStatFilter(next)
-                    } else {
-                      setStatFilter('all')
-                    }
+                    patchDraftFilters({ status: e.target.value as TripListFilters['status'] })
                   }}
                 >
                   <option value="all">{t('trips.allStatus')}</option>
@@ -659,12 +696,11 @@ export function TripsManagementPage() {
                 <select
                   id="trip-resolution-filter"
                   className={selectClass}
-                  value={filters.resolutionStatus}
+                  value={draftFilters.resolutionStatus}
                   onChange={(e) => {
-                    patchFilters({
+                    patchDraftFilters({
                       resolutionStatus: e.target.value as TripListFilters['resolutionStatus'],
                     })
-                    setShowOverdueOnly(false)
                   }}
                 >
                   <option value="all">{t('trips.allResolutionStatus')}</option>
@@ -684,8 +720,8 @@ export function TripsManagementPage() {
                   id="trip-date-filter"
                   type="date"
                   className={selectClass}
-                  value={filters.departureDate}
-                  onChange={(e) => patchFilters({ departureDate: e.target.value })}
+                  value={draftFilters.departureDate}
+                  onChange={(e) => patchDraftFilters({ departureDate: e.target.value })}
                 />
               </div>
 
@@ -697,26 +733,36 @@ export function TripsManagementPage() {
                   id="trip-time-filter"
                   type="time"
                   className={selectClass}
-                  value={filters.departureTime}
-                  onChange={(e) => patchFilters({ departureTime: e.target.value })}
+                  value={draftFilters.departureTime}
+                  onChange={(e) => patchDraftFilters({ departureTime: e.target.value })}
                 />
               </div>
             </div>
           </div>
 
-          {hasActiveFilters ? (
-            <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
+          <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
+            {hasActiveFilters ? (
               <p className="text-xs text-text-muted">{t('trips.filtersActive')}</p>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleResetFilters}
-                className="border-border"
-              >
-                {t('trips.clearFilters')}
-              </Button>
-            </div>
-          ) : null}
+            ) : null}
+            <Button
+              type="button"
+              className="gap-1.5 bg-[var(--brand-primary)] text-white hover:bg-[var(--brand-primary-dark)]"
+              onClick={handleApplyFilters}
+              disabled={!hasPendingFilterChanges}
+            >
+              <ListFilter className="h-4 w-4" aria-hidden />
+              {t('trips.applyFilters')}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleResetFilters}
+              disabled={!hasActiveFilters && !hasPendingFilterChanges}
+              className="border-border"
+            >
+              {t('trips.clearFilters')}
+            </Button>
+          </div>
         </CardContent>
       </Card>
 

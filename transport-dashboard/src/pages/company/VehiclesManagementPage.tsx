@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { CircleGauge, Download, Loader2, Plus, Search } from 'lucide-react'
 import { cn } from '@/shared/utils/cn'
 import { Button } from '@/shared/ui/Button'
@@ -70,16 +70,18 @@ function VehiclesErrorState({ message, onRetry }: { message: string; onRetry: ()
 
 export function VehiclesManagementPage() {
   const { t } = useTranslation()
+  const [page, setPage] = useState(1)
   const {
     data,
     vehicleModels,
     isLoading,
+    isFetching,
     error,
     reload,
     createVehicle,
     updateVehicle,
     deleteVehicle,
-  } = useVehiclesManagement()
+  } = useVehiclesManagement(page)
 
   const [formOpen, setFormOpen] = useState(false)
   const [formMode, setFormMode] = useState<'add' | 'edit'>('add')
@@ -98,6 +100,21 @@ export function VehiclesManagementPage() {
     if (!data) return []
     return filterVehicles(data.vehicles, filters)
   }, [data, filters])
+
+  const pagination = data?.pagination
+  const lastPage = pagination?.lastPage ?? 1
+
+  useEffect(() => {
+    if (!pagination) return
+    if (page > pagination.lastPage) setPage(pagination.lastPage)
+  }, [page, pagination])
+
+  const visiblePages = useMemo(() => {
+    if (!pagination) return [] as number[]
+    const start = Math.max(1, Math.min(pagination.currentPage - 2, pagination.lastPage - 4))
+    const end = Math.min(pagination.lastPage, start + 4)
+    return Array.from({ length: Math.max(0, end - start + 1) }, (_, index) => start + index)
+  }, [pagination])
 
   const hasActiveFilters =
     filters.search.trim() !== '' ||
@@ -277,6 +294,7 @@ export function VehiclesManagementPage() {
               >
                 <option value="all">{t('vehicles.allStatus')}</option>
                 <option value="Available">{t('vehicles.status.available')}</option>
+                <option value="In Trip">{t('vehicles.status.inTrip')}</option>
                 <option value="Maintenance">{t('vehicles.status.maintenance')}</option>
               </select>
             </div>
@@ -357,6 +375,7 @@ export function VehiclesManagementPage() {
               </Button>
             </div>
           ) : (
+            <>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {filteredVehicles.map((vehicle) => (
                 <VehicleCard
@@ -372,6 +391,58 @@ export function VehiclesManagementPage() {
                 />
               ))}
             </div>
+            {pagination && pagination.lastPage > 1 ? (
+              <div className="mt-4 flex flex-col gap-3 border-t border-surface-muted px-1 pt-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-text-muted">
+                  {t('vehicles.pagination.showing', {
+                    from: pagination.from,
+                    to: pagination.to,
+                    total: pagination.total,
+                  })}
+                  {isFetching ? ' …' : null}
+                </p>
+                <div className="flex flex-wrap items-center gap-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-8 px-2 text-xs"
+                    disabled={page <= 1}
+                    onClick={() => setPage((value) => Math.max(1, value - 1))}
+                  >
+                    {t('common.previous')}
+                  </Button>
+                  {visiblePages.map((n) => (
+                    <Button
+                      key={n}
+                      type="button"
+                      variant={n === page ? 'primary' : 'outline'}
+                      className="h-8 min-w-8 px-2 text-xs"
+                      onClick={() => setPage(n)}
+                    >
+                      {n}
+                    </Button>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-8 px-2 text-xs"
+                    disabled={page >= lastPage}
+                    onClick={() => setPage((value) => Math.min(lastPage, value + 1))}
+                  >
+                    {t('common.next')}
+                  </Button>
+                </div>
+              </div>
+            ) : pagination ? (
+              <p className="mt-4 text-sm text-text-muted">
+                {t('vehicles.pagination.showing', {
+                  from: pagination.from,
+                  to: pagination.to,
+                  total: pagination.total,
+                })}
+              </p>
+            ) : null}
+            </>
           )}
         </CardContent>
       </Card>

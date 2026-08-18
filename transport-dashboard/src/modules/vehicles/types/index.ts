@@ -23,6 +23,7 @@ export type CompanyVehicle = {
   mechanical_status: string
   layout_config_snapshot?: unknown
   is_active: boolean
+  in_trip?: boolean
   photos: string[]
   vehicle_model?: CompanyVehicleModel | null
   created_at?: string
@@ -78,9 +79,19 @@ export type VehiclesStatCard = {
   Icon: LucideIcon
 }
 
+export type VehiclesListPagination = {
+  currentPage: number
+  lastPage: number
+  perPage: number
+  total: number
+  from: number
+  to: number
+}
+
 export type VehiclesManagementData = {
   stats: VehiclesStatCard[]
   vehicles: Vehicle[]
+  pagination: VehiclesListPagination
 }
 
 export const VehiclesIcons = {

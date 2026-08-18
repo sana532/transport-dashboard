@@ -1,4 +1,5 @@
 import type { CompanyDriver } from '@/modules/drivers/types'
+import type { CompanyRoute } from '@/modules/routes/types'
 import type { CompanyVehicle } from '@/modules/vehicles/types'
 import type { CompanyTrip } from '@/modules/trips/types/companyTrip'
 
@@ -48,14 +49,68 @@ function resolveVehicleRef(
   }
 }
 
+function routeHasStoredName(route: CompanyTrip['route']): boolean {
+  if (!route) return false
+  return Boolean(
+    route.name_en?.trim() || route.name?.trim() || route.name_ar?.trim(),
+  )
+}
+
+function resolveRouteRef(
+  trip: CompanyTrip,
+  catalogRoute: CompanyRoute | undefined,
+): CompanyTrip['route'] {
+  if (routeHasStoredName(trip.route)) return trip.route
+
+  if (!catalogRoute) return trip.route ?? null
+
+  return {
+    id: catalogRoute.id,
+    name: catalogRoute.name,
+    name_en: catalogRoute.name_en,
+    name_ar: catalogRoute.name_ar,
+    rest_areas: catalogRoute.rest_areas,
+  }
+}
+
+function tripNeedsRouteEnrichment(trip: CompanyTrip): boolean {
+  if (!trip.route_id) return false
+  return !routeHasStoredName(trip.route)
+}
+
+export function tripNeedsRouteCatalogEnrichment(trips: CompanyTrip[]): boolean {
+  return trips.some(tripNeedsRouteEnrichment)
+}
+
 export function enrichCompanyTrips(
   trips: CompanyTrip[],
   drivers: CompanyDriver[],
   vehicles: CompanyVehicle[],
+  routes: CompanyRoute[] = [],
 ): CompanyTrip[] {
-  return trips.map((trip) => ({
-    ...trip,
-    driver: resolveDriverRef(trip, drivers),
-    vehicle: resolveVehicleRef(trip, vehicles),
-  }))
+  return trips.map((trip) => {
+    const catalogRoute = routes.find((route) => route.id === trip.route_id)
+
+    return {
+      ...trip,
+      route: resolveRouteRef(trip, catalogRoute),
+      origin_station:
+        trip.origin_station ??
+        (catalogRoute?.origin_station
+          ? { id: catalogRoute.origin_station.id, name: catalogRoute.origin_station.name }
+          : trip.origin_station),
+      destination_station:
+        trip.destination_station ??
+        (catalogRoute?.destination_station
+          ? {
+              id: catalogRoute.destination_station.id,
+              name: catalogRoute.destination_station.name,
+            }
+          : trip.destination_station),
+      origin_city: trip.origin_city ?? catalogRoute?.origin_city ?? null,
+      destination_city: trip.destination_city ?? catalogRoute?.destination_city ?? null,
+      driver: resolveDriverRef(trip, drivers),
+      vehicle: resolveVehicleRef(trip, vehicles),
+    }
+  })
 }

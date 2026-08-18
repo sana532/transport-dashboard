@@ -24,6 +24,14 @@ export const packagesManagementMockData: PackagesManagementData = {
       Icon: PackagesIcons.Subscribers,
     },
   ],
+  pagination: {
+    currentPage: 1,
+    lastPage: 1,
+    perPage: 15,
+    total: 6,
+    from: 1,
+    to: 6,
+  },
   plans: [
     {
       id: 'plan-basic',

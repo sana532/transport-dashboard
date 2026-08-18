@@ -84,7 +84,7 @@ export function parseRestAreasFromRecord(record: Record<string, unknown>): Route
 export function routeRestStopsToFormRows(stops: RouteRestAreaStop[] | undefined): RestAreaStopFormRow[] {
   if (!stops?.length) return []
   return stops.map((stop) => ({
-    rest_area_id: String(stop.id),
+    rest_area_id: String(stop.rest_area?.id ?? stop.id),
     stop_order: String(stop.stop_order),
     duration_minutes: String(stop.duration_minutes),
   }))

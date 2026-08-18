@@ -26,9 +26,9 @@ export function filterVehicles(vehicles: Vehicle[], filters: VehicleListFilters)
     const statusAliases =
       vehicle.status === 'Available'
         ? 'available متاح تشغيلي'
-        : vehicle.status === 'Maintenance'
-          ? 'maintenance صيانة'
-          : ''
+        : vehicle.status === 'In Trip'
+          ? 'in trip في رحلة'
+          : 'maintenance صيانة'
 
     const haystack = [
       vehicle.code,

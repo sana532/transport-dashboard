@@ -89,7 +89,11 @@ export function VehicleCard({ vehicle, onEdit, onDelete }: VehicleCardProps) {
             statusBadgeClass(vehicle.status),
           )}
         >
-          {vehicle.status}
+          {vehicle.status === 'Available'
+            ? t('vehicles.status.available')
+            : vehicle.status === 'In Trip'
+              ? t('vehicles.status.inTrip')
+              : t('vehicles.status.maintenance')}
         </span>
       </CardHeader>
       <CardContent className="space-y-2 p-3 pt-2">

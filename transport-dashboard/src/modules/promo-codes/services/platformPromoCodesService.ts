@@ -94,6 +94,14 @@ export const platformPromoCodesService = {
     return {
       promoCodes,
       stats: buildPromoStats(promoCodes),
+      pagination: {
+        currentPage: 1,
+        lastPage: 1,
+        perPage: promoCodes.length || 15,
+        total: promoCodes.length,
+        from: promoCodes.length > 0 ? 1 : 0,
+        to: promoCodes.length,
+      },
     }
   },
 }

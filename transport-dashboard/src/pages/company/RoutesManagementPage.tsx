@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { MapPinned, Pencil, Plus, Trash2 } from 'lucide-react'
 import { formatRestAreaLabel } from '@/modules/geography/utils/restAreaApi'
 import { translateCityName } from '@/modules/geography/utils/cityNames'
@@ -7,7 +7,11 @@ import type { CompanyRoute } from '@/modules/routes/types'
 import { RouteRestAreasCell } from '@/modules/routes/components/RouteRestAreasCell'
 import { useRoutesManagement } from '@/modules/routes/hooks/useRoutesManagement'
 import { routesService } from '@/modules/routes/services/routesService'
-import { routeDisplayName } from '@/modules/routes/utils/routeDisplay'
+import {
+  buildAutoRouteNameAr,
+  buildAutoRouteNameEn,
+  routeDisplayName,
+} from '@/modules/routes/utils/routeDisplay'
 import {
   buildRestAreasPayload,
   emptyRestAreaStopRow,
@@ -53,45 +57,20 @@ function isValidDurationHhmm(value: string): boolean {
   return Number.isFinite(h) && Number.isFinite(m) && m >= 0 && m < 60
 }
 
-function stationCityLabel(station: Station, locale: string): string {
-  if (station.city?.name?.trim()) return translateCityName(station.city.name.trim(), locale)
-  return station.name
-}
-
 function buildAutoRouteName(
   originStationId: string,
   destinationStationId: string,
   stations: Station[],
 ): string {
-  if (!originStationId || !destinationStationId) return ''
-  const origin = stations.find((s) => String(s.id) === originStationId)
-  const dest = stations.find((s) => String(s.id) === destinationStationId)
-  if (!origin || !dest) return ''
-
-  const fromLabel = stationCityLabel(origin, 'en')
-  const toLabel = stationCityLabel(dest, 'en')
-  if (fromLabel === toLabel) {
-    return `${origin.name} to ${dest.name}`
-  }
-  return `${fromLabel} to ${toLabel}`
+  return buildAutoRouteNameEn(originStationId, destinationStationId, stations)
 }
 
-function buildAutoRouteNameAr(
+function buildAutoRouteNameArLocal(
   originStationId: string,
   destinationStationId: string,
   stations: Station[],
 ): string {
-  if (!originStationId || !destinationStationId) return ''
-  const origin = stations.find((s) => String(s.id) === originStationId)
-  const dest = stations.find((s) => String(s.id) === destinationStationId)
-  if (!origin || !dest) return ''
-
-  const fromLabel = stationCityLabel(origin, 'ar')
-  const toLabel = stationCityLabel(dest, 'ar')
-  if (fromLabel === toLabel) {
-    return `${origin.name} إلى ${dest.name}`
-  }
-  return `${fromLabel} إلى ${toLabel}`
+  return buildAutoRouteNameAr(originStationId, destinationStationId, stations)
 }
 
 function stationLabel(route: CompanyRoute, kind: 'origin' | 'destination', locale: string): string {
@@ -154,6 +133,12 @@ export function RoutesManagementPage() {
   const [pending, setPending] = useState(false)
   const [nameEnTouched, setNameEnTouched] = useState(false)
   const [nameArTouched, setNameArTouched] = useState(false)
+  const editingRouteIdRef = useRef<number | null>(null)
+  const formDirtyRef = useRef(false)
+
+  const markFormDirty = () => {
+    formDirtyRef.current = true
+  }
 
   const isEditing = editingId !== null
 
@@ -162,15 +147,28 @@ export function RoutesManagementPage() {
     form.destination_station_id,
     stations,
   )
-  const autoRouteNameAr = buildAutoRouteNameAr(
+  const autoRouteNameAr = buildAutoRouteNameArLocal(
     form.origin_station_id,
     form.destination_station_id,
     stations,
   )
 
+  const seedRouteForm = (route: CompanyRoute) => {
+    setNameEnTouched(false)
+    setNameArTouched(false)
+    setForm({
+      name_en: route.name_en?.trim() || route.name?.trim() || '',
+      name_ar: route.name_ar?.trim() || '',
+      origin_station_id: String(route.origin_station_id),
+      destination_station_id: String(route.destination_station_id),
+      estimated_duration_hhmm: route.estimated_duration_hhmm ?? '',
+      base_fare: route.base_fare != null ? String(route.base_fare) : '',
+      restAreaStops: routeRestStopsToFormRows(route.rest_areas),
+    })
+  }
+
   useEffect(() => {
-    // Only auto-fill names when creating; never overwrite while editing.
-    if (!dialogOpen || isEditing) return
+    if (!dialogOpen || isEditing || formDirtyRef.current) return
     setForm((prev) => {
       const next = { ...prev }
       if (!nameEnTouched && autoRouteNameEn) next.name_en = autoRouteNameEn
@@ -181,6 +179,8 @@ export function RoutesManagementPage() {
 
   const openAddDialog = () => {
     setEditingId(null)
+    editingRouteIdRef.current = null
+    formDirtyRef.current = false
     setForm(emptyForm)
     setNameEnTouched(false)
     setNameArTouched(false)
@@ -190,31 +190,26 @@ export function RoutesManagementPage() {
 
   const openEditDialog = (row: CompanyRoute) => {
     setEditingId(row.id)
-    setNameEnTouched(true)
-    setNameArTouched(true)
+    editingRouteIdRef.current = row.id
+    formDirtyRef.current = false
+    setNameEnTouched(false)
+    setNameArTouched(false)
     setFormError(null)
     setDialogOpen(true)
-    setForm({
-      name_en: row.name_en || row.name,
-      name_ar: row.name_ar || row.name,
-      origin_station_id: String(row.origin_station_id),
-      destination_station_id: String(row.destination_station_id),
-      estimated_duration_hhmm: row.estimated_duration_hhmm ?? '',
-      base_fare: row.base_fare != null ? String(row.base_fare) : '',
-      restAreaStops: routeRestStopsToFormRows(row.rest_areas),
-    })
-
-    // Detail fetch is only for rest stops — do not overwrite names the user may edit.
-    if (row.rest_areas?.length) return
+    seedRouteForm(row)
 
     void routesService
       .getRoute(row.id)
       .then((detail) => {
-        if (!detail.rest_areas?.length) return
-        setForm((prev) => ({
-          ...prev,
-          restAreaStops: routeRestStopsToFormRows(detail.rest_areas),
-        }))
+        if (editingRouteIdRef.current !== row.id) return
+        if (formDirtyRef.current) {
+          setForm((prev) => ({
+            ...prev,
+            restAreaStops: routeRestStopsToFormRows(detail.rest_areas),
+          }))
+          return
+        }
+        seedRouteForm(detail)
       })
       .catch(() => {
         /* keep list row data */
@@ -224,20 +219,27 @@ export function RoutesManagementPage() {
   const closeDialog = () => {
     setDialogOpen(false)
     setEditingId(null)
+    editingRouteIdRef.current = null
+    formDirtyRef.current = false
     setForm(emptyForm)
     setNameEnTouched(false)
     setNameArTouched(false)
     setFormError(null)
   }
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setFormError(null)
 
+    const formData = new FormData(e.currentTarget)
     const origin_station_id = Number(form.origin_station_id)
     const destination_station_id = Number(form.destination_station_id)
-    const name_en = form.name_en.trim() || autoRouteNameEn
-    const name_ar = form.name_ar.trim() || autoRouteNameAr || name_en
+    const name_en =
+      String(formData.get('route-name-en') ?? form.name_en).trim() || autoRouteNameEn
+    const name_ar =
+      String(formData.get('route-name-ar') ?? form.name_ar).trim() ||
+      autoRouteNameAr ||
+      name_en
 
     if (!name_en || !name_ar || !origin_station_id || !destination_station_id) {
       setFormError(
@@ -275,9 +277,9 @@ export function RoutesManagementPage() {
         name_ar,
         origin_station_id,
         destination_station_id,
+        rest_areas,
         ...(duration ? { estimated_duration_hhmm: duration } : {}),
         ...(base_fare != null ? { base_fare } : {}),
-        ...(rest_areas.length > 0 ? { rest_areas } : {}),
       }
       if (isEditing && editingId !== null) {
         await updateRoute(editingId, payload)
@@ -323,6 +325,7 @@ export function RoutesManagementPage() {
                 placeholder={autoRouteNameEn || t('routes.form.nameEnPlaceholder')}
                 value={form.name_en}
                 onChange={(e) => {
+                  markFormDirty()
                   setNameEnTouched(true)
                   setForm((prev) => ({ ...prev, name_en: e.target.value }))
                 }}
@@ -339,6 +342,7 @@ export function RoutesManagementPage() {
                 placeholder={autoRouteNameAr || t('routes.form.nameArPlaceholder')}
                 value={form.name_ar}
                 onChange={(e) => {
+                  markFormDirty()
                   setNameArTouched(true)
                   setForm((prev) => ({ ...prev, name_ar: e.target.value }))
                 }}
@@ -357,8 +361,11 @@ export function RoutesManagementPage() {
                   className={selectClass}
                   value={form.origin_station_id}
                   onChange={(e) => {
-                    setNameEnTouched(false)
-                    setNameArTouched(false)
+                    markFormDirty()
+                    if (!isEditing) {
+                      setNameEnTouched(false)
+                      setNameArTouched(false)
+                    }
                     setForm((prev) => ({ ...prev, origin_station_id: e.target.value }))
                   }}
                   required
@@ -386,8 +393,11 @@ export function RoutesManagementPage() {
                   className={selectClass}
                   value={form.destination_station_id}
                   onChange={(e) => {
-                    setNameEnTouched(false)
-                    setNameArTouched(false)
+                    markFormDirty()
+                    if (!isEditing) {
+                      setNameEnTouched(false)
+                      setNameArTouched(false)
+                    }
                     setForm((prev) => ({ ...prev, destination_station_id: e.target.value }))
                   }}
                   required
@@ -409,9 +419,10 @@ export function RoutesManagementPage() {
                 label={t('routes.form.estimatedDuration')}
                 placeholder={t('routes.form.estimatedDurationPlaceholder')}
                 value={form.estimated_duration_hhmm}
-                onChange={(e) =>
+                onChange={(e) => {
+                  markFormDirty()
                   setForm((prev) => ({ ...prev, estimated_duration_hhmm: e.target.value }))
-                }
+                }}
               />
               <Input
                 name="base_fare"
@@ -420,7 +431,10 @@ export function RoutesManagementPage() {
                 type="number"
                 min={0}
                 value={form.base_fare}
-                onChange={(e) => setForm((prev) => ({ ...prev, base_fare: e.target.value }))}
+                onChange={(e) => {
+                  markFormDirty()
+                  setForm((prev) => ({ ...prev, base_fare: e.target.value }))
+                }}
               />
             </div>
 
@@ -620,7 +634,7 @@ export function RoutesManagementPage() {
                       className="border-b border-surface-muted text-text-secondary"
                     >
                       <td className="px-4 py-3 font-semibold text-text-primary">
-                        {routeDisplayName(row, locale)}
+                        {routeDisplayName(row, locale, { stations })}
                       </td>
                       <td className="px-4 py-3">{stationLabel(row, 'origin', locale)}</td>
                       <td className="px-4 py-3">{stationLabel(row, 'destination', locale)}</td>

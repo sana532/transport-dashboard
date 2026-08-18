@@ -21,8 +21,6 @@ import { Input } from '@/shared/ui/Input'
 import { cn } from '@/shared/utils/cn'
 import { useTranslation } from '@/shared/i18n/useTranslation'
 
-const PAGE_SIZE = 8
-
 const selectClass =
   'w-full appearance-none rounded-lg border border-border bg-surface py-2 pl-3 pr-9 text-sm text-text-primary shadow-sm focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30'
 
@@ -67,9 +65,10 @@ function PromoErrorState({ message, onRetry }: { message: string; onRetry: () =>
 export function PromoCodesManagementPage() {
   const { t, locale } = useTranslation()
   const navigate = useNavigate()
-  const { data, isLoading, error, reload, deletePromoCode } = usePromoCodesManagement()
   const [filters, setFilters] = useState<PromoListFilters>(defaultPromoListFilters)
   const [page, setPage] = useState(1)
+  const { data, isLoading, isFetching, error, reload, deletePromoCode } =
+    usePromoCodesManagement(page)
 
   const dateLocale = locale === 'ar' ? 'ar-SY' : 'en-US'
 
@@ -78,16 +77,25 @@ export function PromoCodesManagementPage() {
     return filterPromoCodes(data.promoCodes, filters)
   }, [data, filters])
 
-  useEffect(() => {
-    setPage(1)
-  }, [filters])
+  const pagination = data?.pagination
+  const lastPage = pagination?.lastPage ?? 1
+  const safePage = Math.min(page, lastPage)
 
-  const pageCount = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE))
-  const safePage = Math.min(page, pageCount)
-  const sliceStart = (safePage - 1) * PAGE_SIZE
-  const pageRows = filteredRows.slice(sliceStart, sliceStart + PAGE_SIZE)
-  const from = filteredRows.length === 0 ? 0 : sliceStart + 1
-  const to = sliceStart + pageRows.length
+  useEffect(() => {
+    if (!pagination) return
+    if (page > pagination.lastPage) setPage(pagination.lastPage)
+  }, [page, pagination])
+
+  const visiblePages = useMemo(() => {
+    if (!pagination) return [] as number[]
+    const start = Math.max(1, Math.min(pagination.currentPage - 2, pagination.lastPage - 4))
+    const end = Math.min(pagination.lastPage, start + 4)
+    return Array.from({ length: Math.max(0, end - start + 1) }, (_, index) => start + index)
+  }, [pagination])
+
+  const from = pagination?.from ?? (filteredRows.length === 0 ? 0 : 1)
+  const to = pagination?.to ?? filteredRows.length
+  const totalLabel = (pagination?.total ?? filteredRows.length).toLocaleString(dateLocale)
 
   const handleDelete = async (id: number, code: string) => {
     if (!window.confirm(t('promoCodes.confirmDelete', { code }))) return
@@ -98,8 +106,7 @@ export function PromoCodesManagementPage() {
     }
   }
 
-  if (isLoading) return <PromoLoadingState message={t('common.loading')} />
-  if (error || !data) {
+  if (error && !data) {
     return (
       <PromoErrorState
         message={error ?? t('promoCodes.errorUnavailable')}
@@ -107,6 +114,9 @@ export function PromoCodesManagementPage() {
       />
     )
   }
+
+  if (isLoading && !data) return <PromoLoadingState message={t('common.loading')} />
+  if (!data) return <PromoLoadingState message={t('common.loading')} />
 
   return (
     <div className="space-y-5">
@@ -224,7 +234,7 @@ export function PromoCodesManagementPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {pageRows.map((row) => (
+                    {filteredRows.map((row) => (
                       <tr
                         key={row.id}
                         className="border-b border-surface-muted text-text-secondary"
@@ -277,40 +287,43 @@ export function PromoCodesManagementPage() {
                   {t('promoCodes.pagination.showing', {
                     from,
                     to,
-                    total: filteredRows.length.toLocaleString(dateLocale),
+                    total: totalLabel,
                   })}
+                  {isFetching ? ' …' : null}
                 </p>
-                <div className="flex flex-wrap items-center gap-1">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-8 px-2 text-xs"
-                    disabled={safePage <= 1}
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  >
-                    {t('common.previous')}
-                  </Button>
-                  {Array.from({ length: pageCount }, (_, i) => i + 1).map((n) => (
+                {pagination && pagination.lastPage > 1 ? (
+                  <div className="flex flex-wrap items-center gap-1">
                     <Button
-                      key={n}
                       type="button"
-                      variant={n === safePage ? 'primary' : 'outline'}
-                      className="h-8 min-w-8 px-2 text-xs"
-                      onClick={() => setPage(n)}
+                      variant="outline"
+                      className="h-8 px-2 text-xs"
+                      disabled={safePage <= 1}
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
                     >
-                      {n}
+                      {t('common.previous')}
                     </Button>
-                  ))}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-8 px-2 text-xs"
-                    disabled={safePage >= pageCount}
-                    onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
-                  >
-                    {t('common.next')}
-                  </Button>
-                </div>
+                    {visiblePages.map((n) => (
+                      <Button
+                        key={n}
+                        type="button"
+                        variant={n === safePage ? 'primary' : 'outline'}
+                        className="h-8 min-w-8 px-2 text-xs"
+                        onClick={() => setPage(n)}
+                      >
+                        {n}
+                      </Button>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-8 px-2 text-xs"
+                      disabled={safePage >= lastPage}
+                      onClick={() => setPage((p) => Math.min(lastPage, p + 1))}
+                    >
+                      {t('common.next')}
+                    </Button>
+                  </div>
+                ) : null}
               </div>
             </>
           )}

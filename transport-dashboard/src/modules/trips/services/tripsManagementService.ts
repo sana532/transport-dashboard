@@ -6,7 +6,11 @@ import {
   formatTripDateTime,
   formatTripRouteLabel,
 } from '@/modules/trips/utils/mapCompanyTrip'
-import { enrichCompanyTrips } from '@/modules/trips/utils/enrichCompanyTrips'
+import {
+  enrichCompanyTrips,
+  tripNeedsRouteCatalogEnrichment,
+} from '@/modules/trips/utils/enrichCompanyTrips'
+import { routesService } from '@/modules/routes/services/routesService'
 import { isArchivedTrip } from '@/modules/trips/utils/tripStatus'
 import { driversService } from '@/modules/drivers/services/driversService'
 import { vehiclesService } from '@/modules/vehicles/services/vehiclesService'
@@ -23,10 +27,11 @@ export type TripsListPagination = {
 }
 
 export function mapTripToRecentRow(trip: CompanyTrip, locale: string): TripsRecentRow {
+  const routeLocale = locale.startsWith('ar') ? 'ar' : 'en'
   return {
     id: `#${trip.id}`,
     numericId: trip.id,
-    route: formatTripRouteLabel(trip),
+    route: formatTripRouteLabel(trip, routeLocale),
     driver: trip.driver?.name ?? '—',
     vehicle: trip.vehicle?.plate_number ?? trip.vehicle?.name ?? '—',
     dateTime: formatTripDateTime(trip.departure_time, locale),
@@ -45,13 +50,15 @@ async function enrichTrips(rows: CompanyTrip[]): Promise<CompanyTrip[]> {
       !trip.vehicle?.plate_number &&
       !trip.vehicle?.name,
   )
+  const needsRouteEnrichment = tripNeedsRouteCatalogEnrichment(rows)
 
-  const [drivers, vehicles] = await Promise.all([
+  const [drivers, vehicles, routes] = await Promise.all([
     needsDriverEnrichment ? driversService.listDrivers() : Promise.resolve([]),
     needsVehicleEnrichment ? vehiclesService.listVehicles() : Promise.resolve([]),
+    needsRouteEnrichment ? routesService.listRoutes() : Promise.resolve([]),
   ])
 
-  return enrichCompanyTrips(rows, drivers, vehicles)
+  return enrichCompanyTrips(rows, drivers, vehicles, routes)
 }
 
 function toManagementPayload(

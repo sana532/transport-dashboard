@@ -145,8 +145,59 @@ function buildRouteWritePayload(input: RouteFormInput): Record<string, unknown> 
     payload.estimated_duration_hhmm = input.estimated_duration_hhmm.trim()
   }
   if (input.base_fare != null) payload.base_fare = input.base_fare
-  if (input.rest_areas?.length) payload.rest_areas = input.rest_areas
+  if (input.rest_areas != null) payload.rest_areas = input.rest_areas
   return payload
+}
+
+function mergeRouteWithInput(route: CompanyRoute, input: RouteFormInput): CompanyRoute {
+  const name_en = input.name_en.trim() || route.name_en
+  const name_ar = input.name_ar.trim() || route.name_ar
+  return {
+    ...route,
+    name_en,
+    name_ar,
+    name: name_en || route.name,
+    origin_station_id: input.origin_station_id,
+    destination_station_id: input.destination_station_id,
+    estimated_duration_hhmm: input.estimated_duration_hhmm?.trim() || route.estimated_duration_hhmm,
+    base_fare: input.base_fare ?? route.base_fare,
+    rest_areas:
+      input.rest_areas != null
+        ? input.rest_areas.map((stop, index) => ({
+            id: stop.id,
+            stop_order: stop.stop_order,
+            duration_minutes: stop.duration_minutes,
+            rest_area: route.rest_areas?.[index]?.rest_area ?? null,
+          }))
+        : route.rest_areas,
+  }
+}
+
+async function resolveRouteMutationResult(
+  id: number,
+  input: RouteFormInput,
+  payload: unknown,
+): Promise<CompanyRoute> {
+  const parsed = unwrapOne(payload)
+  if (parsed) return mergeRouteWithInput(parsed, input)
+
+  const fetched = await fetchRouteById(id)
+  if (fetched) return mergeRouteWithInput(fetched, input)
+
+  const fallback = normalizeCompanyRoute({
+    id,
+    company_id: 0,
+    name_en: input.name_en,
+    name_ar: input.name_ar,
+    name: input.name_en,
+    origin_station_id: input.origin_station_id,
+    destination_station_id: input.destination_station_id,
+    estimated_duration_hhmm: input.estimated_duration_hhmm,
+    base_fare: input.base_fare,
+    rest_areas: input.rest_areas,
+  })
+  if (!fallback) throw new Error('Invalid response when saving route')
+  return fallback
 }
 
 export const routesService = {
@@ -173,10 +224,11 @@ export const routesService = {
 
   async createRoute(input: RouteFormInput): Promise<CompanyRoute> {
     try {
-      const { data } = await api.post<unknown>('/company/routes', buildRouteWritePayload(input))
+      const payload = buildRouteWritePayload(input)
+      const { data } = await api.post<unknown>('/company/routes', payload)
       const created = unwrapOne(data)
-      if (!created) throw new Error('Invalid response when creating route')
-      return created
+      if (created) return mergeRouteWithInput(created, input)
+      throw new Error('Invalid response when creating route')
     } catch (error) {
       throw new Error(getApiErrorMessage(error, 'Failed to create route'))
     }
@@ -184,13 +236,9 @@ export const routesService = {
 
   async updateRoute(id: number, input: RouteFormInput): Promise<CompanyRoute> {
     try {
-      const { data } = await api.patch<unknown>(
-        `/company/routes/${id}`,
-        buildRouteWritePayload(input),
-      )
-      const updated = unwrapOne(data)
-      if (!updated) throw new Error('Invalid response when updating route')
-      return updated
+      const payload = buildRouteWritePayload(input)
+      const { data } = await api.patch<unknown>(`/company/routes/${id}`, payload)
+      return await resolveRouteMutationResult(id, input, data)
     } catch (error) {
       throw new Error(getApiErrorMessage(error, 'Failed to update route'))
     }

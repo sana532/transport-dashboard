@@ -19,11 +19,11 @@ export const vehiclesManagementMockData: VehiclesManagementData = {
       variant: 'success',
     },
     {
-      titleKey: 'vehicles.stats.pending',
+      titleKey: 'vehicles.stats.inTrip',
       value: '2',
-      noteKey: 'vehicles.stats.pendingNote',
+      noteKey: 'vehicles.stats.inTripNote',
       trend: '',
-      Icon: VehiclesIcons.Pending,
+      Icon: VehiclesIcons.InTrip,
       variant: 'info',
     },
     {
@@ -35,6 +35,14 @@ export const vehiclesManagementMockData: VehiclesManagementData = {
       variant: 'warning',
     },
   ],
+  pagination: {
+    currentPage: 1,
+    lastPage: 1,
+    perPage: 15,
+    total: 2,
+    from: 1,
+    to: 2,
+  },
   vehicles: [
     {
       id: 'v1',

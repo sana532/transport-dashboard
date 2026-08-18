@@ -37,11 +37,82 @@ function unwrapOne(payload: unknown): CompanyPromoCode | null {
   return normalizeCompanyPromoCode(root)
 }
 
+export type CompanyPromoCodesPage = {
+  promoCodes: CompanyPromoCode[]
+  currentPage: number
+  lastPage: number
+  perPage: number
+  total: number
+  from: number
+  to: number
+  counts: Record<string, unknown> | null
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null
+}
+
+function pickMetaNumber(meta: Record<string, unknown>, key: string): number | null {
+  const value = Number(meta[key])
+  return Number.isFinite(value) ? value : null
+}
+
+function readPromoCodesPage(
+  payload: unknown,
+  fallbackPage: number,
+  fallbackPerPage: number,
+): CompanyPromoCodesPage {
+  const promoCodes = unwrapList(payload)
+  const root = asRecord(payload)
+  const meta = asRecord(root?.meta) ?? root
+  const counts = asRecord(root?.counts) ?? asRecord(meta?.counts)
+
+  const currentPage = (meta ? pickMetaNumber(meta, 'current_page') : null) ?? fallbackPage
+  const perPage = (meta ? pickMetaNumber(meta, 'per_page') : null) ?? fallbackPerPage
+  const total = (meta ? pickMetaNumber(meta, 'total') : null) ?? promoCodes.length
+  const lastPage =
+    (meta ? pickMetaNumber(meta, 'last_page') : null) ??
+    Math.max(1, perPage > 0 ? Math.ceil(total / perPage) : 1)
+  const from =
+    (meta ? pickMetaNumber(meta, 'from') : null) ??
+    (promoCodes.length > 0 ? (currentPage - 1) * perPage + 1 : 0)
+  const to =
+    (meta ? pickMetaNumber(meta, 'to') : null) ??
+    (promoCodes.length > 0 ? from + promoCodes.length - 1 : 0)
+
+  return { promoCodes, currentPage, lastPage, perPage, total, from, to, counts }
+}
+
 export const promoCodesService = {
+  async listPromoCodesPage(options?: { page?: number; perPage?: number }): Promise<CompanyPromoCodesPage> {
+    const page = Math.max(1, Math.floor(options?.page ?? 1))
+    const perPage = Math.min(50, Math.max(1, Math.floor(options?.perPage ?? 15)))
+
+    try {
+      const { data } = await api.get<unknown>('/company/promo-codes', {
+        params: { page, per_page: perPage },
+      })
+      return readPromoCodesPage(data, page, perPage)
+    } catch (error) {
+      throw new Error(getApiErrorMessage(error, 'Failed to load promo codes'))
+    }
+  },
+
   async listPromoCodes(): Promise<CompanyPromoCode[]> {
     try {
-      const { data } = await api.get<unknown>('/company/promo-codes')
-      return unwrapList(data)
+      const first = await this.listPromoCodesPage({ page: 1, perPage: 15 })
+      if (first.lastPage <= 1) return first.promoCodes
+
+      const remainingPages = Array.from(
+        { length: first.lastPage - 1 },
+        (_, index) => index + 2,
+      )
+      const rest = await Promise.all(
+        remainingPages.map((page) => this.listPromoCodesPage({ page, perPage: 15 })),
+      )
+      return first.promoCodes.concat(...rest.map((item) => item.promoCodes))
     } catch (error) {
       throw new Error(getApiErrorMessage(error, 'Failed to load promo codes'))
     }
@@ -88,11 +159,19 @@ export const promoCodesService = {
     }
   },
 
-  async getPromoCodesManagementData(): Promise<PromoCodesManagementData> {
-    const promoCodes = await this.listPromoCodes()
+  async getPromoCodesManagementData(page = 1): Promise<PromoCodesManagementData> {
+    const result = await this.listPromoCodesPage({ page, perPage: 15 })
     return {
-      promoCodes,
-      stats: buildPromoStats(promoCodes),
+      promoCodes: result.promoCodes,
+      stats: buildPromoStats(result.promoCodes, result.counts),
+      pagination: {
+        currentPage: result.currentPage,
+        lastPage: result.lastPage,
+        perPage: result.perPage,
+        total: result.total,
+        from: result.from,
+        to: result.to,
+      },
     }
   },
 }

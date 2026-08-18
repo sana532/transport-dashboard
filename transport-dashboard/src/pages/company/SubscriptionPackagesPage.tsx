@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from 'react'
 import { Loader2, Plus } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { SubscriptionPlanCard } from '@/modules/subscription-packages/components/SubscriptionPlanCard'
@@ -53,7 +54,23 @@ function PackagesErrorState({ message, onRetry }: { message: string; onRetry: ()
 export function SubscriptionPackagesPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { data, isLoading, error, reload, deletePlan } = usePackagesManagement()
+  const [page, setPage] = useState(1)
+  const { data, isLoading, isFetching, error, reload, deletePlan } = usePackagesManagement(page)
+
+  const pagination = data?.pagination
+  const lastPage = pagination?.lastPage ?? 1
+
+  useEffect(() => {
+    if (!pagination) return
+    if (page > pagination.lastPage) setPage(pagination.lastPage)
+  }, [page, pagination])
+
+  const visiblePages = useMemo(() => {
+    if (!pagination) return [] as number[]
+    const start = Math.max(1, Math.min(pagination.currentPage - 2, pagination.lastPage - 4))
+    const end = Math.min(pagination.lastPage, start + 4)
+    return Array.from({ length: Math.max(0, end - start + 1) }, (_, index) => start + index)
+  }, [pagination])
 
   const handleDelete = async (planId: string) => {
     if (!window.confirm(t('packages.confirmDelete'))) return
@@ -126,6 +143,7 @@ export function SubscriptionPackagesPage() {
           </CardContent>
         </Card>
       ) : (
+        <>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {data.plans.map((plan) => (
             <SubscriptionPlanCard
@@ -137,6 +155,58 @@ export function SubscriptionPackagesPage() {
             />
           ))}
         </div>
+        {pagination && pagination.lastPage > 1 ? (
+          <div className="flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-text-muted">
+              {t('packages.pagination.showing', {
+                from: pagination.from,
+                to: pagination.to,
+                total: pagination.total,
+              })}
+              {isFetching ? ' …' : null}
+            </p>
+            <div className="flex flex-wrap items-center gap-1">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-8 px-2 text-xs"
+                disabled={page <= 1}
+                onClick={() => setPage((value) => Math.max(1, value - 1))}
+              >
+                {t('common.previous')}
+              </Button>
+              {visiblePages.map((n) => (
+                <Button
+                  key={n}
+                  type="button"
+                  variant={n === page ? 'primary' : 'outline'}
+                  className="h-8 min-w-8 px-2 text-xs"
+                  onClick={() => setPage(n)}
+                >
+                  {n}
+                </Button>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                className="h-8 px-2 text-xs"
+                disabled={page >= lastPage}
+                onClick={() => setPage((value) => Math.min(lastPage, value + 1))}
+              >
+                {t('common.next')}
+              </Button>
+            </div>
+          </div>
+        ) : pagination ? (
+          <p className="text-sm text-text-muted">
+            {t('packages.pagination.showing', {
+              from: pagination.from,
+              to: pagination.to,
+              total: pagination.total,
+            })}
+          </p>
+        ) : null}
+        </>
       )}
     </div>
   )

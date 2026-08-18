@@ -75,7 +75,17 @@ export type PromoCodesStatCard = {
   variant: PromoCodesStatVariant
 }
 
+export type PromoCodesListPagination = {
+  currentPage: number
+  lastPage: number
+  perPage: number
+  total: number
+  from: number
+  to: number
+}
+
 export type PromoCodesManagementData = {
   stats: PromoCodesStatCard[]
   promoCodes: CompanyPromoCode[]
+  pagination: PromoCodesListPagination
 }

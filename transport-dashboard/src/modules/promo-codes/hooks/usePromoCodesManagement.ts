@@ -3,19 +3,22 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { PromoCodesManagementData } from '@/modules/promo-codes/types'
 import { promoCodesService } from '@/modules/promo-codes/services/promoCodesService'
 
-export const promoCodesManagementQueryKey = ['promo-codes', 'management'] as const
+export const promoCodesManagementQueryKey = (page: number) =>
+  ['promo-codes', 'management', page] as const
 
-export function usePromoCodesManagement() {
+export function usePromoCodesManagement(page = 1) {
   const queryClient = useQueryClient()
+  const safePage = Math.max(1, Math.floor(page))
 
   const query = useQuery({
-    queryKey: promoCodesManagementQueryKey,
+    queryKey: promoCodesManagementQueryKey(safePage),
     queryFn: (): Promise<PromoCodesManagementData> =>
-      promoCodesService.getPromoCodesManagementData(),
+      promoCodesService.getPromoCodesManagementData(safePage),
+    placeholderData: (previousData) => previousData,
   })
 
   const reload = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: promoCodesManagementQueryKey })
+    await queryClient.invalidateQueries({ queryKey: ['promo-codes', 'management'] })
   }, [queryClient])
 
   const deletePromoCode = useCallback(

@@ -5,22 +5,24 @@ import { packagesManagementService } from '@/modules/subscription-packages/servi
 import { subscriptionPlansService } from '@/modules/subscription-packages/services/subscriptionPlansService'
 import { useTranslation } from '@/shared/i18n/useTranslation'
 
-export const packagesManagementQueryKey = (locale: string) =>
-  ['packages', 'management', locale] as const
+export const packagesManagementQueryKey = (locale: string, page: number) =>
+  ['packages', 'management', locale, page] as const
 
-export function usePackagesManagement() {
+export function usePackagesManagement(page = 1) {
   const { t, locale } = useTranslation()
   const queryClient = useQueryClient()
+  const safePage = Math.max(1, Math.floor(page))
 
   const query = useQuery({
-    queryKey: packagesManagementQueryKey(locale),
+    queryKey: packagesManagementQueryKey(locale, safePage),
     queryFn: (): Promise<PackagesManagementData> =>
-      packagesManagementService.getPackagesManagementData(locale, t),
+      packagesManagementService.getPackagesManagementData(locale, t, safePage),
+    placeholderData: (previousData) => previousData,
   })
 
   const reload = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: packagesManagementQueryKey(locale) })
-  }, [queryClient, locale])
+    await queryClient.invalidateQueries({ queryKey: ['packages', 'management'] })
+  }, [queryClient])
 
   const deletePlan = useCallback(
     async (planId: string) => {
