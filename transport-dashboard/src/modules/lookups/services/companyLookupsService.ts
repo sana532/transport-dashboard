@@ -11,6 +11,7 @@ import type {
 import { routesService } from '@/modules/routes/services/routesService'
 import { driversService } from '@/modules/drivers/services/driversService'
 import { vehiclesService } from '@/modules/vehicles/services/vehiclesService'
+import { stationsService } from '@/modules/geography/services/stationsService'
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' ? (value as Record<string, unknown>) : null
@@ -64,12 +65,22 @@ function normalizeDriver(raw: unknown): LookupDriver | null {
   if (!record) return null
   const id = pickId(record)
   const nestedUser = asRecord(record.user)
+  const nestedProfile = asRecord(record.driver_profile)
   const name =
     pickName(record) ||
     (nestedUser ? pickName(nestedUser) : '') ||
     (typeof record.full_name === 'string' ? record.full_name.trim() : '')
   if (id == null || !name) return null
-  return { id, name }
+  const userIdRaw = record.user_id ?? (nestedUser ? nestedUser.id : undefined)
+  const user_id =
+    userIdRaw != null && Number.isFinite(Number(userIdRaw)) ? Number(userIdRaw) : undefined
+  const profileIdRaw =
+    record.driver_profile_id ?? (nestedProfile ? nestedProfile.id : undefined)
+  const profile_id =
+    profileIdRaw != null && Number.isFinite(Number(profileIdRaw))
+      ? Number(profileIdRaw)
+      : undefined
+  return { id, name, user_id, profile_id }
 }
 
 function normalizeVehicle(raw: unknown): LookupVehicle | null {
@@ -185,14 +196,21 @@ async function fallbackRoutes(): Promise<LookupRoute[]> {
 async function fallbackDrivers(): Promise<LookupDriver[]> {
   try {
     const drivers = await driversService.listDrivers()
-    return drivers
-      .map((driver) => {
-        const id = Number(driver.id)
-        const name = driver.name?.trim() || `Driver #${driver.id}`
-        if (!Number.isFinite(id) || !name) return null
-        return { id, name }
+    const result: LookupDriver[] = []
+    for (const driver of drivers) {
+      const id = Number(driver.id)
+      const name = driver.name?.trim() || `Driver #${driver.id}`
+      if (!Number.isFinite(id) || !name) continue
+      const profileId = driver.driver_profile?.id
+      result.push({
+        id,
+        name,
+        user_id: id,
+        profile_id:
+          profileId != null && Number.isFinite(profileId) ? profileId : undefined,
       })
-      .filter((item): item is LookupDriver => item != null)
+    }
+    return result
   } catch {
     return []
   }
@@ -216,6 +234,39 @@ async function fallbackVehicles(): Promise<LookupVehicle[]> {
     return result
   } catch {
     return []
+  }
+}
+
+async function fallbackGeography(): Promise<{
+  stations: LookupStation[]
+  cities: LookupCity[]
+}> {
+  try {
+    const rows = await stationsService.listStations()
+    const stations: LookupStation[] = rows.map((station) => ({
+      id: station.id,
+      name: station.name,
+      city_id: station.city_id,
+    }))
+    const citiesById = new Map<number, LookupCity>()
+    for (const station of rows) {
+      if (station.city?.id) {
+        citiesById.set(station.city.id, {
+          id: station.city.id,
+          name: station.city.name,
+        })
+        continue
+      }
+      if (station.city_id && !citiesById.has(station.city_id)) {
+        citiesById.set(station.city_id, {
+          id: station.city_id,
+          name: station.governorate_name || `City #${station.city_id}`,
+        })
+      }
+    }
+    return { stations, cities: Array.from(citiesById.values()) }
+  } catch {
+    return { stations: [], cities: [] }
   }
 }
 
@@ -266,6 +317,14 @@ export const companyLookupsService = {
     if (requested.drivers && drivers.length === 0) drivers = await fallbackDrivers()
     if (requested.vehicles && vehicles.length === 0) {
       vehicles = await fallbackVehicles()
+    }
+    if (
+      (requested.stations && stations.length === 0) ||
+      (requested.cities && cities.length === 0)
+    ) {
+      const geography = await fallbackGeography()
+      if (requested.stations && stations.length === 0) stations = geography.stations
+      if (requested.cities && cities.length === 0) cities = geography.cities
     }
 
     return { routes, drivers, vehicles, cities, stations }

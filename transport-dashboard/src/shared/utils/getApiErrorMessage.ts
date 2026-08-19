@@ -36,6 +36,8 @@ const FIELD_LABEL_KEYS: Record<string, string> = {
   estimated_duration_hhmm: 'api.fields.duration',
   departure_time: 'api.fields.departureTime',
   available_seats: 'api.fields.seats',
+  from: 'api.fields.reportFrom',
+  to: 'api.fields.reportTo',
 }
 
 function tr(key: string, fallback: string, params?: Record<string, string | number>): string {

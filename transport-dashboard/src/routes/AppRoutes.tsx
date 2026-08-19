@@ -51,6 +51,7 @@ const PromoCodeFormPage = lazy(() => import('@/pages/company/PromoCodeFormPage')
 const PromoCodesManagementPage = lazy(() => import('@/pages/company/PromoCodesManagementPage').then(m => ({ default: m.PromoCodesManagementPage })))
 const ComplaintDetailsPage = lazy(() => import('@/pages/company/ComplaintDetailsPage').then(m => ({ default: m.ComplaintDetailsPage })))
 const ComplaintsPage = lazy(() => import('@/pages/company/ComplaintsPage').then(m => ({ default: m.ComplaintsPage })))
+const ReportsPage = lazy(() => import('@/pages/company/ReportsPage').then(m => ({ default: m.ReportsPage })))
 const NotificationsPage = lazy(() => import('@/pages/company/NotificationsPage').then(m => ({ default: m.NotificationsPage })))
 const CompanySettingsPage = lazy(() => import('@/pages/company/CompanySettingsPage').then(m => ({ default: m.CompanySettingsPage })))
 
@@ -110,6 +111,7 @@ export function AppRoutes() {
             <Route path="promo-codes" element={<PromoCodesManagementPage />} />
             <Route path="complaints/:complaintId" element={<ComplaintDetailsPage />} />
             <Route path="complaints" element={<ComplaintsPage />} />
+            <Route path="reports" element={<ReportsPage />} />
             <Route path="notifications" element={<NotificationsPage />} />
             <Route path="settings" element={<CompanySettingsPage />} />
           </Route>

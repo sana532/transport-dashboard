@@ -15,6 +15,8 @@ const LIST_KEYS = [
   'items',
   'records',
   'results',
+  'reports',
+  'exports',
 ] as const
 
 function isPaginator(record: Record<string, unknown>): boolean {
@@ -49,7 +51,9 @@ function looksLikeResource(record: Record<string, unknown>): boolean {
     record.passenger != null ||
     (record.user != null && typeof record.user === 'object') ||
     record.driver_profile != null ||
-    record.vehicle_model != null
+    record.vehicle_model != null ||
+    typeof record.file_name === 'string' ||
+    typeof record.download_url === 'string'
   )
 }
 

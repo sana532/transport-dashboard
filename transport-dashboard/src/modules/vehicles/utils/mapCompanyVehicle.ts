@@ -23,7 +23,7 @@ export function mapMechanicalToStatus(
 }
 
 export function mapCompanyVehicleToVehicle(row: CompanyVehicle): Vehicle {
-  const modelName = row.vehicle_model?.name ?? `Model #${row.vehicle_model_id}`
+  const modelName = row.vehicle_model?.name || `Model #${row.vehicle_model_id}`
   const seats = row.vehicle_model?.seat_count ?? 0
   const photoUrls = [
     ...row.photos,

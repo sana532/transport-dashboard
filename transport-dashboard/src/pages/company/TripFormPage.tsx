@@ -10,7 +10,6 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { companyLookupsService } from '@/modules/lookups/services/companyLookupsService'
 import { routesService } from '@/modules/routes/services/routesService'
 import type { CompanyRoute } from '@/modules/routes/types'
 import { routeDisplayName } from '@/modules/routes/utils/routeDisplay'
@@ -25,9 +24,9 @@ import type { CompanyTripStatus } from '@/modules/trips/types/companyTrip'
 import { companyTripsService } from '@/modules/trips/services/companyTripsService'
 import {
   applyCompanyTripToFormState,
+  arrivalFromDepartureAndDuration,
   buildTripMutationPayload,
   combineDateTimeToIso,
-  defaultArrivalFromDeparture,
   splitIsoToFormFields,
   type TripFormState,
 } from '@/modules/trips/utils/buildTripFormPayload'
@@ -53,6 +52,13 @@ const emptyForm: TripFormState = {
   baseFare: '',
   availableSeats: '',
   status: 'scheduled',
+}
+
+function toDateInputValue(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 function TripFormLoading() {
@@ -113,59 +119,6 @@ export function TripFormPage() {
   }, [selectedRoute])
 
   const loadCatalogs = useCallback(async () => {
-    try {
-      const lookups = await companyLookupsService.getLookups({
-        routes: true,
-        drivers: true,
-        vehicles: true,
-      })
-
-      if (lookups.routes.length > 0 || lookups.drivers.length > 0 || lookups.vehicles.length > 0) {
-        setRoutes(
-          lookups.routes.map((route) => ({
-            id: route.id,
-            company_id: 0,
-            name: route.name,
-            name_en: route.name_en ?? route.name,
-            name_ar: route.name_ar ?? route.name,
-            origin_station_id: 0,
-            destination_station_id: 0,
-          })),
-        )
-        setDrivers(
-          lookups.drivers.map((driver) => ({
-            id: String(driver.id),
-            name: driver.name,
-            status: 'Available' as const,
-            phone: '',
-            licenseNumber: '—',
-            experienceYears: 0,
-            avatarInitials: driver.name.slice(0, 2).toUpperCase() || 'DR',
-          })),
-        )
-        setVehicles(
-          lookups.vehicles.map((vehicle) => ({
-            id: String(vehicle.id),
-            code: `VH-${String(vehicle.id).padStart(3, '0')}`,
-            model: vehicle.name,
-            plateNumber: vehicle.plate_number ?? vehicle.name,
-            seats: 0,
-            vehicleType: vehicle.name,
-            status: 'Available' as const,
-            verifiedStatus: 'pending',
-            mechanicalStatus: 'active',
-            isActive: true,
-            color: '',
-            vehicleModelId: 0,
-            yearLabel: '—',
-          })),
-        )
-        return
-      }
-    } catch {
-      // Fall back to legacy list endpoints below.
-    }
-
     const [routeList, vehicleRows, driverRows] = await Promise.all([
       routesService.listRoutes(),
       vehiclesService.listVehicles(),
@@ -231,24 +184,47 @@ export function TripFormPage() {
   }, [isEdit, editNumericId, loadCatalogs, t])
 
   useEffect(() => {
-    if (!form.vehicleId || form.availableSeats) return
-    const vehicle = vehicles.find((v) => String(v.id) === form.vehicleId)
-    if (!vehicle) return
-    setForm((prev) => ({ ...prev, availableSeats: String(vehicle.seats) }))
-  }, [form.vehicleId, form.availableSeats, vehicles])
+    if (hasBookings) return
+    if (!selectedRoute) return
+    const fare = selectedRoute.base_fare
+    if (fare == null || !Number.isFinite(fare) || fare <= 0) return
+    const nextFare = String(fare)
+    setForm((prev) => (prev.baseFare === nextFare ? prev : { ...prev, baseFare: nextFare }))
+  }, [hasBookings, selectedRoute])
 
   useEffect(() => {
-    if (!form.departureDate || !form.departureTime) return
-    if (form.arrivalDate && form.arrivalTime) return
-    const departureIso = combineDateTimeToIso(form.departureDate, form.departureTime)
+    if (!selectedVehicle || selectedVehicle.seats <= 0) return
+    const nextSeats = String(selectedVehicle.seats)
+    setForm((prev) =>
+      prev.availableSeats === nextSeats ? prev : { ...prev, availableSeats: nextSeats },
+    )
+  }, [selectedVehicle])
+
+  useEffect(() => {
+    if (!form.departureTime) return
+    const departureDate = form.departureDate || toDateInputValue(new Date())
+    const departureIso = combineDateTimeToIso(departureDate, form.departureTime)
     if (!departureIso) return
-    const arrival = splitIsoToFormFields(defaultArrivalFromDeparture(departureIso))
-    setForm((prev) => ({
-      ...prev,
-      arrivalDate: prev.arrivalDate || arrival.date,
-      arrivalTime: prev.arrivalTime || arrival.time,
-    }))
-  }, [form.departureDate, form.departureTime, form.arrivalDate, form.arrivalTime])
+    const arrival = splitIsoToFormFields(
+      arrivalFromDepartureAndDuration(departureIso, selectedRoute?.estimated_duration_hhmm),
+    )
+    setForm((prev) => {
+      const nextDate = prev.departureDate || departureDate
+      if (
+        prev.departureDate === nextDate &&
+        prev.arrivalDate === arrival.date &&
+        prev.arrivalTime === arrival.time
+      ) {
+        return prev
+      }
+      return {
+        ...prev,
+        departureDate: nextDate,
+        arrivalDate: arrival.date,
+        arrivalTime: arrival.time,
+      }
+    })
+  }, [form.departureDate, form.departureTime, selectedRoute?.estimated_duration_hhmm])
 
   function sanitizeDecimalInput(value: string): string {
     const cleaned = value.replace(/[^0-9.]/g, '')

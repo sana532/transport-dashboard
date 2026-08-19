@@ -26,6 +26,7 @@ export const paths = {
       `/company/subscription-packages/${packageId}/subscribers`,
     complaints: '/company/complaints',
     complaintDetails: (complaintId: string) => `/company/complaints/${complaintId}`,
+    reports: '/company/reports',
     notifications: '/company/notifications',
     settings: '/company/settings',
   },

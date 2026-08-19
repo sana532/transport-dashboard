@@ -23,20 +23,35 @@ export function splitIsoToFormFields(iso: string): { date: string; time: string 
 }
 
 export function defaultArrivalFromDeparture(departureIso: string): string {
+  return arrivalFromDepartureAndDuration(departureIso, '04:00')
+}
+
+export function arrivalFromDepartureAndDuration(
+  departureIso: string,
+  durationHhmm?: string | null,
+): string {
+  const match = durationHhmm?.trim().match(/^(\d{1,2}):(\d{2})$/)
+  const addHours = match ? Number(match[1]) : 4
+  const addMinutes = match ? Number(match[2]) : 0
+  if (!Number.isFinite(addHours) || !Number.isFinite(addMinutes)) {
+    return departureIso
+  }
+
   const departure = splitScheduleIsoToFormFields(departureIso)
   if (!departure.date || !departure.time) return departureIso
 
   const [hours, minutes] = departure.time.split(':').map((value) => Number(value))
-  const arrivalHours = (hours + 4) % 24
-  const arrivalDate =
-    hours + 4 >= 24
-      ? shiftDateByDays(departure.date, 1)
-      : departure.date
+  const totalMinutes = hours * 60 + minutes + addHours * 60 + addMinutes
+  const dayOffset = Math.floor(totalMinutes / (24 * 60))
+  const remainder = ((totalMinutes % (24 * 60)) + 24 * 60) % (24 * 60)
+  const arrivalHours = Math.floor(remainder / 60)
+  const arrivalMinutes = remainder % 60
+  const arrivalDate = dayOffset > 0 ? shiftDateByDays(departure.date, dayOffset) : departure.date
 
   return (
     combineScheduleDateTimeToIso(
       arrivalDate,
-      `${String(arrivalHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`,
+      `${String(arrivalHours).padStart(2, '0')}:${String(arrivalMinutes).padStart(2, '0')}`,
     ) ?? departureIso
   )
 }

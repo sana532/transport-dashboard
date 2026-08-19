@@ -8,7 +8,6 @@ import {
 } from '@/modules/trips/utils/mapCompanyTrip'
 import {
   enrichCompanyTrips,
-  tripNeedsRouteCatalogEnrichment,
 } from '@/modules/trips/utils/enrichCompanyTrips'
 import { routesService } from '@/modules/routes/services/routesService'
 import { isArchivedTrip } from '@/modules/trips/utils/tripStatus'
@@ -50,12 +49,10 @@ async function enrichTrips(rows: CompanyTrip[]): Promise<CompanyTrip[]> {
       !trip.vehicle?.plate_number &&
       !trip.vehicle?.name,
   )
-  const needsRouteEnrichment = tripNeedsRouteCatalogEnrichment(rows)
-
   const [drivers, vehicles, routes] = await Promise.all([
     needsDriverEnrichment ? driversService.listDrivers() : Promise.resolve([]),
     needsVehicleEnrichment ? vehiclesService.listVehicles() : Promise.resolve([]),
-    needsRouteEnrichment ? routesService.listRoutes() : Promise.resolve([]),
+    rows.length > 0 ? routesService.listRoutes() : Promise.resolve([]),
   ])
 
   return enrichCompanyTrips(rows, drivers, vehicles, routes)

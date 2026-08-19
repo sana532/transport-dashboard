@@ -9,6 +9,33 @@ import { getApiErrorMessage } from '@/shared/utils/getApiErrorMessage'
 import { collectApiListItems } from '@/shared/utils/unwrapApiList'
 import { pickMediaUrls } from '@/shared/utils/pickMediaUrls'
 
+function parseSeatCountFromRecord(record: Record<string, unknown>): number | undefined {
+  const direct = record.seat_count ?? record.capacity ?? record.total_seats ?? record.seats
+  if (typeof direct === 'number' && Number.isFinite(direct) && direct > 0) return direct
+  const asNumber = Number(direct)
+  if (Number.isFinite(asNumber) && asNumber > 0) return asNumber
+
+  const layoutRaw = record.layout_config ?? record.layout_config_snapshot
+  const layout =
+    typeof layoutRaw === 'string'
+      ? (() => {
+          try {
+            return JSON.parse(layoutRaw) as unknown
+          } catch {
+            return null
+          }
+        })()
+      : layoutRaw
+  if (layout && typeof layout === 'object') {
+    const lc = layout as Record<string, unknown>
+    const fromLayout = lc.seat_count ?? lc.seatCount ?? lc.total_seats
+    if (typeof fromLayout === 'number' && fromLayout > 0) return fromLayout
+    const parsed = Number(fromLayout)
+    if (Number.isFinite(parsed) && parsed > 0) return parsed
+  }
+  return undefined
+}
+
 function normalizeVehicleModelRef(raw: unknown): CompanyVehicleModel | null {
   if (!raw || typeof raw !== 'object') return null
   const record = raw as Record<string, unknown>
@@ -16,18 +43,13 @@ function normalizeVehicleModelRef(raw: unknown): CompanyVehicleModel | null {
   const name = typeof record.name === 'string' ? record.name : ''
   if (!Number.isFinite(id) || !name) return null
 
-  const seat_count =
-    typeof record.seat_count === 'number'
-      ? record.seat_count
-      : Number(record.seat_count) || undefined
-
   const images = pickMediaUrls(record.images)
 
   return {
     id,
     name,
     description: typeof record.description === 'string' ? record.description : null,
-    seat_count,
+    seat_count: parseSeatCountFromRecord(record),
     layout_config: record.layout_config,
     images: images.length ? images : undefined,
     is_active: record.is_active === true || record.is_active === 1,
@@ -80,7 +102,22 @@ export function normalizeCompanyVehicle(raw: unknown): CompanyVehicle | null {
       record.images,
       { parentId: id, collection: 'photos' },
     ),
-    vehicle_model: normalizeVehicleModelRef(record.vehicle_model),
+    vehicle_model: (() => {
+      const model = normalizeVehicleModelRef(record.vehicle_model)
+      const seatCount =
+        model?.seat_count ?? parseSeatCountFromRecord(record)
+      if (model) {
+        return seatCount && !model.seat_count ? { ...model, seat_count: seatCount } : model
+      }
+      if (seatCount) {
+        return {
+          id: Number(record.vehicle_model_id) || 0,
+          name: '',
+          seat_count: seatCount,
+        }
+      }
+      return null
+    })(),
     created_at: typeof record.created_at === 'string' ? record.created_at : undefined,
     updated_at: typeof record.updated_at === 'string' ? record.updated_at : undefined,
   }

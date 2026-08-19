@@ -23,13 +23,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/Card'
 import { Input } from '@/shared/ui/Input'
 import type { TripsRecentRow, TripsStatVariant } from '@/modules/trips/types'
 import { CancelTripDialog } from '@/modules/trips/components/CancelTripDialog'
-import { useTripsManagement } from '@/modules/trips/hooks/useTripsManagement'
+import { useTripsManagement, TRIPS_PAGE_SIZE } from '@/modules/trips/hooks/useTripsManagement'
 import { useCompanyLookups } from '@/modules/lookups/hooks/useCompanyLookups'
 import {
   applyLocalTripFilters,
   defaultTripListFilters,
   hasActiveTripFilters,
-  tripListFiltersToQuery,
+  requiresFullTripScan,
   type TripListFilters,
 } from '@/modules/trips/utils/filterTrips'
 import { mapTripToRecentRow } from '@/modules/trips/services/tripsManagementService'
@@ -175,20 +175,52 @@ export function TripsManagementPage() {
     return routeOptions.find((route) => route.id === routeId) ?? null
   }, [appliedFilters.routeId, routeOptions])
 
-  const serverFilters = useMemo(() => {
-    const base = tripListFiltersToQuery(appliedFilters)
-    const view =
-      statFilter === 'scheduled'
-        ? ('scheduled' as const)
-        : statFilter === 'active'
-          ? ('active' as const)
-          : ('upcoming' as const)
-
-    if (showOverdueOnly) {
-      return { ...base, view, resolutionStatus: 'pending_review' as const }
+  const cityOptions = useMemo(() => {
+    const byId = new Map<number, { id: number; name: string }>()
+    for (const city of lookups.cities) byId.set(city.id, city)
+    for (const route of routeList) {
+      if (route.origin_city) byId.set(route.origin_city.id, route.origin_city)
+      if (route.destination_city) byId.set(route.destination_city.id, route.destination_city)
     }
-    return { ...base, view }
-  }, [appliedFilters, showOverdueOnly, statFilter])
+    for (const station of routeStations) {
+      if (station.city) byId.set(station.city.id, station.city)
+    }
+    return Array.from(byId.values()).sort((a, b) =>
+      translateCityName(a.name, locale).localeCompare(translateCityName(b.name, locale), locale),
+    )
+  }, [lookups.cities, routeList, routeStations, locale])
+
+  const stationOptions = useMemo(() => {
+    const byId = new Map<number, { id: number; name: string; city_id?: number }>()
+    for (const station of lookups.stations) byId.set(station.id, station)
+    for (const station of routeStations) {
+      byId.set(station.id, {
+        id: station.id,
+        name: station.name,
+        city_id: station.city_id || station.city?.id,
+      })
+    }
+    return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name, locale))
+  }, [lookups.stations, routeStations, locale])
+
+  const selectedDriverAliasIds = useMemo(() => {
+    if (appliedFilters.driverId === 'all') return [] as number[]
+    const selectedId = Number(appliedFilters.driverId)
+    const driver = lookups.drivers.find((row) => row.id === selectedId)
+    if (!driver) return [selectedId]
+    return [driver.id, driver.user_id, driver.profile_id].filter(
+      (id): id is number => id != null && Number.isFinite(id) && id > 0,
+    )
+  }, [appliedFilters.driverId, lookups.drivers])
+
+  const fullScan = requiresFullTripScan(appliedFilters)
+
+  const serverFilters = useMemo(() => {
+    if (showOverdueOnly || fullScan) return {}
+    if (statFilter === 'scheduled') return { view: 'scheduled' as const }
+    if (statFilter === 'active') return { view: 'active' as const }
+    return { view: 'upcoming' as const }
+  }, [fullScan, showOverdueOnly, statFilter])
 
   const serverFiltersKey = useMemo(() => JSON.stringify(serverFilters), [serverFilters])
 
@@ -197,40 +229,22 @@ export function TripsManagementPage() {
   }, [serverFiltersKey])
 
   const { data, isLoading, isFetching, error, reload } = useTripsManagement({
+    mode: fullScan || showOverdueOnly ? 'all' : 'page',
     page,
     filters: serverFilters,
   })
 
   const originStations = useMemo(() => {
-    if (draftFilters.originCityId === 'all') return lookups.stations
+    if (draftFilters.originCityId === 'all') return stationOptions
     const cityId = Number(draftFilters.originCityId)
-    return lookups.stations.filter(
-      (station) => station.city_id == null || station.city_id === cityId,
-    )
-  }, [lookups.stations, draftFilters.originCityId])
+    return stationOptions.filter((station) => station.city_id === cityId)
+  }, [stationOptions, draftFilters.originCityId])
 
   const destinationStations = useMemo(() => {
-    if (draftFilters.destinationCityId === 'all') return lookups.stations
+    if (draftFilters.destinationCityId === 'all') return stationOptions
     const cityId = Number(draftFilters.destinationCityId)
-    return lookups.stations.filter(
-      (station) => station.city_id == null || station.city_id === cityId,
-    )
-  }, [lookups.stations, draftFilters.destinationCityId])
-
-  const pagination = data?.pagination
-  const visiblePages = useMemo(() => {
-    if (!pagination) return [] as number[]
-    const start = Math.max(1, Math.min(pagination.currentPage - 2, pagination.lastPage - 4))
-    const end = Math.min(pagination.lastPage, start + 4)
-    return Array.from({ length: Math.max(0, end - start + 1) }, (_, index) => start + index)
-  }, [pagination])
-
-  useEffect(() => {
-    if (!pagination) return
-    if (page > pagination.lastPage) {
-      setPage(pagination.lastPage)
-    }
-  }, [page, pagination])
+    return stationOptions.filter((station) => station.city_id === cityId)
+  }, [stationOptions, draftFilters.destinationCityId])
 
   useEffect(() => {
     const intervalId = window.setInterval(() => setNowMs(Date.now()), 60_000)
@@ -253,15 +267,70 @@ export function TripsManagementPage() {
     [overdueTrips],
   )
 
-  const activeTrips = useMemo(() => {
+  const filteredTrips = useMemo(() => {
     if (!data) return []
     const operational = data.trips.filter((trip) => !isArchivedTrip(trip.status))
-    return applyLocalTripFilters(operational, appliedFilters, { selectedRoute })
-  }, [data, appliedFilters, selectedRoute])
+    const locallyFiltered = applyLocalTripFilters(operational, appliedFilters, {
+      selectedRoute,
+      routes: routeList,
+      driverAliasIds: selectedDriverAliasIds,
+    })
+    if (!showOverdueOnly) return locallyFiltered
+    return locallyFiltered.filter((trip) => overdueTripIds.has(trip.id))
+  }, [
+    data,
+    appliedFilters,
+    selectedRoute,
+    routeList,
+    selectedDriverAliasIds,
+    showOverdueOnly,
+    overdueTripIds,
+  ])
+
+  const useClientPagination = fullScan || showOverdueOnly
+
+  const pagination = useMemo(() => {
+    if (useClientPagination) {
+      const total = filteredTrips.length
+      const lastPage = Math.max(1, Math.ceil(total / TRIPS_PAGE_SIZE))
+      const currentPage = Math.min(page, lastPage)
+      const from = total === 0 ? 0 : (currentPage - 1) * TRIPS_PAGE_SIZE + 1
+      const to = Math.min(total, currentPage * TRIPS_PAGE_SIZE)
+      return {
+        currentPage,
+        lastPage,
+        perPage: TRIPS_PAGE_SIZE,
+        total,
+        from,
+        to,
+      }
+    }
+    return data?.pagination
+  }, [useClientPagination, filteredTrips.length, page, data?.pagination])
+
+  useEffect(() => {
+    if (!pagination) return
+    if (page > pagination.lastPage) {
+      setPage(pagination.lastPage)
+    }
+  }, [page, pagination])
+
+  const visiblePages = useMemo(() => {
+    if (!pagination) return [] as number[]
+    const start = Math.max(1, Math.min(pagination.currentPage - 2, pagination.lastPage - 4))
+    const end = Math.min(pagination.lastPage, start + 4)
+    return Array.from({ length: Math.max(0, end - start + 1) }, (_, index) => start + index)
+  }, [pagination])
+
+  const pagedTrips = useMemo(() => {
+    if (!useClientPagination) return filteredTrips
+    const start = (pagination?.currentPage ? pagination.currentPage - 1 : 0) * TRIPS_PAGE_SIZE
+    return filteredTrips.slice(start, start + TRIPS_PAGE_SIZE)
+  }, [useClientPagination, filteredTrips, pagination])
 
   const tableRows = useMemo(
-    () => activeTrips.map((trip) => mapTripToRecentRow(trip, locale === 'ar' ? 'ar-SY' : 'en-US')),
-    [activeTrips, locale],
+    () => pagedTrips.map((trip) => mapTripToRecentRow(trip, locale === 'ar' ? 'ar-SY' : 'en-US')),
+    [pagedTrips, locale],
   )
 
   const hasActiveFilters =
@@ -289,11 +358,7 @@ export function TripsManagementPage() {
     const nextFilters = { ...draftFilters, search: searchInput.trim() }
     setAppliedFilters(nextFilters)
     setShowOverdueOnly(false)
-    if (nextFilters.status === 'scheduled' || nextFilters.status === 'active') {
-      setStatFilter(nextFilters.status)
-    } else {
-      setStatFilter('all')
-    }
+    setStatFilter('all')
     setPage(1)
   }
 
@@ -588,7 +653,7 @@ export function TripsManagementPage() {
                   }
                 >
                   <option value="all">{t('trips.allCities')}</option>
-                  {lookups.cities.map((city) => (
+                  {cityOptions.map((city) => (
                     <option key={city.id} value={String(city.id)}>
                       {translateCityName(city.name, locale)}
                     </option>
@@ -615,7 +680,7 @@ export function TripsManagementPage() {
                   }
                 >
                   <option value="all">{t('trips.allCities')}</option>
-                  {lookups.cities.map((city) => (
+                  {cityOptions.map((city) => (
                     <option key={`dest-city-${city.id}`} value={String(city.id)}>
                       {translateCityName(city.name, locale)}
                     </option>
@@ -781,7 +846,7 @@ export function TripsManagementPage() {
           </p>
         </CardHeader>
         <CardContent className="p-0">
-          {data.trips.filter((trip) => !isArchivedTrip(trip.status)).length === 0 ? (
+          {filteredTrips.length === 0 && !hasActiveFilters ? (
             <div className="p-6 text-center">
               <p className="font-medium text-text-primary">{t('trips.emptyTitle')}</p>
               <p className="mt-2 text-sm text-text-muted">{t('trips.emptyHint')}</p>

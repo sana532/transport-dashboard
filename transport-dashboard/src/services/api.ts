@@ -30,6 +30,11 @@ api.interceptors.request.use((config) => {
     headers.delete('Content-Type')
   }
 
+  const method = (config.method ?? 'get').toLowerCase()
+  if (method === 'get' || method === 'head' || config.responseType === 'blob') {
+    headers.delete('Content-Type')
+  }
+
   config.headers = headers
   return config
 })

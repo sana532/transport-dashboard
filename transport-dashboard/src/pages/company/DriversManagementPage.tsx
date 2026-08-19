@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/Card'
 import { Input } from '@/shared/ui/Input'
 import { DriverFormDialog } from '@/modules/drivers/components/DriverFormDialog'
 import { DriverProfileDialog } from '@/modules/drivers/components/DriverProfileDialog'
+import { DriverDeleteDialog } from '@/modules/drivers/components/DriverDeleteDialog'
 import { DriverCard } from '@/modules/drivers/components/DriverCard'
 import type { Driver } from '@/modules/drivers/types'
 import { useDriversManagement } from '@/modules/drivers/hooks/useDriversManagement'
@@ -90,6 +91,9 @@ export function DriversManagementPage() {
   const [profileOpen, setProfileOpen] = useState(false)
   const [formPending, setFormPending] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  const [deleteDriverTarget, setDeleteDriverTarget] = useState<Driver | null>(null)
+  const [deletePending, setDeletePending] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const [search, setSearch] = useState('')
   const [draftFilters, setDraftFilters] = useState<Omit<DriverListFilters, 'search'>>({
@@ -145,14 +149,34 @@ export function DriversManagementPage() {
     setAppliedFilters(reset)
   }
 
-  const handleDeleteDriver = async (driver: Driver) => {
+  const handleDeleteDriver = (driver: Driver) => {
+    setDeleteError(null)
+    setDeleteDriverTarget(driver)
+  }
+
+  const closeDeleteDialog = () => {
+    if (deletePending) return
+    setDeleteDriverTarget(null)
+    setDeleteError(null)
+  }
+
+  const confirmDeleteDriver = async (driver: Driver) => {
     const id = Number(driver.id)
     if (!Number.isFinite(id)) return
-    if (!window.confirm(t('drivers.confirmDelete', { name: driver.name }))) return
+    const profileId = driver.profileId ? Number(driver.profileId) : undefined
+
+    setDeletePending(true)
+    setDeleteError(null)
     try {
-      await deleteDriver(id)
+      await deleteDriver(id, {
+        profileId: profileId != null && Number.isFinite(profileId) ? profileId : undefined,
+      })
+      setDeleteDriverTarget(null)
     } catch (err) {
-      window.alert(err instanceof Error ? err.message : t('drivers.form.saveFailed'))
+      setDeleteError(err instanceof Error ? err.message : t('drivers.delete.failed'))
+      throw err
+    } finally {
+      setDeletePending(false)
     }
   }
 
@@ -184,6 +208,15 @@ export function DriversManagementPage() {
             setDriverFormOpen(true)
           })()
         }}
+      />
+
+      <DriverDeleteDialog
+        open={deleteDriverTarget != null}
+        driver={deleteDriverTarget}
+        pending={deletePending}
+        error={deleteError}
+        onClose={closeDeleteDialog}
+        onConfirm={confirmDeleteDriver}
       />
 
       <DriverFormDialog

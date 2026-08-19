@@ -5,6 +5,7 @@ import type {
   DriverUpdateInput,
 } from '@/modules/drivers/types'
 import { getApiErrorMessage } from '@/shared/utils/getApiErrorMessage'
+import { i18n } from '@/shared/i18n/config'
 import { collectApiListItems } from '@/shared/utils/unwrapApiList'
 import { firstMediaUrl } from '@/shared/utils/pickMediaUrls'
 
@@ -432,6 +433,69 @@ async function resolveDriverApiId(id: number, profileId?: number): Promise<numbe
   return null
 }
 
+function pickResponseMessage(data: unknown): string {
+  const root = asRecord(data)
+  const nested = asRecord(root?.data)
+  for (const record of [root, nested]) {
+    if (!record) continue
+    for (const key of ['message', 'error', 'detail']) {
+      const value = record[key]
+      if (typeof value === 'string' && value.trim()) return value.trim()
+    }
+  }
+  return ''
+}
+
+function looksLikeDeleteBlocked(message: string): boolean {
+  const text = message.toLowerCase()
+  return (
+    text.includes('cannot') ||
+    text.includes('unable') ||
+    text.includes('constraint') ||
+    text.includes('related') ||
+    text.includes('associated') ||
+    text.includes('in use') ||
+    text.includes('trip') ||
+    text.includes('booking') ||
+    text.includes('لا يمكن') ||
+    text.includes('مرتبط') ||
+    text.includes('قيد') ||
+    text.includes('رحلة') ||
+    text.includes('حجز')
+  )
+}
+
+function deletePayloadFailure(data: unknown): string | null {
+  const root = asRecord(data)
+  const nested = asRecord(root?.data)
+  const record = nested ?? root
+  if (!record) return null
+
+  const flag = record.success ?? record.status ?? record.deleted
+  const message = pickResponseMessage(data)
+
+  if (flag === false || flag === 0 || flag === 'error' || flag === 'failed') {
+    return (
+      message ||
+      i18n.t('drivers.delete.blocked', {
+        defaultValue: 'This driver cannot be deleted because of existing trips or bookings.',
+      })
+    )
+  }
+  if (message && looksLikeDeleteBlocked(message)) return message
+  return null
+}
+
+async function driverRecordExists(id: number): Promise<boolean | null> {
+  try {
+    const { data } = await api.get<unknown>(`/company/drivers/${id}`)
+    return unwrapOne(data) != null
+  } catch (error) {
+    if (readHttpStatus(error) === 404) return false
+    return null
+  }
+}
+
 function readHttpStatus(error: unknown): number | undefined {
   if (typeof error !== 'object' || error === null || !('response' in error)) return undefined
   const status = (error as { response?: { status?: number } }).response?.status
@@ -536,11 +600,71 @@ export const driversService = {
     }
   },
 
-  async deleteDriver(id: number): Promise<void> {
+  async deleteDriver(id: number, options?: { profileId?: number }): Promise<void> {
+    const blockedFallback = () =>
+      i18n.t('drivers.delete.blocked', {
+        defaultValue: 'This driver cannot be deleted because of existing trips or bookings.',
+      })
+
+    const tryDelete = async (targetId: number) => {
+      const { data } = await api.delete<unknown>(`/company/drivers/${targetId}`)
+      const failure = deletePayloadFailure(data)
+      if (failure) throw new Error(failure)
+      return data
+    }
+
+    const confirmGone = async (deletedId: number) => {
+      const ids = [deletedId, id, options?.profileId].filter(
+        (value): value is number => value != null && Number.isFinite(value) && value > 0,
+      )
+      const unique = [...new Set(ids)]
+      for (const candidate of unique) {
+        if ((await driverRecordExists(candidate)) === true) {
+          throw new Error(blockedFallback())
+        }
+      }
+    }
+
+    const attempt = async (targetId: number) => {
+      await tryDelete(targetId)
+      await confirmGone(targetId)
+    }
+
     try {
-      await api.delete(`/company/drivers/${id}`)
+      await attempt(id)
+      return
     } catch (error) {
-      throw new Error(getApiErrorMessage(error, 'Failed to delete driver'))
+      const status = readHttpStatus(error)
+      const ownMessage =
+        error instanceof Error && status == null ? error.message.trim() : ''
+      if (ownMessage) throw error
+
+      const fallbackId = options?.profileId
+
+      if (status === 404 || status === 403) {
+        if (fallbackId != null && fallbackId > 0 && fallbackId !== id) {
+          try {
+            await attempt(fallbackId)
+            return
+          } catch (retryError) {
+            if (readHttpStatus(retryError) !== 404 && readHttpStatus(retryError) !== 403) {
+              throw new Error(getApiErrorMessage(retryError, blockedFallback()))
+            }
+          }
+        }
+
+        const resolvedId = await resolveDriverApiId(id, fallbackId)
+        if (resolvedId != null && resolvedId !== id) {
+          try {
+            await attempt(resolvedId)
+            return
+          } catch (retryError) {
+            throw new Error(getApiErrorMessage(retryError, blockedFallback()))
+          }
+        }
+      }
+
+      throw new Error(getApiErrorMessage(error, blockedFallback()))
     }
   },
 }

@@ -12,22 +12,34 @@ import type {
 import { normalizeTripStatusFromApi } from '@/modules/trips/utils/tripStatus'
 import { formatScheduleDateTime } from '@/shared/utils/formatDateTime'
 
+function optionalPositiveId(raw: unknown): number | undefined {
+  if (raw == null || raw === '') return undefined
+  const id = typeof raw === 'number' ? raw : Number(raw)
+  return Number.isFinite(id) && id > 0 ? id : undefined
+}
+
 function normalizeCityRef(raw: unknown): CompanyTrip['origin_city'] {
   if (!raw || typeof raw !== 'object') return null
   const record = raw as Record<string, unknown>
-  if (typeof record.id === 'number' && typeof record.name === 'string') {
-    return { id: record.id, name: record.name }
-  }
-  return null
+  const id = optionalPositiveId(record.id)
+  const nameEn = typeof record.name_en === 'string' ? record.name_en.trim() : ''
+  const nameAr = typeof record.name_ar === 'string' ? record.name_ar.trim() : ''
+  const name = typeof record.name === 'string' ? record.name.trim() : ''
+  const label = name || nameEn || nameAr
+  if (id == null || !label) return null
+  return { id, name: label }
 }
 
 function normalizeStationRef(raw: unknown): CompanyTrip['origin_station'] {
   if (!raw || typeof raw !== 'object') return null
   const record = raw as Record<string, unknown>
-  const id = typeof record.id === 'number' ? record.id : Number(record.id)
-  const name = typeof record.name === 'string' ? record.name : ''
-  if (!Number.isFinite(id) || !name) return null
-  return { id, name }
+  const id = optionalPositiveId(record.id)
+  const nameEn = typeof record.name_en === 'string' ? record.name_en.trim() : ''
+  const nameAr = typeof record.name_ar === 'string' ? record.name_ar.trim() : ''
+  const name = typeof record.name === 'string' ? record.name.trim() : ''
+  const label = name || nameEn || nameAr
+  if (id == null || !label) return null
+  return { id, name: label }
 }
 
 function normalizeStatus(raw: unknown): CompanyTripStatus {
@@ -258,6 +270,11 @@ export function normalizeCompanyTrip(raw: unknown): CompanyTrip | null {
     }
   }
 
+  const origin_city = normalizeCityRef(record.origin_city)
+  const destination_city = normalizeCityRef(record.destination_city)
+  const origin_station = normalizeStationRef(record.origin_station)
+  const destination_station = normalizeStationRef(record.destination_station)
+
   return {
     id,
     status: normalizeStatus(record.status),
@@ -270,14 +287,17 @@ export function normalizeCompanyTrip(raw: unknown): CompanyTrip | null {
     route_id: Number(record.route_id) || route?.id || 0,
     vehicle_id: Number(record.vehicle_id) || vehicle?.id || 0,
     driver_id: Number(record.driver_id) || driver?.id || 0,
-    origin_station_id: Number(record.origin_station_id) || undefined,
-    destination_station_id: Number(record.destination_station_id) || undefined,
-    origin_city_id: Number(record.origin_city_id) || undefined,
-    destination_city_id: Number(record.destination_city_id) || undefined,
-    origin_city: normalizeCityRef(record.origin_city),
-    destination_city: normalizeCityRef(record.destination_city),
-    origin_station: normalizeStationRef(record.origin_station),
-    destination_station: normalizeStationRef(record.destination_station),
+    origin_station_id:
+      optionalPositiveId(record.origin_station_id) ?? origin_station?.id,
+    destination_station_id:
+      optionalPositiveId(record.destination_station_id) ?? destination_station?.id,
+    origin_city_id: optionalPositiveId(record.origin_city_id) ?? origin_city?.id,
+    destination_city_id:
+      optionalPositiveId(record.destination_city_id) ?? destination_city?.id,
+    origin_city,
+    destination_city,
+    origin_station,
+    destination_station,
     route,
     vehicle,
     driver,

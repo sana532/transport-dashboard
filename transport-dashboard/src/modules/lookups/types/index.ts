@@ -11,6 +11,10 @@ export type LookupRoute = {
 export type LookupDriver = {
   id: number
   name: string
+  /** User id when the lookup row is a driver profile. */
+  user_id?: number
+  /** driver_profile.id when the lookup row is a user. */
+  profile_id?: number
 }
 
 export type LookupVehicle = {

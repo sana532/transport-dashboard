@@ -53,8 +53,8 @@ export function useDriversManagement(page = 1) {
   )
 
   const deleteDriver = useCallback(
-    async (id: number) => {
-      await driversService.deleteDriver(id)
+    async (id: number, options?: { profileId?: number }) => {
+      await driversService.deleteDriver(id, options)
       await reload()
     },
     [reload],

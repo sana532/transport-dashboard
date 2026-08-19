@@ -8,6 +8,7 @@ import {
   Package,
   Tag,
   MessageSquareWarning,
+  FileSpreadsheet,
   Settings,
 } from 'lucide-react'
 import { paths } from '@/routes/paths'
@@ -25,6 +26,12 @@ function CompanyLayoutShell() {
       label: t('sidebar.dashboard'),
       end: true,
       Icon: LayoutDashboard,
+      section: t('company.nav.overview'),
+    },
+    {
+      to: paths.company.reports,
+      label: t('sidebar.reports'),
+      Icon: FileSpreadsheet,
       section: t('company.nav.overview'),
     },
     {

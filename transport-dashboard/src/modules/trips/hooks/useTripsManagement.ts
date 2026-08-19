@@ -55,7 +55,7 @@ export function useTripsManagement(options: UseTripsManagementOptions = {}) {
   const query = useQuery({
     queryKey:
       mode === 'all'
-        ? tripsManagementAllQueryKey(locale)
+        ? ([...tripsManagementAllQueryKey(locale), filtersKey] as const)
         : tripsManagementQueryKey(locale, page, perPage, filtersKey),
     queryFn: async (): Promise<TripsManagementState> => {
       if (mode === 'all') {
