@@ -39,7 +39,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 
 export function WeeklyAiSummaryWidget() {
   const { t, locale } = useTranslation()
-  const { data, isOpen, isLoading, error, load, hide } = useWeeklySummary()
+  const { data, isOpen, isLoading, error, load, reload, hide } = useWeeklySummary()
 
   if (!isOpen) {
     return (
@@ -77,7 +77,7 @@ export function WeeklyAiSummaryWidget() {
             <Button variant="outline" onClick={hide}>
               {t('dashboard.weekly.hide')}
             </Button>
-            <Button onClick={() => void load()} className="bg-brand-primary text-white hover:bg-brand-primary-dark">
+            <Button onClick={() => void reload()} className="bg-brand-primary text-white hover:bg-brand-primary-dark">
               {t('common.retry')}
             </Button>
           </div>
@@ -124,7 +124,7 @@ export function WeeklyAiSummaryWidget() {
           </span>
           <Button
             variant="ghost"
-            onClick={() => void load()}
+            onClick={() => void reload()}
             className="h-8 px-2.5 text-xs text-white hover:bg-white/10 hover:text-white"
           >
             {t('dashboard.weekly.refresh')}

@@ -285,7 +285,7 @@ export function LoginPage() {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
                   <label className="flex cursor-pointer items-center gap-2 text-sm text-text-secondary">
                     <input
                       type="checkbox"
@@ -296,15 +296,6 @@ export function LoginPage() {
                     />
                     {t('login.rememberMe')}
                   </label>
-                  <button
-                    type="button"
-                    className="text-sm font-medium text-brand-primary underline-offset-2 hover:underline focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring/30"
-                    onClick={() => {
-                      /* Wire to forgot-password route when available */
-                    }}
-                  >
-                    {t('login.forgotPassword')}
-                  </button>
                 </div>
 
                 {error ? (

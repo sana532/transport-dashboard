@@ -117,7 +117,6 @@ export const messages: Record<AppLocale, Record<string, string>> = {
     'login.passwordLabel': 'Password',
     'login.passwordPlaceholder': 'Enter your password',
     'login.rememberMe': 'Remember me',
-    'login.forgotPassword': 'Forgot Password?',
     'login.submit': 'Login',
     'login.submitting': 'Signing in…',
     'login.secureNote': 'Secure access for authorized company staff',
@@ -1628,7 +1627,6 @@ export const messages: Record<AppLocale, Record<string, string>> = {
     'login.passwordLabel': 'كلمة المرور',
     'login.passwordPlaceholder': 'أدخل كلمة المرور',
     'login.rememberMe': 'تذكرني',
-    'login.forgotPassword': 'نسيت كلمة المرور؟',
     'login.submit': 'تسجيل الدخول',
     'login.submitting': 'جاري تسجيل الدخول…',
     'login.secureNote': 'دخول آمن للموظفين المصرّح لهم فقط',
@@ -2345,7 +2343,7 @@ export const messages: Record<AppLocale, Record<string, string>> = {
     'tripForm.error.cancelViaList':
       'لا يمكن إلغاء رحلة عليها حجوزات من هذا النموذج. استخدمي «إلغاء» من قائمة الرحلات.',
     'tripForm.availability.waitHint':
-      'اختاري المسار وتاريخ ووقت الانطلاق لعرض السائقين والمركبات المتاحة.',
+      'اختر المسار وتاريخ ووقت الانطلاق لعرض السائقين والمركبات المتاحة.',
     'tripForm.availability.checking': 'جاري التحقق من توفر السائقين والمركبات…',
     'tripForm.availability.failed':
       'تعذر التحقق من التوفر. يتم عرض كل السائقين والمركبات.',

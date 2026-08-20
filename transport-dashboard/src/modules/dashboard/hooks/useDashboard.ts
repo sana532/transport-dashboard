@@ -1,31 +1,38 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { DashboardData } from '@/modules/dashboard/types'
 import { dashboardService } from '@/modules/dashboard/services/dashboardService'
 import { useTranslation } from '@/shared/i18n/useTranslation'
 
+export const dashboardQueryKey = (locale: string) => ['dashboard', locale] as const
+
+const DASHBOARD_STALE_MS = 5 * 60_000
+const DASHBOARD_GC_MS = 30 * 60_000
+
 export function useDashboard() {
   const { locale } = useTranslation()
-  const [data, setData] = useState<DashboardData | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
 
-  const load = useCallback(async () => {
-    setIsLoading(true)
-    setError(null)
+  const query = useQuery({
+    queryKey: dashboardQueryKey(locale),
+    queryFn: (): Promise<DashboardData> => dashboardService.getDashboardData(locale),
+    staleTime: DASHBOARD_STALE_MS,
+    gcTime: DASHBOARD_GC_MS,
+    placeholderData: (previousData) => previousData,
+  })
 
-    try {
-      const nextData = await dashboardService.getDashboardData(locale)
-      setData(nextData)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load dashboard data')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [locale])
+  const reload = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: dashboardQueryKey(locale) })
+  }, [locale, queryClient])
 
-  useEffect(() => {
-    void load()
-  }, [load])
-
-  return { data, isLoading, error, reload: load }
+  return {
+    data: query.data ?? null,
+    isLoading: query.isPending,
+    error: query.error
+      ? query.error instanceof Error
+        ? query.error.message
+        : 'Failed to load dashboard data'
+      : null,
+    reload,
+  }
 }
