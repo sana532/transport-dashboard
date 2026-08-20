@@ -23,6 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/Card'
 import { Input } from '@/shared/ui/Input'
 import { Modal } from '@/shared/ui/Modal'
 import { useTranslation } from '@/shared/i18n/useTranslation'
+import { useConfirmDialog } from '@/shared/ui/ConfirmDialog'
 import { cn } from '@/shared/utils/cn'
 
 const selectClass =
@@ -114,6 +115,7 @@ function RoutesErrorState({ message, onRetry }: { message: string; onRetry: () =
 
 export function RoutesManagementPage() {
   const { t, locale } = useTranslation()
+  const confirm = useConfirmDialog()
   const {
     routes,
     stations,
@@ -295,12 +297,13 @@ export function RoutesManagementPage() {
   }
 
   const handleDelete = async (row: CompanyRoute) => {
-    if (!window.confirm(t('routes.confirmDelete', { name: row.name }))) return
-    try {
-      await deleteRoute(row.id)
-    } catch (err) {
-      window.alert(err instanceof Error ? err.message : t('routes.form.saveFailed'))
-    }
+    await confirm({
+      title: t('common.confirmDeleteTitle'),
+      description: t('routes.confirmDelete', { name: row.name }),
+      confirmLabel: t('common.delete'),
+      variant: 'danger',
+      action: () => deleteRoute(row.id),
+    })
   }
 
   if (isLoading) return <RoutesLoadingState />

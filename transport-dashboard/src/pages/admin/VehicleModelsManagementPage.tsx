@@ -4,6 +4,7 @@ import { Bus, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useVehicleModels } from '@/modules/vehicle-models/hooks/useVehicleModels'
 import { paths } from '@/routes/paths'
 import { useTranslation } from '@/shared/i18n/useTranslation'
+import { useConfirmDialog } from '@/shared/ui/ConfirmDialog'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/Card'
 import { cn } from '@/shared/utils/cn'
@@ -31,21 +32,27 @@ function ActiveBadge({ active, activeLabel, inactiveLabel }: { active: boolean; 
 
 export function VehicleModelsManagementPage() {
   const { t } = useTranslation()
+  const confirm = useConfirmDialog()
   const { models, isLoading, error, reload, deleteModel } = useVehicleModels()
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
 
   async function handleDelete(id: number, name: string) {
-    if (!window.confirm(`Delete vehicle model "${name}"? This cannot be undone.`)) return
-    setActionError(null)
-    setDeletingId(id)
-    try {
-      await deleteModel(id)
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Failed to delete vehicle model')
-    } finally {
-      setDeletingId(null)
-    }
+    await confirm({
+      title: t('common.confirmDeleteTitle'),
+      description: t('admin.vehicleModels.confirmDelete', { name }),
+      confirmLabel: t('common.delete'),
+      variant: 'danger',
+      action: async () => {
+        setActionError(null)
+        setDeletingId(id)
+        try {
+          await deleteModel(id)
+        } finally {
+          setDeletingId(null)
+        }
+      },
+    })
   }
 
   return (

@@ -22,6 +22,7 @@ import type { CompanyTrip } from '@/modules/trips/types/companyTrip'
 import { companyTripsService } from '@/modules/trips/services/companyTripsService'
 import { paths } from '@/routes/paths'
 import { useTranslation } from '@/shared/i18n/useTranslation'
+import { useConfirmDialog } from '@/shared/ui/ConfirmDialog'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/Card'
 import { Input } from '@/shared/ui/Input'
@@ -106,6 +107,7 @@ function SchedulesErrorState({ message, onRetry }: { message: string; onRetry: (
 
 export function TripSchedulesPage() {
   const { t, locale } = useTranslation()
+  const confirm = useConfirmDialog()
   const {
     templates,
     isLoading,
@@ -291,12 +293,13 @@ export function TripSchedulesPage() {
   }
 
   const handleDelete = async (row: CompanyTripTemplate) => {
-    if (!window.confirm(t('tripTemplates.confirmDelete', { name: row.name }))) return
-    try {
-      await deleteTemplate(row.id)
-    } catch (err) {
-      window.alert(err instanceof Error ? err.message : t('tripTemplates.form.saveFailed'))
-    }
+    await confirm({
+      title: t('common.confirmDeleteTitle'),
+      description: t('tripTemplates.confirmDelete', { name: row.name }),
+      confirmLabel: t('common.delete'),
+      variant: 'danger',
+      action: () => deleteTemplate(row.id),
+    })
   }
 
   const vehicleLabel = (vehicleId: number) => {

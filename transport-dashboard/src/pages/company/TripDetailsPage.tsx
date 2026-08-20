@@ -217,6 +217,14 @@ export function TripDetailsPage() {
                   value={formatTripDateTime(trip.departure_time, dateLocale)}
                 />
                 <OverviewField
+                  label={t('tripDetails.field.actualDeparture')}
+                  value={
+                    trip.actual_departure_time
+                      ? formatTripDateTime(trip.actual_departure_time, dateLocale)
+                      : t('trips.stats.scheduled.note')
+                  }
+                />
+                <OverviewField
                   label={t('tripDetails.field.arrival')}
                   value={formatTripDateTime(trip.estimated_arrival_time, dateLocale)}
                 />

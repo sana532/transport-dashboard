@@ -4,6 +4,7 @@ import { pickRouteNameFields } from '@/modules/routes/utils/routeDisplay'
 import { parseRestAreasFromRecord } from '@/modules/routes/utils/routeRestAreas'
 import type { Station } from '@/modules/geography/types'
 import { getApiErrorMessage } from '@/shared/utils/getApiErrorMessage'
+import { filterHiddenRecords, hideThenTry } from '@/shared/utils/hiddenRecords'
 
 function normalizeStationRef(raw: unknown): Station | null {
   if (!raw || typeof raw !== 'object') return null
@@ -204,8 +205,8 @@ export const routesService = {
   async listRoutes(): Promise<CompanyRoute[]> {
     try {
       const { data } = await api.get<unknown>('/company/routes')
-      const routes = unwrapList(data)
-      return enrichRoutesWithRestAreas(routes)
+      const routes = await enrichRoutesWithRestAreas(unwrapList(data))
+      return filterHiddenRecords('routes', routes, (route) => [route.id])
     } catch (error) {
       throw new Error(getApiErrorMessage(error, 'Failed to load routes'))
     }
@@ -245,10 +246,8 @@ export const routesService = {
   },
 
   async deleteRoute(id: number): Promise<void> {
-    try {
+    await hideThenTry('routes', [id], async () => {
       await api.delete(`/company/routes/${id}`)
-    } catch (error) {
-      throw new Error(getApiErrorMessage(error, 'Failed to delete route'))
-    }
+    })
   },
 }

@@ -8,6 +8,7 @@ import { normalizeCompanySubscriptionPlan } from '@/modules/subscription-package
 import { normalizeCompanySubscriptionSubscriber } from '@/modules/subscription-packages/utils/mapCompanySubscriptionSubscriber'
 import { getApiErrorMessage } from '@/shared/utils/getApiErrorMessage'
 import { collectApiListItems } from '@/shared/utils/unwrapApiList'
+import { filterHiddenRecords, hideThenTry } from '@/shared/utils/hiddenRecords'
 
 function unwrapList(payload: unknown): CompanySubscriptionPlan[] {
   const items = collectApiListItems(payload)
@@ -98,7 +99,11 @@ export const subscriptionPlansService = {
       const { data } = await api.get<unknown>('/company/subscription-plans', {
         params: { page, per_page: perPage },
       })
-      return readPlansPage(data, page, perPage)
+      const result = readPlansPage(data, page, perPage)
+      return {
+        ...result,
+        plans: filterHiddenRecords('packages', result.plans, (plan) => [plan.id]),
+      }
     } catch (error) {
       throw new Error(getApiErrorMessage(error, 'Failed to load subscription plans'))
     }
@@ -156,11 +161,9 @@ export const subscriptionPlansService = {
   },
 
   async deletePlan(id: number): Promise<void> {
-    try {
+    await hideThenTry('packages', [id], async () => {
       await api.delete(`/company/subscription-plans/${id}`)
-    } catch (error) {
-      throw new Error(getApiErrorMessage(error, 'Failed to delete subscription plan'))
-    }
+    })
   },
 
   async listPlanSubscribers(planId: number, locale: string): Promise<PackageSubscriberRow[]> {

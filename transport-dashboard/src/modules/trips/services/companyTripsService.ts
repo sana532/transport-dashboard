@@ -7,9 +7,14 @@ import type {
   TripMutationInput,
   TripStatusUpdateInput,
 } from '@/modules/trips/types/companyTrip'
+import type {
+  TripResourceAvailability,
+  TripResourceAvailabilityInput,
+} from '@/modules/trips/types/resourceAvailability'
 import type { CompanyTripsListQuery } from '@/modules/trips/types/tripsListQuery'
 import { buildCompanyTripsListParams } from '@/modules/trips/types/tripsListQuery'
 import { normalizeCompanyTrip } from '@/modules/trips/utils/mapCompanyTrip'
+import { mapTripResourceAvailability } from '@/modules/trips/utils/mapResourceAvailability'
 import { serializeTripStatusForApi } from '@/modules/trips/utils/tripStatus'
 import { getApiErrorMessage } from '@/shared/utils/getApiErrorMessage'
 import { collectApiListItems } from '@/shared/utils/unwrapApiList'
@@ -44,6 +49,24 @@ function unwrapOne(payload: unknown): CompanyTrip | null {
   const root = payload as Record<string, unknown>
   if (root.data) return normalizeCompanyTrip(root.data)
   return normalizeCompanyTrip(root)
+}
+
+function isAbortError(error: unknown): boolean {
+  if (error instanceof DOMException && error.name === 'AbortError') return true
+  if (!error || typeof error !== 'object') return false
+  const record = error as { code?: string; name?: string }
+  return (
+    record.code === 'ERR_CANCELED' ||
+    record.name === 'CanceledError' ||
+    record.name === 'AbortError'
+  )
+}
+
+function serializeAvailabilityQuery(params: Record<string, unknown>): string {
+  return Object.entries(params)
+    .filter(([, value]) => value != null && value !== '')
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
+    .join('&')
 }
 
 export type CompanyTripsPage = {
@@ -134,6 +157,34 @@ export const companyTripsService = {
       return trip
     } catch (error) {
       throw new Error(getApiErrorMessage(error, 'Failed to load trip'))
+    }
+  },
+
+  async getResourceAvailability(
+    input: TripResourceAvailabilityInput,
+    signal?: AbortSignal,
+  ): Promise<TripResourceAvailability> {
+    const params: Record<string, string | number> = {
+      route_id: input.route_id,
+      departure_time: input.departure_time,
+      estimated_arrival_time: input.estimated_arrival_time,
+    }
+    if (input.exclude_trip_id != null) {
+      params.exclude_trip_id = input.exclude_trip_id
+    }
+
+    try {
+      const { data } = await api.get<unknown>('/company/trips/resource-availability', {
+        params,
+        paramsSerializer: { serialize: serializeAvailabilityQuery },
+        signal,
+      })
+      const availability = mapTripResourceAvailability(data)
+      if (!availability) throw new Error('Invalid resource availability response')
+      return availability
+    } catch (error) {
+      if (isAbortError(error)) throw error
+      throw new Error(getApiErrorMessage(error, 'Failed to check resource availability'))
     }
   },
 

@@ -34,7 +34,7 @@ export function DriverDeleteDialog({
   const onTrip = driver?.status === 'On Trip'
 
   async function handleConfirm() {
-    if (!driver || pending) return
+    if (!driver || pending || onTrip) return
     setLocalError(null)
     try {
       await onConfirm(driver)
@@ -101,12 +101,12 @@ export function DriverDeleteDialog({
         <Button type="button" variant="outline" onClick={onClose} disabled={pending}>
           {t('common.cancel')}
         </Button>
-        <Button
-          type="button"
-          className="bg-red-700 text-white hover:bg-red-800 disabled:opacity-60"
-          onClick={() => void handleConfirm()}
-          disabled={pending || !driver}
-        >
+          <Button
+            type="button"
+            className="bg-red-700 text-white hover:bg-red-800 disabled:opacity-60"
+            onClick={() => void handleConfirm()}
+            disabled={pending || !driver || onTrip}
+          >
           <Trash2 className="h-4 w-4" aria-hidden />
           {pending ? t('drivers.delete.deleting') : t('drivers.delete.confirm')}
         </Button>

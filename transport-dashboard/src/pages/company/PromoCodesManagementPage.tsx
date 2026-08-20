@@ -20,6 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/Card'
 import { Input } from '@/shared/ui/Input'
 import { cn } from '@/shared/utils/cn'
 import { useTranslation } from '@/shared/i18n/useTranslation'
+import { useConfirmDialog } from '@/shared/ui/ConfirmDialog'
 
 const selectClass =
   'w-full appearance-none rounded-lg border border-border bg-surface py-2 pl-3 pr-9 text-sm text-text-primary shadow-sm focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30'
@@ -64,6 +65,7 @@ function PromoErrorState({ message, onRetry }: { message: string; onRetry: () =>
 
 export function PromoCodesManagementPage() {
   const { t, locale } = useTranslation()
+  const confirm = useConfirmDialog()
   const navigate = useNavigate()
   const [filters, setFilters] = useState<PromoListFilters>(defaultPromoListFilters)
   const [page, setPage] = useState(1)
@@ -98,12 +100,13 @@ export function PromoCodesManagementPage() {
   const totalLabel = (pagination?.total ?? filteredRows.length).toLocaleString(dateLocale)
 
   const handleDelete = async (id: number, code: string) => {
-    if (!window.confirm(t('promoCodes.confirmDelete', { code }))) return
-    try {
-      await deletePromoCode(id)
-    } catch (err) {
-      window.alert(err instanceof Error ? err.message : t('promoCodes.errorDelete'))
-    }
+    await confirm({
+      title: t('common.confirmDeleteTitle'),
+      description: t('promoCodes.confirmDelete', { code }),
+      confirmLabel: t('common.delete'),
+      variant: 'danger',
+      action: () => deletePromoCode(id),
+    })
   }
 
   if (error && !data) {

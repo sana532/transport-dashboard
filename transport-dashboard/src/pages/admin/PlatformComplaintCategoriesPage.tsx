@@ -4,6 +4,7 @@ import type { ComplaintCategory } from '@/modules/complaints/types'
 import type { PlatformComplaintCategoryInput } from '@/modules/complaints/services/platformComplaintsService'
 import { usePlatformComplaintCategories } from '@/modules/complaints/hooks/usePlatformComplaintCategories'
 import { useTranslation } from '@/shared/i18n/useTranslation'
+import { useConfirmDialog } from '@/shared/ui/ConfirmDialog'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/Card'
 import { Input } from '@/shared/ui/Input'
@@ -62,6 +63,7 @@ function formToInput(form: CategoryFormState): PlatformComplaintCategoryInput {
 
 export function PlatformComplaintCategoriesPage() {
   const { t } = useTranslation()
+  const confirm = useConfirmDialog()
   const {
     categories,
     isLoading,
@@ -128,15 +130,16 @@ export function PlatformComplaintCategoriesPage() {
   }
 
   async function handleDelete(category: ComplaintCategory) {
-    if (!window.confirm(t('admin.complaintCategories.confirmDelete', { name: category.label }))) {
-      return
-    }
-    setActionError(null)
-    try {
-      await deleteCategory(category.id)
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : t('admin.complaintCategories.errorDelete'))
-    }
+    await confirm({
+      title: t('common.confirmDeleteTitle'),
+      description: t('admin.complaintCategories.confirmDelete', { name: category.label }),
+      confirmLabel: t('common.delete'),
+      variant: 'danger',
+      action: async () => {
+        setActionError(null)
+        await deleteCategory(category.id)
+      },
+    })
   }
 
   return (

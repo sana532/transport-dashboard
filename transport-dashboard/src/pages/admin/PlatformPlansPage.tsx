@@ -8,6 +8,7 @@ import type {
 import { usePlatformSubscriptionPlans } from '@/modules/subscription-packages/hooks/usePlatformSubscriptionPlans'
 import { planToInput } from '@/modules/subscription-packages/utils/mapCompanySubscriptionPlan'
 import { useTranslation } from '@/shared/i18n/useTranslation'
+import { useConfirmDialog } from '@/shared/ui/ConfirmDialog'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/Card'
 import { Input } from '@/shared/ui/Input'
@@ -122,6 +123,7 @@ function formToInput(
 
 export function PlatformPlansPage() {
   const { t, locale } = useTranslation()
+  const confirm = useConfirmDialog()
   const { plans, isLoading, error, reload, createPlan, updatePlan, deletePlan } =
     usePlatformSubscriptionPlans()
 
@@ -175,13 +177,16 @@ export function PlatformPlansPage() {
   }
 
   async function handleDelete(plan: CompanySubscriptionPlan) {
-    if (!window.confirm(t('admin.platformPlans.confirmDelete', { name: plan.nameEn }))) return
-    setActionError(null)
-    try {
-      await deletePlan(plan.id)
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : t('admin.platformPlans.errorDelete'))
-    }
+    await confirm({
+      title: t('common.confirmDeleteTitle'),
+      description: t('admin.platformPlans.confirmDelete', { name: plan.nameEn }),
+      confirmLabel: t('common.delete'),
+      variant: 'danger',
+      action: async () => {
+        setActionError(null)
+        await deletePlan(plan.id)
+      },
+    })
   }
 
   return (

@@ -4,6 +4,7 @@ import { buildPromoStats } from '@/modules/promo-codes/utils/buildPromoStats'
 import { normalizeCompanyPromoCode } from '@/modules/promo-codes/utils/mapCompanyPromoCode'
 import { getApiErrorMessage } from '@/shared/utils/getApiErrorMessage'
 import { collectApiListItems } from '@/shared/utils/unwrapApiList'
+import { filterHiddenRecords, hasHiddenRecords, hideThenTry } from '@/shared/utils/hiddenRecords'
 
 function unwrapList(payload: unknown): CompanyPromoCode[] {
   const items = collectApiListItems(payload)
@@ -94,7 +95,11 @@ export const promoCodesService = {
       const { data } = await api.get<unknown>('/company/promo-codes', {
         params: { page, per_page: perPage },
       })
-      return readPromoCodesPage(data, page, perPage)
+      const result = readPromoCodesPage(data, page, perPage)
+      return {
+        ...result,
+        promoCodes: filterHiddenRecords('promos', result.promoCodes, (row) => [row.id, row.code]),
+      }
     } catch (error) {
       throw new Error(getApiErrorMessage(error, 'Failed to load promo codes'))
     }
@@ -152,18 +157,19 @@ export const promoCodesService = {
   },
 
   async deletePromoCode(id: number): Promise<void> {
-    try {
+    await hideThenTry('promos', [id], async () => {
       await api.delete(`/company/promo-codes/${id}`)
-    } catch (error) {
-      throw new Error(getApiErrorMessage(error, 'Failed to delete promo code'))
-    }
+    })
   },
 
   async getPromoCodesManagementData(page = 1): Promise<PromoCodesManagementData> {
     const result = await this.listPromoCodesPage({ page, perPage: 15 })
     return {
       promoCodes: result.promoCodes,
-      stats: buildPromoStats(result.promoCodes, result.counts),
+      stats: buildPromoStats(
+        result.promoCodes,
+        hasHiddenRecords('promos') ? undefined : result.counts,
+      ),
       pagination: {
         currentPage: result.currentPage,
         lastPage: result.lastPage,

@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { CompanyVehicleModel } from '@/modules/vehicles/types'
 import type {
@@ -10,6 +10,11 @@ import { companyVehicleModelsService } from '@/modules/vehicles/services/company
 import { buildVehicleStats } from '@/modules/vehicles/utils/buildVehicleStats'
 import { vehiclesService } from '@/modules/vehicles/services/vehiclesService'
 import { mapCompanyVehicleToVehicle } from '@/modules/vehicles/utils/mapCompanyVehicle'
+import {
+  filterHiddenRecords,
+  hasHiddenRecords,
+  useHiddenRecordsRevision,
+} from '@/shared/utils/hiddenRecords'
 
 export type VehiclesManagementState = {
   data: VehiclesManagementData
@@ -21,6 +26,7 @@ export const vehiclesManagementQueryKey = (page: number) =>
 
 export function useVehiclesManagement(page = 1) {
   const queryClient = useQueryClient()
+  const hiddenRevision = useHiddenRecordsRevision()
   const safePage = Math.max(1, Math.floor(page))
 
   const query = useQuery({
@@ -32,7 +38,6 @@ export function useVehiclesManagement(page = 1) {
       })
       const vehicles = pageResult.vehicles.map(mapCompanyVehicleToVehicle)
 
-      // Catalog is optional; platform list often returns 403 for company accounts.
       const catalogModels = await companyVehicleModelsService.listForCompany()
 
       const modelMap = new Map<number, CompanyVehicleModel>()
@@ -45,7 +50,10 @@ export function useVehiclesManagement(page = 1) {
 
       return {
         data: {
-          stats: buildVehicleStats(vehicles, pageResult.counts),
+          stats: buildVehicleStats(
+            vehicles,
+            hasHiddenRecords('vehicles') ? undefined : pageResult.counts,
+          ),
           vehicles,
           pagination: {
             currentPage: pageResult.currentPage,
@@ -61,6 +69,21 @@ export function useVehiclesManagement(page = 1) {
     },
     placeholderData: (previousData) => previousData,
   })
+
+  const data = useMemo(() => {
+    const current = query.data?.data
+    if (!current) return null
+    const vehicles = filterHiddenRecords('vehicles', current.vehicles, (row) => [
+      row.id,
+      row.plateNumber,
+    ])
+    if (vehicles.length === current.vehicles.length) return current
+    return {
+      ...current,
+      vehicles,
+      stats: buildVehicleStats(vehicles),
+    }
+  }, [hiddenRevision, query.data?.data])
 
   const reload = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: ['vehicles', 'management'] })
@@ -93,7 +116,7 @@ export function useVehiclesManagement(page = 1) {
   )
 
   return {
-    data: query.data?.data ?? null,
+    data,
     vehicleModels: query.data?.vehicleModels ?? [],
     isLoading: query.isPending,
     isFetching: query.isFetching,

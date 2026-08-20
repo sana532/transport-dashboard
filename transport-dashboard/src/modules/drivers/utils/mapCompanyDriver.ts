@@ -45,6 +45,7 @@ export function mapCompanyDriverToDriver(row: CompanyDriver): Driver {
   return {
     id: String(row.id),
     profileId: profile?.id ? String(profile.id) : undefined,
+    listId: row.source_id ? String(row.source_id) : undefined,
     name: row.name,
     status: row.in_trip ? 'On Trip' : mapProfileStatus(profile?.status),
     phone: row.phone_number,

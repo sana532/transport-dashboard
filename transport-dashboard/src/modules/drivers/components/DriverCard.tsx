@@ -37,6 +37,7 @@ export function DriverCard({ driver, onView, onEdit, onDelete }: DriverCardProps
         : t('drivers.status.offDuty')
 
   const showPhoto = Boolean(photoSrc) && !photoFailed
+  const onTrip = driver.status === 'On Trip'
 
   return (
     <Card className="shadow-md">
@@ -84,6 +85,9 @@ export function DriverCard({ driver, onView, onEdit, onDelete }: DriverCardProps
           </p>
         </div>
 
+        {onTrip ? (
+          <p className="text-xs text-amber-800">{t('drivers.delete.disabledOnTrip')}</p>
+        ) : null}
         <div className="flex flex-wrap items-center gap-2">
           <Button
             type="button"
@@ -101,14 +105,29 @@ export function DriverCard({ driver, onView, onEdit, onDelete }: DriverCardProps
           >
             <Pencil className="h-4 w-4" />
           </button>
-          <button
-            type="button"
-            className="rounded-lg border border-border bg-surface p-2 text-red-600 hover:bg-red-50"
-            aria-label={t('drivers.actions.delete', { name: driver.name })}
-            onClick={() => onDelete?.(driver)}
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
+          <span title={onTrip ? t('drivers.delete.disabledOnTrip') : undefined}>
+            <button
+              type="button"
+              className={cn(
+                'rounded-lg border border-border bg-surface p-2',
+                onTrip
+                  ? 'cursor-not-allowed text-red-300'
+                  : 'text-red-600 hover:bg-red-50',
+              )}
+              aria-label={
+                onTrip
+                  ? t('drivers.delete.disabledOnTrip')
+                  : t('drivers.actions.delete', { name: driver.name })
+              }
+              disabled={onTrip}
+              onClick={() => {
+                if (onTrip) return
+                onDelete?.(driver)
+              }}
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </span>
         </div>
       </CardContent>
     </Card>

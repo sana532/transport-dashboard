@@ -7,6 +7,7 @@ import { NotificationsProvider } from '@/modules/notifications/components/Notifi
 import { PreferencesProvider } from '@/shared/preferences/PreferencesProvider'
 import { queryClient } from '@/shared/query/queryClient'
 import { ToastProvider } from '@/shared/ui/Toast'
+import { ConfirmDialogProvider } from '@/shared/ui/ConfirmDialog'
 import '@/shared/i18n/config'
 import App from '@/App'
 import './index.css'
@@ -18,9 +19,11 @@ createRoot(document.getElementById('root')!).render(
         <BrowserRouter>
           <AuthProvider>
             <ToastProvider>
-              <NotificationsProvider>
-                <App />
-              </NotificationsProvider>
+              <ConfirmDialogProvider>
+                <NotificationsProvider>
+                  <App />
+                </NotificationsProvider>
+              </ConfirmDialogProvider>
             </ToastProvider>
           </AuthProvider>
         </BrowserRouter>

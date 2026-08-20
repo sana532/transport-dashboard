@@ -7,6 +7,7 @@ import { promoDisplayName } from '@/modules/promo-codes/utils/mapCompanyPromoCod
 import { formatPromoDate } from '@/modules/promo-codes/utils/promoCodeDates'
 import { paths } from '@/routes/paths'
 import { useTranslation } from '@/shared/i18n/useTranslation'
+import { useConfirmDialog } from '@/shared/ui/ConfirmDialog'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/Card'
 import { cn } from '@/shared/utils/cn'
@@ -21,6 +22,7 @@ const iconBtnClass =
 
 export function PlatformPromoCodesPage() {
   const { t, locale } = useTranslation()
+  const confirm = useConfirmDialog()
   const { data, isLoading, error, reload, deletePromoCode } = usePlatformPromoCodes()
   const [actionError, setActionError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
@@ -35,13 +37,16 @@ export function PlatformPromoCodesPage() {
   }, [data, query])
 
   async function handleDelete(id: number, code: string) {
-    if (!window.confirm(t('admin.promoCodes.confirmDelete', { code }))) return
-    setActionError(null)
-    try {
-      await deletePromoCode(id)
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : t('admin.promoCodes.errorDelete'))
-    }
+    await confirm({
+      title: t('common.confirmDeleteTitle'),
+      description: t('admin.promoCodes.confirmDelete', { code }),
+      confirmLabel: t('common.delete'),
+      variant: 'danger',
+      action: async () => {
+        setActionError(null)
+        await deletePromoCode(id)
+      },
+    })
   }
 
   return (

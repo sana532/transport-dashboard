@@ -43,6 +43,7 @@ export function VehicleCard({ vehicle, onEdit, onDelete }: VehicleCardProps) {
     useMediaImageSrc(activePhoto)
 
   const showPhoto = Boolean(displaySrc) && !photoFailed
+  const onTrip = vehicle.status === 'In Trip'
 
   const handlePhotoError = () => {
     if (photoIndex < candidates.length - 1) {
@@ -125,6 +126,9 @@ export function VehicleCard({ vehicle, onEdit, onDelete }: VehicleCardProps) {
           </div>
         </dl>
 
+        {onTrip ? (
+          <p className="text-[11px] text-amber-800">{t('vehicles.delete.disabledOnTrip')}</p>
+        ) : null}
         <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
           <Button
             type="button"
@@ -135,14 +139,29 @@ export function VehicleCard({ vehicle, onEdit, onDelete }: VehicleCardProps) {
             <Pencil className="h-3.5 w-3.5" aria-hidden />
             {t('common.edit')}
           </Button>
-          <button
-            type="button"
-            className="rounded-md border border-surface-muted p-1.5 text-red-600 hover:bg-red-50"
-            aria-label={t('vehicles.actions.delete', { name: vehicle.plateNumber })}
-            onClick={() => onDelete?.(vehicle)}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
+          <span title={onTrip ? t('vehicles.delete.disabledOnTrip') : undefined}>
+            <button
+              type="button"
+              className={cn(
+                'rounded-md border border-surface-muted p-1.5',
+                onTrip
+                  ? 'cursor-not-allowed text-red-300'
+                  : 'text-red-600 hover:bg-red-50',
+              )}
+              aria-label={
+                onTrip
+                  ? t('vehicles.delete.disabledOnTrip')
+                  : t('vehicles.actions.delete', { name: vehicle.plateNumber })
+              }
+              disabled={onTrip}
+              onClick={() => {
+                if (onTrip) return
+                onDelete?.(vehicle)
+              }}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </span>
         </div>
       </CardContent>
     </Card>

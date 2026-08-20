@@ -15,9 +15,7 @@ import {
   Check,
   CreditCard,
   Info,
-  Key,
   Lock,
-  Mail,
   Upload,
   User,
 } from 'lucide-react'
@@ -35,14 +33,6 @@ const selectClass =
 
 const AVAILABILITY_OPTIONS = ['Available', 'On Trip', 'Off Duty'] as const
 const EDITABLE_AVAILABILITY_OPTIONS = ['Available', 'Off Duty'] as const
-
-const VEHICLE_ASSIGN_OPTIONS = [
-  'No Vehicle Assigned',
-  'VH-001',
-  'VH-002',
-  'VH-003',
-  'VH-004',
-] as const
 
 export type DriverFormMode = 'add' | 'edit'
 
@@ -80,13 +70,6 @@ function FormSection({
   )
 }
 
-function vehicleSelectValue(raw: string | undefined): string {
-  if (!raw) return VEHICLE_ASSIGN_OPTIONS[0]
-  return VEHICLE_ASSIGN_OPTIONS.includes(raw as (typeof VEHICLE_ASSIGN_OPTIONS)[number])
-    ? raw
-    : VEHICLE_ASSIGN_OPTIONS[0]
-}
-
 export function DriverFormDialog({
   open,
   onClose,
@@ -114,7 +97,6 @@ export function DriverFormDialog({
   const [availability, setAvailability] = useState<string>(AVAILABILITY_OPTIONS[0])
   const [initialAvailability, setInitialAvailability] = useState<Driver['status']>('Available')
   const [initialPhone, setInitialPhone] = useState('')
-  const [assignedVehicle, setAssignedVehicle] = useState<string>(VEHICLE_ASSIGN_OPTIONS[0])
   const [username, setUsername] = useState('')
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
@@ -143,7 +125,6 @@ export function DriverFormDialog({
     setAvailability(AVAILABILITY_OPTIONS[0])
     setInitialAvailability('Available')
     setInitialPhone('')
-    setAssignedVehicle(VEHICLE_ASSIGN_OPTIONS[0])
     setUsername('')
     setPassword('')
     setPasswordConfirmation('')
@@ -167,7 +148,6 @@ export function DriverFormDialog({
     setExperienceYears(d.experienceYears ? String(d.experienceYears) : '')
     setAvailability(d.status)
     setInitialAvailability(d.status)
-    setAssignedVehicle(vehicleSelectValue(d.assignedVehicle))
     setUsername(d.username ?? '')
     setPhotoFile(null)
     if (fileInputRef.current) fileInputRef.current.value = ''
@@ -271,9 +251,6 @@ export function DriverFormDialog({
   const quickTrips = !isEdit ? '0' : String(driver?.totalTrips ?? 0)
 
   const heading = isEdit ? t('drivers.form.editTitle') : t('drivers.form.addTitle')
-  const passwordActionLabel = isEdit
-    ? t('drivers.form.resetPassword')
-    : t('drivers.form.setPassword')
   const infoText = isEdit ? t('drivers.form.infoEdit') : t('drivers.form.infoAdd')
   const submitLabel = isEdit ? t('drivers.form.saveChanges') : t('drivers.form.create')
 
@@ -288,9 +265,6 @@ export function DriverFormDialog({
     if (status === 'Off Duty') return t('drivers.status.offDuty')
     return status
   }
-
-  const vehicleOptionLabel = (option: string) =>
-    option === 'No Vehicle Assigned' ? t('drivers.form.noVehicle') : option
 
   return (
     <Modal
@@ -342,15 +316,15 @@ export function DriverFormDialog({
                   onChange={(e) => setPhone(e.target.value)}
                   required
                 />
-                <Input
-                  name="email"
-                  type="email"
-                  label={t('drivers.form.email')}
-                  placeholder={t('drivers.form.emailPlaceholder')}
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={isEdit}
-                />
+                {isEdit && driver?.email ? (
+                  <Input
+                    name="email"
+                    type="email"
+                    label={t('drivers.form.email')}
+                    value={email}
+                    disabled
+                  />
+                ) : null}
               </div>
               {!isEdit ? (
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -409,49 +383,30 @@ export function DriverFormDialog({
             </FormSection>
 
             <FormSection icon={Briefcase} title={t('drivers.form.sectionWork')}>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="flex flex-col gap-1.5">
-                  <label htmlFor="availability" className="text-sm font-medium text-text-secondary">
-                    {t('drivers.form.availability')}
-                  </label>
-                  {isEdit && driver?.status === 'On Trip' ? (
-                    <p className="text-xs text-text-muted">{t('drivers.form.onTripHint')}</p>
-                  ) : null}
-                  <select
-                    id="availability"
-                    name="availability"
-                    className={selectClass}
-                    value={availability}
-                    onChange={(e) => setAvailability(e.target.value)}
-                  >
-                    {availabilityOptions.map((o) => (
-                      <option key={o} value={o}>
-                        {statusLabel(o)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label htmlFor="assignedVehicle" className="text-sm font-medium text-text-secondary">
-                    {t('drivers.form.assignedVehicle')}
-                  </label>
-                  <select
-                    id="assignedVehicle"
-                    name="assignedVehicle"
-                    className={selectClass}
-                    value={assignedVehicle}
-                    onChange={(e) => setAssignedVehicle(e.target.value)}
-                  >
-                    {VEHICLE_ASSIGN_OPTIONS.map((o) => (
-                      <option key={o} value={o}>
-                        {vehicleOptionLabel(o)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <div className="flex max-w-xs flex-col gap-1.5">
+                <label htmlFor="availability" className="text-sm font-medium text-text-secondary">
+                  {t('drivers.form.availability')}
+                </label>
+                {isEdit && driver?.status === 'On Trip' ? (
+                  <p className="text-xs text-text-muted">{t('drivers.form.onTripHint')}</p>
+                ) : null}
+                <select
+                  id="availability"
+                  name="availability"
+                  className={selectClass}
+                  value={availability}
+                  onChange={(e) => setAvailability(e.target.value)}
+                >
+                  {availabilityOptions.map((o) => (
+                    <option key={o} value={o}>
+                      {statusLabel(o)}
+                    </option>
+                  ))}
+                </select>
               </div>
             </FormSection>
 
+            {isEdit ? (
             <FormSection icon={Lock} title={t('drivers.form.sectionAccount')}>
               <Input
                 name="username"
@@ -459,33 +414,9 @@ export function DriverFormDialog({
                 placeholder={t('drivers.form.usernamePlaceholder')}
                 autoComplete="username"
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
                 readOnly
                 disabled
               />
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="border-border bg-surface text-text-secondary"
-                  onClick={() => {
-                    // TODO: reset / set password flow
-                  }}
-                >
-                  <Key className="h-4 w-4" aria-hidden />
-                  {passwordActionLabel}
-                </Button>
-                <Button
-                  type="button"
-                  className="bg-[var(--brand-primary)] text-white hover:bg-[var(--brand-primary-dark)]"
-                  onClick={() => {
-                    // TODO: POST send login email
-                  }}
-                >
-                  <Mail className="h-4 w-4" aria-hidden />
-                  {t('drivers.form.sendLoginDetails')}
-                </Button>
-              </div>
               <div
                 className="flex gap-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm leading-snug text-blue-950"
                 role="note"
@@ -494,6 +425,15 @@ export function DriverFormDialog({
                 <p>{infoText}</p>
               </div>
             </FormSection>
+            ) : (
+              <div
+                className="flex gap-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm leading-snug text-blue-950"
+                role="note"
+              >
+                <Info className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" aria-hidden />
+                <p>{infoText}</p>
+              </div>
+            )}
           </div>
 
           <aside className="flex flex-col gap-5 lg:sticky lg:top-0">

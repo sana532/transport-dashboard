@@ -85,6 +85,8 @@ export type CompanyTrip = {
   resolution_status?: TripResolutionStatus | null
   flagged?: boolean
   departure_time: string
+  /** Set by the backend when the trip actually starts; null until then. */
+  actual_departure_time: string | null
   estimated_arrival_time: string
   base_fare: number
   available_seats: number

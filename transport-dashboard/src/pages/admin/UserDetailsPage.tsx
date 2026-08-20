@@ -7,6 +7,7 @@ import { PLATFORM_USER_STATUSES } from '@/modules/users/types'
 import { useUserRoleLabel } from '@/modules/users/utils/useUserRoleLabel'
 import { paths } from '@/routes/paths'
 import { useTranslation } from '@/shared/i18n/useTranslation'
+import { useConfirmDialog } from '@/shared/ui/ConfirmDialog'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/Card'
 import { Input } from '@/shared/ui/Input'
@@ -30,6 +31,7 @@ function emptyForm(): UpdatePlatformUserInput {
 export function UserDetailsPage() {
   const { userId } = useParams<{ userId: string }>()
   const { t, locale } = useTranslation()
+  const confirm = useConfirmDialog()
   const roleLabel = useUserRoleLabel()
   const {
     user,
@@ -131,7 +133,13 @@ export function UserDetailsPage() {
   }
 
   async function onResetReliability() {
-    if (!window.confirm(t('admin.users.resetConfirm'))) return
+    const ok = await confirm({
+      title: t('common.confirmTitle'),
+      description: t('admin.users.resetConfirm'),
+      confirmLabel: t('admin.users.resetReliability'),
+      variant: 'default',
+    })
+    if (!ok) return
     setReliabilityError(null)
     setReliabilitySuccess(null)
     try {

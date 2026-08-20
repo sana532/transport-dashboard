@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CircleGauge, Download, Loader2, Plus, Search } from 'lucide-react'
+import { Download, Loader2, Plus, Search } from 'lucide-react'
 import { cn } from '@/shared/utils/cn'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/Card'
@@ -16,6 +16,8 @@ import {
   type VehicleListFilters,
 } from '@/modules/vehicles/utils/filterVehicles'
 import { useTranslation } from '@/shared/i18n/useTranslation'
+import { useConfirmDialog } from '@/shared/ui/ConfirmDialog'
+import { exportRowsToCsv } from '@/modules/dashboard/utils/exportToCsv'
 
 const selectClass =
   'w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary shadow-sm transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30'
@@ -70,6 +72,7 @@ function VehiclesErrorState({ message, onRetry }: { message: string; onRetry: ()
 
 export function VehiclesManagementPage() {
   const { t } = useTranslation()
+  const confirm = useConfirmDialog()
   const [page, setPage] = useState(1)
   const {
     data,
@@ -123,15 +126,33 @@ export function VehiclesManagementPage() {
 
   const handleResetFilters = () => setFilters(defaultVehicleListFilters)
 
+  const handleExport = () => {
+    const headers = [
+      t('vehicles.form.plate'),
+      t('vehicles.form.model'),
+      t('vehicles.form.seats'),
+      t('vehicles.form.mechanicalStatus'),
+    ]
+    const rows = filteredVehicles.map((row) => [
+      row.plateNumber,
+      row.model,
+      row.seats,
+      row.status,
+    ])
+    exportRowsToCsv('company-vehicles.csv', headers, rows)
+  }
+
   const handleDeleteVehicle = async (vehicle: Vehicle) => {
     const id = Number(vehicle.id)
     if (!Number.isFinite(id)) return
-    if (!window.confirm(t('vehicles.confirmDelete', { name: vehicle.plateNumber }))) return
-    try {
-      await deleteVehicle(id)
-    } catch (err) {
-      window.alert(err instanceof Error ? err.message : t('vehicles.form.saveFailed'))
-    }
+    if (vehicle.status === 'In Trip') return
+    await confirm({
+      title: t('common.confirmDeleteTitle'),
+      description: t('vehicles.confirmDelete', { name: vehicle.plateNumber }),
+      confirmLabel: t('common.delete'),
+      variant: 'danger',
+      action: () => deleteVehicle(id),
+    })
   }
 
   if (isLoading) return <VehiclesLoadingState message={t('common.loading')} />
@@ -334,6 +355,7 @@ export function VehiclesManagementPage() {
               type="button"
               variant="outline"
               className="min-w-[7rem] border-border text-text-secondary"
+              onClick={handleExport}
             >
               <Download className="h-4 w-4" aria-hidden />
               {t('common.export')}
@@ -357,9 +379,6 @@ export function VehiclesManagementPage() {
               </span>
             ) : null}
           </CardTitle>
-          <Button type="button" variant="ghost" className="shrink-0 text-text-muted" aria-label="Overview">
-            <CircleGauge className="h-4 w-4" />
-          </Button>
         </CardHeader>
         <CardContent className="p-3 pt-0 sm:p-4">
           {data.vehicles.length === 0 ? (

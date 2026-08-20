@@ -9,6 +9,7 @@ import { Button } from '@/shared/ui/Button'
 import { Card, CardContent } from '@/shared/ui/Card'
 import { cn } from '@/shared/utils/cn'
 import { useTranslation } from '@/shared/i18n/useTranslation'
+import { useConfirmDialog } from '@/shared/ui/ConfirmDialog'
 
 function statCardClass(variant: PackagesStatVariant): string {
   if (variant === 'info') return 'border-l-4 border-l-blue-500'
@@ -53,6 +54,7 @@ function PackagesErrorState({ message, onRetry }: { message: string; onRetry: ()
 
 export function SubscriptionPackagesPage() {
   const { t } = useTranslation()
+  const confirm = useConfirmDialog()
   const navigate = useNavigate()
   const [page, setPage] = useState(1)
   const { data, isLoading, isFetching, error, reload, deletePlan } = usePackagesManagement(page)
@@ -73,12 +75,13 @@ export function SubscriptionPackagesPage() {
   }, [pagination])
 
   const handleDelete = async (planId: string) => {
-    if (!window.confirm(t('packages.confirmDelete'))) return
-    try {
-      await deletePlan(planId)
-    } catch (err) {
-      window.alert(err instanceof Error ? err.message : t('packages.errorDelete'))
-    }
+    await confirm({
+      title: t('common.confirmDeleteTitle'),
+      description: t('packages.confirmDelete'),
+      confirmLabel: t('common.delete'),
+      variant: 'danger',
+      action: () => deletePlan(planId),
+    })
   }
 
   if (isLoading) return <PackagesLoadingState message={t('common.loading')} />

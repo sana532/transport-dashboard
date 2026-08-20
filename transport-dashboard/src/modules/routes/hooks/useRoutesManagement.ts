@@ -1,10 +1,11 @@
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { restAreasService } from '@/modules/geography/services/restAreasService'
 import { stationsService } from '@/modules/geography/services/stationsService'
 import type { RestArea, Station } from '@/modules/geography/types'
 import { routesService } from '@/modules/routes/services/routesService'
 import type { CompanyRoute, RouteFormInput } from '@/modules/routes/types'
+import { filterHiddenRecords, useHiddenRecordsRevision } from '@/shared/utils/hiddenRecords'
 
 export type RoutesManagementState = {
   routes: CompanyRoute[]
@@ -16,6 +17,7 @@ export const routesManagementQueryKey = ['routes', 'management'] as const
 
 export function useRoutesManagement() {
   const queryClient = useQueryClient()
+  const hiddenRevision = useHiddenRecordsRevision()
 
   const query = useQuery({
     queryKey: routesManagementQueryKey,
@@ -28,6 +30,11 @@ export function useRoutesManagement() {
       return { routes, stations, restAreas }
     },
   })
+
+  const routes = useMemo(
+    () => filterHiddenRecords('routes', query.data?.routes ?? [], (route) => [route.id]),
+    [hiddenRevision, query.data?.routes],
+  )
 
   const reload = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: ['routes'] })
@@ -69,7 +76,7 @@ export function useRoutesManagement() {
   )
 
   return {
-    routes: query.data?.routes ?? [],
+    routes,
     stations: query.data?.stations ?? [],
     restAreas: query.data?.restAreas ?? [],
     isLoading: query.isPending,

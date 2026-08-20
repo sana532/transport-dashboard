@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type {
   Driver,
@@ -9,14 +9,25 @@ import type {
 import { driversManagementService } from '@/modules/drivers/services/driversManagementService'
 import { driversService } from '@/modules/drivers/services/driversService'
 import { mapCompanyDriverToDriver } from '@/modules/drivers/utils/mapCompanyDriver'
+import { buildDriverStats } from '@/modules/drivers/utils/buildDriverStats'
 import { useTranslation } from '@/shared/i18n/useTranslation'
+import {
+  filterHiddenRecords,
+  phoneHideKey,
+  useHiddenRecordsRevision,
+} from '@/shared/utils/hiddenRecords'
 
 export const driversManagementQueryKey = (locale: string, page: number) =>
   ['drivers', 'management', locale, page] as const
 
+function driverHideIds(driver: Driver) {
+  return [driver.id, driver.profileId, driver.listId, phoneHideKey(driver.phone)]
+}
+
 export function useDriversManagement(page = 1) {
   const { t, locale } = useTranslation()
   const queryClient = useQueryClient()
+  const hiddenRevision = useHiddenRecordsRevision()
   const safePage = Math.max(1, Math.floor(page))
 
   const query = useQuery({
@@ -25,6 +36,17 @@ export function useDriversManagement(page = 1) {
       driversManagementService.getDriversManagementData(t, safePage),
     placeholderData: (previousData) => previousData,
   })
+
+  const data = useMemo(() => {
+    if (!query.data) return null
+    const drivers = filterHiddenRecords('drivers', query.data.drivers, driverHideIds)
+    if (drivers.length === query.data.drivers.length) return query.data
+    return {
+      ...query.data,
+      drivers,
+      stats: buildDriverStats(drivers, t),
+    }
+  }, [hiddenRevision, query.data, t])
 
   const reload = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: ['drivers', 'management'] })
@@ -53,7 +75,10 @@ export function useDriversManagement(page = 1) {
   )
 
   const deleteDriver = useCallback(
-    async (id: number, options?: { profileId?: number }) => {
+    async (
+      id: number,
+      options?: { profileId?: number; listId?: number; phone?: string },
+    ) => {
       await driversService.deleteDriver(id, options)
       await reload()
     },
@@ -79,7 +104,7 @@ export function useDriversManagement(page = 1) {
   }, [])
 
   return {
-    data: query.data ?? null,
+    data,
     isLoading: query.isPending,
     isFetching: query.isFetching,
     error: query.error

@@ -3,6 +3,7 @@ import type { CompanyTripTemplate, TripTemplateInput } from '@/modules/trip-temp
 import { normalizeCompanyTripTemplate } from '@/modules/trip-templates/utils/mapCompanyTripTemplate'
 import { getApiErrorMessage } from '@/shared/utils/getApiErrorMessage'
 import { collectApiListItems } from '@/shared/utils/unwrapApiList'
+import { filterHiddenRecords, hideThenTry } from '@/shared/utils/hiddenRecords'
 
 function unwrapList(payload: unknown): CompanyTripTemplate[] {
   const items = collectApiListItems(payload)
@@ -40,7 +41,7 @@ export const tripTemplatesService = {
   async listTemplates(params?: { route_id?: number; is_active?: boolean }): Promise<CompanyTripTemplate[]> {
     try {
       const { data } = await api.get<unknown>('/company/trip-templates', { params })
-      return unwrapList(data)
+      return filterHiddenRecords('templates', unwrapList(data), (row) => [row.id])
     } catch (error) {
       throw new Error(getApiErrorMessage(error, 'Failed to load trip schedules'))
     }
@@ -80,10 +81,8 @@ export const tripTemplatesService = {
   },
 
   async deleteTemplate(id: number): Promise<void> {
-    try {
+    await hideThenTry('templates', [id], async () => {
       await api.delete(`/company/trip-templates/${id}`)
-    } catch (error) {
-      throw new Error(getApiErrorMessage(error, 'Failed to delete trip schedule'))
-    }
+    })
   },
 }

@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { CompanyTripTemplate, TripTemplateInput } from '@/modules/trip-templates/types'
 import { tripTemplatesService } from '@/modules/trip-templates/services/tripTemplatesService'
+import { filterHiddenRecords, useHiddenRecordsRevision } from '@/shared/utils/hiddenRecords'
 
 export function useTripTemplatesManagement() {
   const [templates, setTemplates] = useState<CompanyTripTemplate[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const hiddenRevision = useHiddenRecordsRevision()
 
   const load = useCallback(async () => {
     setIsLoading(true)
@@ -23,6 +25,11 @@ export function useTripTemplatesManagement() {
   useEffect(() => {
     void load()
   }, [load])
+
+  const visibleTemplates = useMemo(
+    () => filterHiddenRecords('templates', templates, (row) => [row.id]),
+    [hiddenRevision, templates],
+  )
 
   const createTemplate = useCallback(
     async (input: TripTemplateInput) => {
@@ -51,7 +58,7 @@ export function useTripTemplatesManagement() {
   )
 
   return {
-    templates,
+    templates: visibleTemplates,
     isLoading,
     error,
     reload: load,

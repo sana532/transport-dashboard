@@ -2,6 +2,7 @@ import type { DriversManagementData } from '@/modules/drivers/types'
 import { driversService } from '@/modules/drivers/services/driversService'
 import { mapCompanyDriverToDriver } from '@/modules/drivers/utils/mapCompanyDriver'
 import { buildDriverStats } from '@/modules/drivers/utils/buildDriverStats'
+import { hasHiddenRecords } from '@/shared/utils/hiddenRecords'
 
 type Translate = (key: string, params?: Record<string, string | number>) => string
 
@@ -16,7 +17,11 @@ export const driversManagementService = {
     const drivers = result.drivers.map(mapCompanyDriverToDriver)
 
     return {
-      stats: buildDriverStats(drivers, t, result.counts),
+      stats: buildDriverStats(
+        drivers,
+        t,
+        hasHiddenRecords('drivers') ? undefined : result.counts,
+      ),
       drivers,
       pagination: {
         currentPage: result.currentPage,

@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useMemo, useState } from 'react'
 import { Calendar, Clock3, Copy, MapPin, X } from 'lucide-react'
 import { driversService } from '@/modules/drivers/services/driversService'
 import { mapCompanyDriverToDriver } from '@/modules/drivers/utils/mapCompanyDriver'
@@ -9,18 +9,19 @@ import type { Vehicle } from '@/modules/vehicles/types'
 import type { CompanyTrip } from '@/modules/trips/types/companyTrip'
 import { companyTripsService } from '@/modules/trips/services/companyTripsService'
 import {
+  arrivalFromDepartureAndDuration,
   combineDateTimeToIso,
   splitIsoToFormFields,
 } from '@/modules/trips/utils/buildTripFormPayload'
 import { formatTripRouteLabel } from '@/modules/trips/utils/mapCompanyTrip'
+import { availabilityReasonLabel } from '@/modules/trips/utils/mapResourceAvailability'
+import { TripResourceSelect } from '@/modules/trips/components/TripResourceSelect'
+import { useTripResourceAvailability } from '@/modules/trips/hooks/useTripResourceAvailability'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/Card'
 import { Input } from '@/shared/ui/Input'
 import { Modal } from '@/shared/ui/Modal'
 import { useTranslation } from '@/shared/i18n/useTranslation'
-
-const selectClass =
-  'h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text-primary shadow-sm transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30'
 
 type TripCloneDialogProps = {
   open: boolean
@@ -50,6 +51,94 @@ export function TripCloneDialog({
   const [loadError, setLoadError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  const cloneArrival = useMemo(() => {
+    if (!sourceTrip || !departureDate || !departureTime) return { date: '', time: '' }
+    const departureIso = combineDateTimeToIso(departureDate, departureTime)
+    if (!departureIso) return { date: '', time: '' }
+    const start = Date.parse(sourceTrip.departure_time)
+    const end = Date.parse(sourceTrip.estimated_arrival_time)
+    const minutes =
+      Number.isFinite(start) && Number.isFinite(end) && end > start
+        ? Math.round((end - start) / 60000)
+        : 4 * 60
+    const duration = `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
+    return splitIsoToFormFields(arrivalFromDepartureAndDuration(departureIso, duration))
+  }, [departureDate, departureTime, sourceTrip])
+
+  const {
+    availability,
+    isQueryReady: isAvailabilityQueryReady,
+    isLoading: isAvailabilityLoading,
+    error: availabilityError,
+  } = useTripResourceAvailability({
+    routeId: sourceTrip ? String(sourceTrip.route_id) : '',
+    departureDate,
+    departureTime,
+    arrivalDate: cloneArrival.date,
+    arrivalTime: cloneArrival.time,
+    enabled: open && sourceTrip != null,
+  })
+
+  const driverOptions = availability
+    ? {
+        available: availability.drivers.available.map((row) => ({
+          id: String(row.id),
+          label: row.name,
+        })),
+        unavailable: availability.drivers.unavailable.map((row) => ({
+          id: String(row.id),
+          label: row.name,
+          hint: row.message || availabilityReasonLabel(row.reasons, t),
+        })),
+      }
+    : {
+        available: drivers.map((driver) => ({ id: driver.id, label: driver.name })),
+        unavailable: [],
+      }
+
+  const vehicleOptions = availability
+    ? {
+        available: availability.vehicles.available.map((row) => ({
+          id: String(row.id),
+          label: `${row.plate_number} (${row.seat_count} ${t('tripForm.seats')})`,
+        })),
+        unavailable: availability.vehicles.unavailable.map((row) => ({
+          id: String(row.id),
+          label: `${row.plate_number} (${row.seat_count} ${t('tripForm.seats')})`,
+          hint: row.message || availabilityReasonLabel(row.reasons, t),
+        })),
+      }
+    : {
+        available: vehicles.map((item) => ({
+          id: item.id,
+          label: `${item.plateNumber} (${item.seats} ${t('tripForm.seats')})`,
+        })),
+        unavailable: [],
+      }
+
+  const resourceSelectDisabled =
+    isLoading || !isAvailabilityQueryReady || isAvailabilityLoading
+  const driverSelectHint = !isAvailabilityQueryReady
+    ? t('tripForm.availability.waitHint')
+    : availabilityError
+      ? `${t('tripForm.availability.failed')} ${availabilityError}`
+      : availability
+        ? t('tripForm.availability.counts', {
+            available: availability.drivers.counts.available,
+            unavailable: availability.drivers.counts.unavailable,
+          })
+        : undefined
+  const vehicleSelectHint = !isAvailabilityQueryReady
+    ? t('tripForm.availability.waitHint')
+    : availabilityError
+      ? `${t('tripForm.availability.failed')} ${availabilityError}`
+      : availability
+        ? t('tripForm.availability.counts', {
+            available: availability.vehicles.counts.available,
+            unavailable: availability.vehicles.counts.unavailable,
+          })
+        : undefined
 
   useEffect(() => {
     if (!open || sourceTripId === null) return
@@ -96,6 +185,16 @@ export function TripCloneDialog({
     }
   }, [open, sourceTripId, t])
 
+  useEffect(() => {
+    if (!availability) return
+    setDriverId((prev) =>
+      !prev || availability.drivers.available_ids.includes(Number(prev)) ? prev : '',
+    )
+    setVehicleId((prev) =>
+      !prev || availability.vehicles.available_ids.includes(Number(prev)) ? prev : '',
+    )
+  }, [availability])
+
   function resetAndClose() {
     setSourceTrip(null)
     setDepartureDate('')
@@ -114,6 +213,22 @@ export function TripCloneDialog({
     if (!departureTime) nextErrors.departureTime = t('tripForm.error.departureTimeRequired')
     if (!driverId) nextErrors.driverId = t('tripForm.error.driverRequired')
     if (!vehicleId) nextErrors.vehicleId = t('tripForm.error.vehicleRequired')
+    if (availability) {
+      const selectedDriverId = Number(driverId)
+      const selectedVehicleId = Number(vehicleId)
+      if (driverId && !availability.drivers.available_ids.includes(selectedDriverId)) {
+        const unavailable = availability.drivers.unavailable.find(
+          (row) => row.id === selectedDriverId,
+        )
+        nextErrors.driverId = unavailable?.message || t('tripForm.error.driverUnavailable')
+      }
+      if (vehicleId && !availability.vehicles.available_ids.includes(selectedVehicleId)) {
+        const unavailable = availability.vehicles.unavailable.find(
+          (row) => row.id === selectedVehicleId,
+        )
+        nextErrors.vehicleId = unavailable?.message || t('tripForm.error.vehicleUnavailable')
+      }
+    }
     setErrors(nextErrors)
     return Object.keys(nextErrors).length === 0
   }
@@ -228,47 +343,37 @@ export function TripCloneDialog({
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-text-secondary">
-                  {t('tripForm.selectDriver')}
-                </label>
-                <select
-                  className={selectClass}
-                  value={driverId}
-                  onChange={(e) => setDriverId(e.target.value)}
-                  required
-                >
-                  <option value="">{t('tripForm.chooseDriver')}</option>
-                  {drivers.map((driver) => (
-                    <option key={driver.id} value={driver.id}>
-                      {driver.name}
-                    </option>
-                  ))}
-                </select>
-                {errors.driverId ? <p className="text-xs text-red-600">{errors.driverId}</p> : null}
-              </div>
+              <TripResourceSelect
+                label={t('tripForm.selectDriver')}
+                value={driverId}
+                onChange={setDriverId}
+                placeholder={t('tripForm.chooseDriver')}
+                available={driverOptions.available}
+                unavailable={driverOptions.unavailable}
+                disabled={resourceSelectDisabled}
+                loading={isAvailabilityLoading}
+                hint={driverSelectHint}
+                error={errors.driverId}
+                emptyAvailableHint={
+                  availability ? t('tripForm.availability.noDrivers') : undefined
+                }
+              />
 
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-text-secondary">
-                  {t('tripForm.selectVehicle')}
-                </label>
-                <select
-                  className={selectClass}
-                  value={vehicleId}
-                  onChange={(e) => setVehicleId(e.target.value)}
-                  required
-                >
-                  <option value="">{t('tripForm.chooseVehicle')}</option>
-                  {vehicles.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.plateNumber} ({item.seats} {t('tripForm.seats')})
-                    </option>
-                  ))}
-                </select>
-                {errors.vehicleId ? (
-                  <p className="text-xs text-red-600">{errors.vehicleId}</p>
-                ) : null}
-              </div>
+              <TripResourceSelect
+                label={t('tripForm.selectVehicle')}
+                value={vehicleId}
+                onChange={setVehicleId}
+                placeholder={t('tripForm.chooseVehicle')}
+                available={vehicleOptions.available}
+                unavailable={vehicleOptions.unavailable}
+                disabled={resourceSelectDisabled}
+                loading={isAvailabilityLoading}
+                hint={vehicleSelectHint}
+                error={errors.vehicleId}
+                emptyAvailableHint={
+                  availability ? t('tripForm.availability.noVehicles') : undefined
+                }
+              />
 
               {saveError ? (
                 <p className="text-sm text-red-700" role="alert">
@@ -280,7 +385,7 @@ export function TripCloneDialog({
                 <Button type="button" variant="outline" onClick={resetAndClose} disabled={isSaving}>
                   {t('trips.cloneDialog.cancel')}
                 </Button>
-                <Button type="button" onClick={() => void handleSubmit()} disabled={isSaving}>
+                <Button type="button" onClick={() => void handleSubmit()} disabled={isSaving || isAvailabilityLoading}>
                   {isSaving ? t('common.saving') : t('trips.cloneDialog.submit')}
                 </Button>
               </div>

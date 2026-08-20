@@ -53,6 +53,8 @@ export type CompanyDriver = {
   driver_profile: DriverProfile | null
   /** True when the index marks the driver as currently on a trip. */
   in_trip?: boolean
+  /** Original list/show row id before mapping to user id (DELETE often uses this). */
+  source_id?: number
   created_at?: string
   updated_at?: string
 }
@@ -88,6 +90,8 @@ export type Driver = {
   id: DriverId
   /** driver_profile.id — used as fallback when PATCH by user id returns 404 */
   profileId?: string
+  /** Original API row id from GET /company/drivers (may differ from user id). */
+  listId?: string
   name: string
   status: DriverStatus
   phone: string

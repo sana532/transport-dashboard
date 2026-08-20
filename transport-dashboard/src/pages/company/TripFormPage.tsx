@@ -32,6 +32,9 @@ import {
 } from '@/modules/trips/utils/buildTripFormPayload'
 import { isArchivedTrip } from '@/modules/trips/services/tripsManagementService'
 import { CancelTripDialog } from '@/modules/trips/components/CancelTripDialog'
+import { TripResourceSelect } from '@/modules/trips/components/TripResourceSelect'
+import { useTripResourceAvailability } from '@/modules/trips/hooks/useTripResourceAvailability'
+import { availabilityReasonLabel } from '@/modules/trips/utils/mapResourceAvailability'
 import { paths } from '@/routes/paths'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/Card'
@@ -103,6 +106,40 @@ export function TripFormPage() {
     [routes, form.routeId],
   )
 
+  const {
+    availability,
+    isQueryReady: isAvailabilityQueryReady,
+    isLoading: isAvailabilityLoading,
+    error: availabilityError,
+  } = useTripResourceAvailability({
+    routeId: form.routeId,
+    departureDate: form.departureDate,
+    departureTime: form.departureTime,
+    arrivalDate: form.arrivalDate,
+    arrivalTime: form.arrivalTime,
+    excludeTripId: isEdit && Number.isFinite(editNumericId) ? editNumericId : null,
+  })
+
+  const selectedAvailabilityDriver = useMemo(() => {
+    if (!form.driverId || !availability) return null
+    const id = Number(form.driverId)
+    return (
+      availability.drivers.available.find((row) => row.id === id) ??
+      availability.drivers.unavailable.find((row) => row.id === id) ??
+      null
+    )
+  }, [availability, form.driverId])
+
+  const selectedAvailabilityVehicle = useMemo(() => {
+    if (!form.vehicleId || !availability) return null
+    const id = Number(form.vehicleId)
+    return (
+      availability.vehicles.available.find((row) => row.id === id) ??
+      availability.vehicles.unavailable.find((row) => row.id === id) ??
+      null
+    )
+  }, [availability, form.vehicleId])
+
   const selectedVehicle = useMemo(
     () => vehicles.find((v) => String(v.id) === form.vehicleId) ?? null,
     [vehicles, form.vehicleId],
@@ -112,6 +149,78 @@ export function TripFormPage() {
     () => drivers.find((d) => d.id === form.driverId) ?? null,
     [drivers, form.driverId],
   )
+
+  const selectedDriverName =
+    selectedAvailabilityDriver?.name ?? selectedDriver?.name ?? null
+  const selectedVehiclePlate =
+    selectedAvailabilityVehicle?.plate_number ?? selectedVehicle?.plateNumber ?? null
+  const selectedVehicleSeats =
+    selectedAvailabilityVehicle?.seat_count ?? selectedVehicle?.seats ?? 0
+
+  const driverOptions = useMemo(() => {
+    if (availability) {
+      return {
+        available: availability.drivers.available.map((row) => ({
+          id: String(row.id),
+          label: row.name,
+        })),
+        unavailable: availability.drivers.unavailable.map((row) => ({
+          id: String(row.id),
+          label: row.name,
+          hint: row.message || availabilityReasonLabel(row.reasons, t),
+        })),
+      }
+    }
+    return {
+      available: drivers.map((driver) => ({ id: driver.id, label: driver.name })),
+      unavailable: [],
+    }
+  }, [availability, drivers, t])
+
+  const vehicleOptions = useMemo(() => {
+    if (availability) {
+      return {
+        available: availability.vehicles.available.map((row) => ({
+          id: String(row.id),
+          label: `${row.plate_number} (${row.seat_count} ${t('tripForm.seats')})`,
+        })),
+        unavailable: availability.vehicles.unavailable.map((row) => ({
+          id: String(row.id),
+          label: `${row.plate_number} (${row.seat_count} ${t('tripForm.seats')})`,
+          hint: row.message || availabilityReasonLabel(row.reasons, t),
+        })),
+      }
+    }
+    return {
+      available: vehicles.map((item) => ({
+        id: item.id,
+        label: `${item.plateNumber} (${item.seats} ${t('tripForm.seats')})`,
+      })),
+      unavailable: [],
+    }
+  }, [availability, t, vehicles])
+
+  const resourceSelectDisabled = !isAvailabilityQueryReady || isAvailabilityLoading
+  const driverSelectHint = !isAvailabilityQueryReady
+    ? t('tripForm.availability.waitHint')
+    : availabilityError
+      ? `${t('tripForm.availability.failed')} ${availabilityError}`
+      : availability
+        ? t('tripForm.availability.counts', {
+            available: availability.drivers.counts.available,
+            unavailable: availability.drivers.counts.unavailable,
+          })
+        : undefined
+  const vehicleSelectHint = !isAvailabilityQueryReady
+    ? t('tripForm.availability.waitHint')
+    : availabilityError
+      ? `${t('tripForm.availability.failed')} ${availabilityError}`
+      : availability
+        ? t('tripForm.availability.counts', {
+            available: availability.vehicles.counts.available,
+            unavailable: availability.vehicles.counts.unavailable,
+          })
+        : undefined
 
   const routeSummaryLabel = useMemo(() => {
     if (!selectedRoute) return ''
@@ -193,12 +302,31 @@ export function TripFormPage() {
   }, [hasBookings, selectedRoute])
 
   useEffect(() => {
-    if (!selectedVehicle || selectedVehicle.seats <= 0) return
-    const nextSeats = String(selectedVehicle.seats)
+    if (!availability) return
+    setForm((prev) => {
+      const driverId = Number(prev.driverId)
+      const vehicleId = Number(prev.vehicleId)
+      const driverOk =
+        !prev.driverId || availability.drivers.available_ids.includes(driverId)
+      const vehicleOk =
+        !prev.vehicleId || availability.vehicles.available_ids.includes(vehicleId)
+      if (driverOk && vehicleOk) return prev
+      return {
+        ...prev,
+        driverId: driverOk ? prev.driverId : '',
+        vehicleId: vehicleOk ? prev.vehicleId : '',
+        availableSeats: vehicleOk ? prev.availableSeats : '',
+      }
+    })
+  }, [availability])
+
+  useEffect(() => {
+    if (selectedVehicleSeats <= 0) return
+    const nextSeats = String(selectedVehicleSeats)
     setForm((prev) =>
       prev.availableSeats === nextSeats ? prev : { ...prev, availableSeats: nextSeats },
     )
-  }, [selectedVehicle])
+  }, [selectedVehicleSeats])
 
   useEffect(() => {
     if (!form.departureTime) return
@@ -262,6 +390,19 @@ export function TripFormPage() {
     }
 
     if (!form.status) nextErrors.status = t('tripForm.error.statusRequired')
+
+    if (availability) {
+      const driverId = Number(form.driverId)
+      const vehicleId = Number(form.vehicleId)
+      if (form.driverId && !availability.drivers.available_ids.includes(driverId)) {
+        const unavailable = availability.drivers.unavailable.find((row) => row.id === driverId)
+        nextErrors.driverId = unavailable?.message || t('tripForm.error.driverUnavailable')
+      }
+      if (form.vehicleId && !availability.vehicles.available_ids.includes(vehicleId)) {
+        const unavailable = availability.vehicles.unavailable.find((row) => row.id === vehicleId)
+        nextErrors.vehicleId = unavailable?.message || t('tripForm.error.vehicleUnavailable')
+      }
+    }
 
     setErrors(nextErrors)
     return Object.keys(nextErrors).length === 0
@@ -419,24 +560,6 @@ export function TripFormPage() {
               {errors.routeId ? <p className="text-xs text-red-600">{errors.routeId}</p> : null}
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-text-secondary">{t('tripForm.selectDriver')}</label>
-              <select
-                className={selectClass}
-                value={form.driverId}
-                onChange={(e) => setForm((prev) => ({ ...prev, driverId: e.target.value }))}
-                required
-              >
-                <option value="">{t('tripForm.chooseDriver')}</option>
-                {drivers.map((driver) => (
-                  <option key={driver.id} value={driver.id}>
-                    {driver.name}
-                  </option>
-                ))}
-              </select>
-              {errors.driverId ? <p className="text-xs text-red-600">{errors.driverId}</p> : null}
-            </div>
-
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="relative">
                 <Input
@@ -462,30 +585,44 @@ export function TripFormPage() {
               </div>
             </div>
 
+            <TripResourceSelect
+              label={t('tripForm.selectDriver')}
+              value={form.driverId}
+              onChange={(driverId) => setForm((prev) => ({ ...prev, driverId }))}
+              placeholder={t('tripForm.chooseDriver')}
+              available={driverOptions.available}
+              unavailable={driverOptions.unavailable}
+              disabled={resourceSelectDisabled}
+              loading={isAvailabilityLoading}
+              hint={driverSelectHint}
+              error={errors.driverId}
+              emptyAvailableHint={
+                availability ? t('tripForm.availability.noDrivers') : undefined
+              }
+            />
+
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-text-secondary">{t('tripForm.selectVehicle')}</label>
-                <select
-                  className={selectClass}
-                  value={form.vehicleId}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      vehicleId: e.target.value,
-                      availableSeats: '',
-                    }))
-                  }
-                  required
-                >
-                  <option value="">{t('tripForm.chooseVehicle')}</option>
-                  {vehicles.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.plateNumber} ({item.seats} {t('tripForm.seats')})
-                    </option>
-                  ))}
-                </select>
-                {errors.vehicleId ? <p className="text-xs text-red-600">{errors.vehicleId}</p> : null}
-              </div>
+              <TripResourceSelect
+                label={t('tripForm.selectVehicle')}
+                value={form.vehicleId}
+                onChange={(vehicleId) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    vehicleId,
+                    availableSeats: '',
+                  }))
+                }
+                placeholder={t('tripForm.chooseVehicle')}
+                available={vehicleOptions.available}
+                unavailable={vehicleOptions.unavailable}
+                disabled={resourceSelectDisabled}
+                loading={isAvailabilityLoading}
+                hint={vehicleSelectHint}
+                error={errors.vehicleId}
+                emptyAvailableHint={
+                  availability ? t('tripForm.availability.noVehicles') : undefined
+                }
+              />
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-text-secondary">{t('tripForm.status')}</label>
                 <select
@@ -584,7 +721,7 @@ export function TripFormPage() {
                 <dt className="text-white/75">{t('tripForm.summary.route')}</dt>
                 <dd className="text-end">{routeSummaryLabel || t('tripForm.notSet')}</dd>
                 <dt className="text-white/75">{t('tripForm.summary.driver')}</dt>
-                <dd className="text-end">{selectedDriver?.name ?? t('tripForm.notAssigned')}</dd>
+                <dd className="text-end">{selectedDriverName ?? t('tripForm.notAssigned')}</dd>
                 <dt className="text-white/75">{t('tripForm.summary.dateTime')}</dt>
                 <dd className="text-end">
                   {form.departureDate || form.departureTime
@@ -593,7 +730,7 @@ export function TripFormPage() {
                 </dd>
                 <dt className="text-white/75">{t('tripForm.summary.vehicle')}</dt>
                 <dd className="text-end">
-                  {selectedVehicle?.plateNumber ?? t('tripForm.notAssigned')}
+                  {selectedVehiclePlate ?? t('tripForm.notAssigned')}
                 </dd>
                 <dt className="text-white/75">{t('tripForm.summary.seats')}</dt>
                 <dd className="text-end">{form.availableSeats || '--'}</dd>
@@ -623,7 +760,7 @@ export function TripFormPage() {
                 <Button
                   className="h-10 min-w-[140px] !bg-[var(--brand-primary)] !text-white shadow-md hover:!bg-[var(--brand-primary-dark)]"
                   onClick={() => void handleSaveTrip()}
-                  disabled={isSaving}
+                  disabled={isSaving || isAvailabilityLoading}
                 >
                   <Save className="h-4 w-4" />
                   {isSaving ? t('common.saving') : t('tripForm.saveTrip')}

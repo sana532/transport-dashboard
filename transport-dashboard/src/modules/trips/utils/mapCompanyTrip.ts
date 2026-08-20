@@ -161,6 +161,12 @@ function normalizeSeatStats(raw: unknown): TripSeatStats | null {
   }
 }
 
+function optionalIsoString(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null
+  const value = raw.trim()
+  return value || null
+}
+
 function normalizeCurrentLocation(raw: unknown): CompanyTrip['current_location'] {
   if (!raw || typeof raw !== 'object') return null
   const record = raw as Record<string, unknown>
@@ -281,6 +287,9 @@ export function normalizeCompanyTrip(raw: unknown): CompanyTrip | null {
     resolution_status: normalizeResolutionStatus(record.resolution_status),
     flagged: normalizeFlagged(record.flagged ?? record.is_flagged),
     departure_time: departure,
+    actual_departure_time: optionalIsoString(
+      record.actual_departure_time ?? record.actualDepartureTime,
+    ),
     estimated_arrival_time: estimated,
     base_fare: Number(record.base_fare) || 0,
     available_seats: Number(record.available_seats) || 0,

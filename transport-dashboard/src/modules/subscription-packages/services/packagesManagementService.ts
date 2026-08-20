@@ -3,6 +3,7 @@ import { subscriptionPlansService } from '@/modules/subscription-packages/servic
 import { buildPackagesStats } from '@/modules/subscription-packages/utils/buildPackagesStats'
 import { countActivePackageSubscribers } from '@/modules/subscription-packages/utils/countActivePackageSubscribers'
 import { mapPlanToCard } from '@/modules/subscription-packages/utils/mapCompanySubscriptionPlan'
+import { hasHiddenRecords } from '@/shared/utils/hiddenRecords'
 
 export const PACKAGES_PAGE_SIZE = 15
 
@@ -50,7 +51,7 @@ export const packagesManagementService = {
       : await enrichPlansWithSubscriberCounts(result.plans, locale)
 
     return {
-      stats: buildPackagesStats(plans, result.counts),
+      stats: buildPackagesStats(plans, hasHiddenRecords('packages') ? undefined : result.counts),
       plans: plans.map((plan) => mapPlanToCard(plan, locale, t)),
       pagination: {
         currentPage: result.currentPage,

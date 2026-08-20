@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CircleGauge, Download, ListFilter, Loader2, Plus, Search } from 'lucide-react'
+import { Download, ListFilter, Loader2, Plus, Search } from 'lucide-react'
 import { cn } from '@/shared/utils/cn'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/Card'
@@ -17,6 +17,7 @@ import {
   type DriverListFilters,
 } from '@/modules/drivers/utils/filterDrivers'
 import { useTranslation } from '@/shared/i18n/useTranslation'
+import { exportRowsToCsv } from '@/modules/dashboard/utils/exportToCsv'
 
 const selectClass =
   'w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary shadow-sm transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30'
@@ -149,7 +150,26 @@ export function DriversManagementPage() {
     setAppliedFilters(reset)
   }
 
+  const handleExport = () => {
+    const headers = [
+      t('drivers.form.name'),
+      t('drivers.form.phone'),
+      t('drivers.form.licenseNumber'),
+      t('drivers.form.experienceYears'),
+      t('drivers.form.availability'),
+    ]
+    const rows = filteredDrivers.map((row) => [
+      row.name,
+      row.phone,
+      row.licenseNumber,
+      row.experienceYears,
+      row.status,
+    ])
+    exportRowsToCsv('company-drivers.csv', headers, rows)
+  }
+
   const handleDeleteDriver = (driver: Driver) => {
+    if (driver.status === 'On Trip') return
     setDeleteError(null)
     setDeleteDriverTarget(driver)
   }
@@ -163,13 +183,19 @@ export function DriversManagementPage() {
   const confirmDeleteDriver = async (driver: Driver) => {
     const id = Number(driver.id)
     if (!Number.isFinite(id)) return
+    if (driver.status === 'On Trip') {
+      throw new Error(t('drivers.delete.onTripHint'))
+    }
     const profileId = driver.profileId ? Number(driver.profileId) : undefined
+    const listId = driver.listId ? Number(driver.listId) : undefined
 
     setDeletePending(true)
     setDeleteError(null)
     try {
       await deleteDriver(id, {
         profileId: profileId != null && Number.isFinite(profileId) ? profileId : undefined,
+        listId: listId != null && Number.isFinite(listId) ? listId : undefined,
+        phone: driver.phone,
       })
       setDeleteDriverTarget(null)
     } catch (err) {
@@ -444,7 +470,7 @@ export function DriversManagementPage() {
               </Button>
             </div>
 
-            <Button type="button" variant="ghost" className="text-text-muted">
+            <Button type="button" variant="ghost" className="text-text-muted" onClick={handleExport}>
               <Download className="h-4 w-4" />
               {t('common.export')}
             </Button>
@@ -462,9 +488,6 @@ export function DriversManagementPage() {
               </span>
             ) : null}
           </CardTitle>
-          <Button type="button" variant="ghost" className="shrink-0 text-text-muted" aria-label={t('drivers.listTitle')}>
-            <CircleGauge className="h-4 w-4" />
-          </Button>
         </CardHeader>
         <CardContent className="p-3 pt-0 sm:p-4">
           {data.drivers.length === 0 ? (
