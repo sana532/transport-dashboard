@@ -1,4 +1,4 @@
-import { type ClipboardEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import { type ClipboardEvent, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowLeft,
   Calendar,
@@ -9,19 +9,10 @@ import {
   Save,
   Sparkles,
 } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
-import { routesService } from '@/modules/routes/services/routesService'
-import type { CompanyRoute } from '@/modules/routes/types'
 import { routeDisplayName } from '@/modules/routes/utils/routeDisplay'
-import { driversService } from '@/modules/drivers/services/driversService'
-import { mapCompanyDriverToDriver } from '@/modules/drivers/utils/mapCompanyDriver'
-import type { Driver } from '@/modules/drivers/types'
-import { vehiclesService } from '@/modules/vehicles/services/vehiclesService'
-import { mapCompanyVehicleToVehicle } from '@/modules/vehicles/utils/mapCompanyVehicle'
-import type { Vehicle } from '@/modules/vehicles/types'
-import { bookingsService } from '@/modules/bookings/services/bookingsService'
 import type { CompanyTripStatus } from '@/modules/trips/types/companyTrip'
-import { companyTripsService } from '@/modules/trips/services/companyTripsService'
 import {
   applyCompanyTripToFormState,
   arrivalFromDepartureAndDuration,
@@ -30,9 +21,9 @@ import {
   splitIsoToFormFields,
   type TripFormState,
 } from '@/modules/trips/utils/buildTripFormPayload'
-import { isArchivedTrip } from '@/modules/trips/services/tripsManagementService'
 import { CancelTripDialog } from '@/modules/trips/components/CancelTripDialog'
 import { TripResourceSelect } from '@/modules/trips/components/TripResourceSelect'
+import { useSaveTrip, useTripFormCatalog, useTripFormTrip } from '@/modules/trips/hooks/useTripForm'
 import { useTripResourceAvailability } from '@/modules/trips/hooks/useTripResourceAvailability'
 import { availabilityReasonLabel } from '@/modules/trips/utils/mapResourceAvailability'
 import { paths } from '@/routes/paths'
@@ -79,26 +70,40 @@ function TripFormLoading() {
 export function TripFormPage() {
   const { t, locale } = useTranslation()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const { tripId } = useParams()
   const isEdit = Boolean(tripId)
   const editNumericId = tripId ? Number(tripId) : NaN
+  const editTripId = isEdit && Number.isFinite(editNumericId) ? editNumericId : null
 
-  const [routes, setRoutes] = useState<CompanyRoute[]>([])
-  const [vehicles, setVehicles] = useState<Vehicle[]>([])
-  const [drivers, setDrivers] = useState<Driver[]>([])
+  const {
+    routes,
+    vehicles,
+    drivers,
+    isLoading: isCatalogLoading,
+    error: catalogError,
+  } = useTripFormCatalog()
+  const {
+    trip: loadedTrip,
+    bookedCount,
+    isLoading: isTripLoading,
+    error: tripError,
+  } = useTripFormTrip(editTripId)
+  const saveTrip = useSaveTrip()
+
   const [form, setForm] = useState<TripFormState>(emptyForm)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [loadError, setLoadError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [isSaving, setIsSaving] = useState(false)
   const [initialStatus, setInitialStatus] = useState<CompanyTripStatus | null>(null)
-  const [bookedCount, setBookedCount] = useState(0)
   const [lockedRouteId, setLockedRouteId] = useState<string | null>(null)
   const [lockedBaseFare, setLockedBaseFare] = useState<string | null>(null)
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
+  const appliedTripIdRef = useRef<number | null>(null)
 
+  const isLoading = isCatalogLoading || isTripLoading
+  const loadError = catalogError ?? tripError
+  const isSaving = saveTrip.isPending
   const hasBookings = isEdit && bookedCount > 0
 
   const selectedRoute = useMemo(
@@ -227,70 +232,27 @@ export function TripFormPage() {
     return selectedRoute.name
   }, [selectedRoute])
 
-  const loadCatalogs = useCallback(async () => {
-    const [routeList, vehicleRows, driverRows] = await Promise.all([
-      routesService.listRoutes(),
-      vehiclesService.listVehicles(),
-      driversService.listDrivers(),
-    ])
-    setRoutes(routeList)
-    setVehicles(vehicleRows.map(mapCompanyVehicleToVehicle))
-    setDrivers(driverRows.map(mapCompanyDriverToDriver))
-  }, [])
-
   useEffect(() => {
-    let cancelled = false
-
-    async function init() {
-      setIsLoading(true)
-      setLoadError(null)
-      try {
-        await loadCatalogs()
-        if (cancelled) return
-
-        if (isEdit && Number.isFinite(editNumericId)) {
-          const trip = await companyTripsService.getTrip(editNumericId)
-          if (cancelled) return
-
-          const formState = applyCompanyTripToFormState(trip)
-          setForm(formState)
-          setInitialStatus(trip.status)
-          setLockedRouteId(formState.routeId)
-          setLockedBaseFare(formState.baseFare)
-          setShowAdvanced(true)
-
-          let bookingsCount = 0
-          try {
-            const tripBookings = await bookingsService.listBookingsForTrip(editNumericId)
-            bookingsCount = tripBookings.length
-          } catch {
-            // Fall back to trip seat stats if bookings endpoint fails
-          }
-
-          const fromStats = trip.stats?.booked_seats ?? 0
-          const fromSeatMap = trip.seat_map?.filter((seat) => seat.is_booked).length ?? 0
-          if (!cancelled) {
-            setBookedCount(Math.max(bookingsCount, fromStats, fromSeatMap))
-          }
-        } else if (!cancelled) {
-          setBookedCount(0)
-          setLockedRouteId(null)
-          setLockedBaseFare(null)
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setLoadError(err instanceof Error ? err.message : t('trips.errorUnavailable'))
-        }
-      } finally {
-        if (!cancelled) setIsLoading(false)
-      }
+    if (!isEdit) {
+      appliedTripIdRef.current = null
+      setForm(emptyForm)
+      setInitialStatus(null)
+      setLockedRouteId(null)
+      setLockedBaseFare(null)
+      setShowAdvanced(false)
+      return
     }
+    if (!loadedTrip) return
+    if (appliedTripIdRef.current === loadedTrip.id) return
 
-    void init()
-    return () => {
-      cancelled = true
-    }
-  }, [isEdit, editNumericId, loadCatalogs, t])
+    appliedTripIdRef.current = loadedTrip.id
+    const formState = applyCompanyTripToFormState(loadedTrip)
+    setForm(formState)
+    setInitialStatus(loadedTrip.status)
+    setLockedRouteId(formState.routeId)
+    setLockedBaseFare(formState.baseFare)
+    setShowAdvanced(true)
+  }, [isEdit, loadedTrip])
 
   useEffect(() => {
     if (hasBookings) return
@@ -427,36 +389,17 @@ export function TripFormPage() {
       return
     }
 
-    setIsSaving(true)
     setSaveError(null)
     try {
-      if (isEdit && Number.isFinite(editNumericId)) {
-        await companyTripsService.updateTrip(editNumericId, payload)
-
-        if (form.status !== initialStatus) {
-          await companyTripsService.updateTripStatus(editNumericId, { status: form.status })
-        }
-
-        const verified = await companyTripsService.getTrip(editNumericId)
-        if (verified.status !== form.status) {
-          setSaveError(t('tripForm.error.statusNotSaved'))
-          return
-        }
-
-        if (isArchivedTrip(form.status)) {
-          navigate(paths.company.tripArchive, {
-            state: { archivedTripId: editNumericId, status: form.status },
-          })
-          return
-        }
-      } else {
-        await companyTripsService.createTrip(payload)
-      }
-      navigate(paths.company.trips)
+      await saveTrip.mutateAsync({
+        isEdit,
+        tripId: editTripId,
+        payload,
+        status: form.status,
+        initialStatus,
+      })
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : t('tripForm.error.saveFailed'))
-    } finally {
-      setIsSaving(false)
     }
   }
 
@@ -468,11 +411,10 @@ export function TripFormPage() {
     setForm((prev) => ({ ...prev, status: next }))
   }
 
-  function handleTripCancelled() {
+  function handleTripRemoved() {
     setCancelDialogOpen(false)
-    navigate(paths.company.tripArchive, {
-      state: { archivedTripId: editNumericId, status: 'cancelled' as const },
-    })
+    void queryClient.invalidateQueries({ queryKey: ['trips'] })
+    navigate(paths.company.trips)
   }
 
   if (isLoading) return <TripFormLoading />
@@ -781,7 +723,7 @@ export function TripFormPage() {
               : `#${editNumericId}`
           }
           onClose={() => setCancelDialogOpen(false)}
-          onCancelled={handleTripCancelled}
+          onRemoved={handleTripRemoved}
         />
       ) : null}
     </div>

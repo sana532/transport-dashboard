@@ -1034,7 +1034,7 @@ export function TripsManagementPage() {
         tripId={cancelTripId}
         tripLabel={cancelTripLabel}
         onClose={closeCancelDialog}
-        onCancelled={() => {
+        onRemoved={() => {
           void reload()
         }}
       />

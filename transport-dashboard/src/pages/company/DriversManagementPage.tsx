@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Download, ListFilter, Loader2, Plus, Search } from 'lucide-react'
+import { ListFilter, Loader2, Plus, Search } from 'lucide-react'
 import { cn } from '@/shared/utils/cn'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/Card'
@@ -17,7 +17,6 @@ import {
   type DriverListFilters,
 } from '@/modules/drivers/utils/filterDrivers'
 import { useTranslation } from '@/shared/i18n/useTranslation'
-import { exportRowsToCsv } from '@/modules/dashboard/utils/exportToCsv'
 
 const selectClass =
   'w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary shadow-sm transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30'
@@ -148,24 +147,6 @@ export function DriversManagementPage() {
     }
     setDraftFilters(reset)
     setAppliedFilters(reset)
-  }
-
-  const handleExport = () => {
-    const headers = [
-      t('drivers.form.name'),
-      t('drivers.form.phone'),
-      t('drivers.form.licenseNumber'),
-      t('drivers.form.experienceYears'),
-      t('drivers.form.availability'),
-    ]
-    const rows = filteredDrivers.map((row) => [
-      row.name,
-      row.phone,
-      row.licenseNumber,
-      row.experienceYears,
-      row.status,
-    ])
-    exportRowsToCsv('company-drivers.csv', headers, rows)
   }
 
   const handleDeleteDriver = (driver: Driver) => {
@@ -450,29 +431,22 @@ export function DriversManagementPage() {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                className="bg-[var(--brand-primary)] text-white hover:bg-[var(--brand-primary-dark)]"
-                onClick={handleApplyFilters}
-              >
-                <ListFilter className="h-4 w-4" />
-                {t('common.applyFilters')}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={handleResetFilters}
-                disabled={!hasActiveFilters && draftFilters.status === 'all' && draftFilters.experience === 'all' && draftFilters.licenseStatus === 'all'}
-              >
-                {t('common.reset')}
-              </Button>
-            </div>
-
-            <Button type="button" variant="ghost" className="text-text-muted" onClick={handleExport}>
-              <Download className="h-4 w-4" />
-              {t('common.export')}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              className="bg-[var(--brand-primary)] text-white hover:bg-[var(--brand-primary-dark)]"
+              onClick={handleApplyFilters}
+            >
+              <ListFilter className="h-4 w-4" />
+              {t('common.applyFilters')}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={handleResetFilters}
+              disabled={!hasActiveFilters && draftFilters.status === 'all' && draftFilters.experience === 'all' && draftFilters.licenseStatus === 'all'}
+            >
+              {t('common.reset')}
             </Button>
           </div>
         </CardContent>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronDown, Download, Eye, Search } from 'lucide-react'
+import { ChevronDown, Eye, Search } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { BookingStatusBadge } from '@/modules/bookings/components/BookingStatusBadge'
 import { useBookingsManagement } from '@/modules/bookings/hooks/useBookingsManagement'
@@ -15,7 +15,6 @@ import {
   formatBookingTripId,
   formatPaymentMethodLabel,
 } from '@/modules/bookings/utils/mapCompanyBooking'
-import { exportRowsToCsv } from '@/modules/dashboard/utils/exportToCsv'
 import { paths } from '@/routes/paths'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/Card'
@@ -97,34 +96,6 @@ export function BookingsManagementPage() {
   const to = pagination?.to ?? filteredRows.length
   const totalLabel = (pagination?.total ?? filteredRows.length).toLocaleString(dateLocale)
 
-  const handleExport = () => {
-    const headers = [
-      t('bookings.col.reference'),
-      t('bookings.col.passenger'),
-      t('bookings.col.phone'),
-      t('bookings.col.route'),
-      t('bookings.col.tripId'),
-      t('bookings.col.seats'),
-      t('bookings.col.amount'),
-      t('bookings.col.payment'),
-      t('bookings.col.bookingStatus'),
-      t('bookings.col.bookedAt'),
-    ]
-    const rows = filteredRows.map((row) => [
-      row.reference,
-      row.passengerName,
-      row.passengerPhone ?? '',
-      row.routeLabel,
-      row.tripId != null ? String(row.tripId) : '',
-      String(row.seatCount),
-      formatBookingAmount(row.totalAmount, dateLocale, row.currency ?? 'SYP'),
-      t(`bookings.payment.${row.paymentStatus}`),
-      t(`bookings.status.${row.bookingStatus}`),
-      formatBookingDate(row.bookedAt, dateLocale),
-    ])
-    exportRowsToCsv('company-bookings.csv', headers, rows)
-  }
-
   if (error && !data) {
     return (
       <BookingsErrorState
@@ -161,21 +132,11 @@ export function BookingsManagementPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-[34px] font-semibold tracking-tight text-[var(--title-h1)]">
-            {t('bookings.title')}
-          </h1>
-          <p className="mt-1 text-sm text-text-muted">{t('bookings.subtitle')}</p>
-        </div>
-        <Button
-          type="button"
-          className="h-9 min-w-[170px] border border-brand-primary/30 !bg-[var(--brand-primary)] px-3 !text-white shadow-sm hover:!bg-[var(--brand-primary-dark)]"
-          onClick={handleExport}
-        >
-          <Download className="h-4 w-4" />
-          {t('common.export')}
-        </Button>
+      <div>
+        <h1 className="text-[34px] font-semibold tracking-tight text-[var(--title-h1)]">
+          {t('bookings.title')}
+        </h1>
+        <p className="mt-1 text-sm text-text-muted">{t('bookings.subtitle')}</p>
       </div>
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">

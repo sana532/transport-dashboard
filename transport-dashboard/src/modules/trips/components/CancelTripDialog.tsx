@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useState } from 'react'
-import { AlertTriangle, Ban, X } from 'lucide-react'
+import { AlertTriangle, Trash2, X } from 'lucide-react'
 import { bookingsService } from '@/modules/bookings/services/bookingsService'
 import type { CompanyBooking } from '@/modules/bookings/types'
 import { companyTripsService } from '@/modules/trips/services/companyTripsService'
@@ -18,7 +18,7 @@ type CancelTripDialogProps = {
   tripId: number | null
   tripLabel?: string
   onClose: () => void
-  onCancelled?: (trip: CompanyTrip) => void
+  onRemoved?: () => void
 }
 
 export function CancelTripDialog({
@@ -26,7 +26,7 @@ export function CancelTripDialog({
   tripId,
   tripLabel,
   onClose,
-  onCancelled,
+  onRemoved,
 }: CancelTripDialogProps) {
   const { t, locale } = useTranslation()
   const titleId = useId()
@@ -34,10 +34,8 @@ export function CancelTripDialog({
 
   const [trip, setTrip] = useState<CompanyTrip | null>(null)
   const [bookings, setBookings] = useState<CompanyBooking[]>([])
-  const [reason, setReason] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
-  const [loadError, setLoadError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
 
   const impact = useMemo(() => summarizeTripCancelImpact(bookings), [bookings])
@@ -53,34 +51,26 @@ export function CancelTripDialog({
 
     async function load() {
       setIsLoading(true)
-      setLoadError(null)
       setSaveError(null)
-      setReason('')
       setTrip(null)
       setBookings([])
 
-      try {
-        const [tripData, tripBookings] = await Promise.all([
-          companyTripsService.getTrip(id),
-          bookingsService.listBookingsForTrip(id).catch(() => [] as CompanyBooking[]),
-        ])
-        if (cancelled) return
-        setTrip(tripData)
-        setBookings(tripBookings)
-      } catch (err) {
-        if (!cancelled) {
-          setLoadError(err instanceof Error ? err.message : t('trips.cancel.loadFailed'))
-        }
-      } finally {
-        if (!cancelled) setIsLoading(false)
-      }
+      const [tripResult, bookingsResult] = await Promise.allSettled([
+        companyTripsService.getTrip(id),
+        bookingsService.listBookingsForTrip(id),
+      ])
+      if (cancelled) return
+
+      if (tripResult.status === 'fulfilled') setTrip(tripResult.value)
+      if (bookingsResult.status === 'fulfilled') setBookings(bookingsResult.value)
+      setIsLoading(false)
     }
 
     void load()
     return () => {
       cancelled = true
     }
-  }, [open, tripId, t])
+  }, [open, tripId])
 
   async function handleConfirm() {
     if (tripId == null || !canSubmit) return
@@ -88,15 +78,11 @@ export function CancelTripDialog({
     setIsSaving(true)
     setSaveError(null)
     try {
-      const result = await companyTripsService.cancelTrip(tripId, {
-        reason,
-        notify_passengers: hasActiveBookings,
-        refund: hasPaidBookings,
-      })
-      onCancelled?.(result.trip)
+      await companyTripsService.deleteTrip(tripId)
+      onRemoved?.()
       onClose()
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : t('trips.cancel.failed'))
+      setSaveError(err instanceof Error ? err.message : t('trips.cancel.deleteFailed'))
     } finally {
       setIsSaving(false)
     }
@@ -112,10 +98,10 @@ export function CancelTripDialog({
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 id={titleId} className="flex items-center gap-2 text-lg font-semibold text-[var(--title-h2)]">
-              <Ban className="h-5 w-5 text-red-600" aria-hidden />
-              {t('trips.cancel.title')}
+              <Trash2 className="h-5 w-5 text-red-600" aria-hidden />
+              {t('trips.cancel.deleteTitle')}
             </h2>
-            <p className="mt-1 text-sm text-text-muted">{t('trips.cancel.subtitle')}</p>
+            <p className="mt-1 text-sm text-text-muted">{t('trips.cancel.deleteSubtitle')}</p>
           </div>
           <button
             type="button"
@@ -131,10 +117,6 @@ export function CancelTripDialog({
       <div className="space-y-4 px-6 py-5">
         {isLoading ? (
           <p className="text-sm text-text-muted">{t('common.loading')}</p>
-        ) : loadError ? (
-          <p className="text-sm text-red-700" role="alert">
-            {loadError}
-          </p>
         ) : (
           <>
             <div className="rounded-lg border border-border bg-surface-muted/40 px-4 py-3 text-sm">
@@ -145,6 +127,10 @@ export function CancelTripDialog({
                   {trip.departure_time
                     ? ` · ${new Date(trip.departure_time).toLocaleString(dateLocale)}`
                     : ''}
+                </p>
+              ) : tripId != null ? (
+                <p className="mt-1 text-text-secondary">
+                  {t('trips.cancel.tripId', { id: tripId })}
                 </p>
               ) : null}
             </div>
@@ -189,20 +175,6 @@ export function CancelTripDialog({
               </div>
             </div>
 
-            <div className="grid gap-1.5">
-              <label htmlFor="trip-cancel-reason" className="text-sm font-medium text-text-secondary">
-                {t('trips.cancel.reason')}
-              </label>
-              <textarea
-                id="trip-cancel-reason"
-                rows={3}
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary shadow-sm focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                placeholder={t('trips.cancel.reasonPlaceholder')}
-              />
-            </div>
-
             {saveError ? (
               <p className="text-sm text-red-700" role="alert">
                 {saveError}
@@ -220,10 +192,10 @@ export function CancelTripDialog({
           type="button"
           className="bg-red-700 text-white hover:bg-red-800 disabled:opacity-60"
           onClick={() => void handleConfirm()}
-          disabled={!canSubmit || Boolean(loadError)}
+          disabled={!canSubmit}
         >
-          <Ban className="h-4 w-4" aria-hidden />
-          {isSaving ? t('trips.cancel.submitting') : t('trips.cancel.confirm')}
+          <Trash2 className="h-4 w-4" aria-hidden />
+          {isSaving ? t('trips.cancel.deleting') : t('trips.cancel.deleteConfirm')}
         </Button>
       </div>
     </Modal>

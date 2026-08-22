@@ -63,7 +63,7 @@ export function formatScheduleDateTime(iso: string, locale: string): string {
   }).format(parsed)
 }
 
-/** Real instants (created_at, booked_at) — show in Syria local time. */
+/** Real instants (created_at, booked_at, actual_departure_time) — Syria local time. */
 export function formatInstantDateTime(iso: string, locale: string): string {
   if (!iso.trim()) return '—'
 

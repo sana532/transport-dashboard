@@ -1,9 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { companyTripsService } from '@/modules/trips/services/companyTripsService'
-import type { TripResourceAvailability } from '@/modules/trips/types/resourceAvailability'
 import { formatAvailabilityDepartureTime } from '@/modules/trips/utils/mapResourceAvailability'
 import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue'
-import { useTranslation } from '@/shared/i18n/useTranslation'
 
 const DEBOUNCE_MS = 300
 
@@ -17,16 +15,12 @@ type UseTripResourceAvailabilityArgs = {
   enabled?: boolean
 }
 
-function isAbortError(error: unknown): boolean {
-  if (error instanceof DOMException && error.name === 'AbortError') return true
-  if (!error || typeof error !== 'object') return false
-  const record = error as { code?: string; name?: string }
-  return (
-    record.code === 'ERR_CANCELED' ||
-    record.name === 'CanceledError' ||
-    record.name === 'AbortError'
-  )
-}
+export const tripResourceAvailabilityQueryKey = (
+  routeId: number,
+  departure: string,
+  arrival: string,
+  excludeTripId: number,
+) => ['trips', 'resource-availability', routeId, departure, arrival, excludeTripId] as const
 
 export function useTripResourceAvailability({
   routeId,
@@ -37,11 +31,6 @@ export function useTripResourceAvailability({
   excludeTripId = null,
   enabled = true,
 }: UseTripResourceAvailabilityArgs) {
-  const { t } = useTranslation()
-  const [availability, setAvailability] = useState<TripResourceAvailability | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
   const routeNumeric = Number(routeId)
   const departure = formatAvailabilityDepartureTime(departureDate, departureTime)
   const arrival = formatAvailabilityDepartureTime(arrivalDate, arrivalTime)
@@ -59,65 +48,39 @@ export function useTripResourceAvailability({
   const requestKey = useDebouncedValue(currentKey, DEBOUNCE_MS)
   const isDebouncing = Boolean(currentKey) && currentKey !== requestKey
 
-  useEffect(() => {
-    if (!currentKey) {
-      setAvailability(null)
-      setError(null)
-      setIsLoading(false)
-      return
-    }
+  const parsed = requestKey
+    ? requestKey.split('|')
+    : ([] as string[])
+  const queryRouteId = Number(parsed[0])
+  const queryDeparture = parsed[1] ?? ''
+  const queryArrival = parsed[2] ?? ''
+  const queryExcludeId = Number(parsed[3]) || 0
 
-    if (!requestKey || isDebouncing) {
-      setIsLoading(true)
-      return
-    }
-
-    const [routePart, departurePart, arrivalPart, excludePart] = requestKey.split('|')
-    const route_id = Number(routePart)
-    const departure_time = departurePart
-    const estimated_arrival_time = arrivalPart
-    const exclude_trip_id = Number(excludePart) || null
-
-    let cancelled = false
-    const controller = new AbortController()
-
-    async function load() {
-      setIsLoading(true)
-      setError(null)
-      try {
-        const result = await companyTripsService.getResourceAvailability(
-          {
-            route_id,
-            departure_time,
-            estimated_arrival_time,
-            exclude_trip_id,
-          },
-          controller.signal,
-        )
-        if (cancelled) return
-        setAvailability(result)
-      } catch (err) {
-        if (cancelled || controller.signal.aborted || isAbortError(err)) return
-        setAvailability(null)
-        setError(
-          err instanceof Error ? err.message : t('tripForm.availability.failed'),
-        )
-      } finally {
-        if (!cancelled) setIsLoading(false)
-      }
-    }
-
-    void load()
-    return () => {
-      cancelled = true
-      controller.abort()
-    }
-  }, [currentKey, requestKey, isDebouncing, t])
+  const query = useQuery({
+    queryKey: tripResourceAvailabilityQueryKey(
+      queryRouteId,
+      queryDeparture,
+      queryArrival,
+      queryExcludeId,
+    ),
+    enabled: Boolean(requestKey) && !isDebouncing && isQueryReady,
+    staleTime: 15_000,
+    queryFn: ({ signal }) =>
+      companyTripsService.getResourceAvailability(
+        {
+          route_id: queryRouteId,
+          departure_time: queryDeparture,
+          estimated_arrival_time: queryArrival,
+          exclude_trip_id: queryExcludeId > 0 ? queryExcludeId : null,
+        },
+        signal,
+      ),
+  })
 
   return {
-    availability,
+    availability: isQueryReady ? query.data ?? null : null,
     isQueryReady,
-    isLoading: isQueryReady && (isLoading || isDebouncing),
-    error,
+    isLoading: isQueryReady && (isDebouncing || query.isFetching),
+    error: query.error instanceof Error ? query.error.message : query.error ? String(query.error) : null,
   }
 }

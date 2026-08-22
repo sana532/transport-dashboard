@@ -13,6 +13,7 @@ import { paths } from '@/routes/paths'
 import { Button } from '@/shared/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/Card'
 import { cn } from '@/shared/utils/cn'
+import { formatInstantDateTime } from '@/shared/utils/formatDateTime'
 import { useTranslation } from '@/shared/i18n/useTranslation'
 
 type TripTab = 'overview' | 'bookings'
@@ -220,7 +221,8 @@ export function TripDetailsPage() {
                   label={t('tripDetails.field.actualDeparture')}
                   value={
                     trip.actual_departure_time
-                      ? formatTripDateTime(trip.actual_departure_time, dateLocale)
+                      ? // Backend stores a real UTC instant (unlike scheduled wall-clock + fake Z).
+                        formatInstantDateTime(trip.actual_departure_time, dateLocale)
                       : t('trips.stats.scheduled.note')
                   }
                 />
